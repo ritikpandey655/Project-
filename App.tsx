@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AppState, ExamType, Question, User } from './types';
 import { EXAM_SUBJECTS } from './constants';
@@ -34,8 +33,9 @@ const App: React.FC = () => {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isAppInitializing, setIsAppInitializing] = useState(true);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
 
-  // Initialize App
+  // Initialize App & PWA Install Prompt
   useEffect(() => {
     const user = getUser();
     if (user) {
@@ -50,7 +50,28 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, view: 'login' }));
     }
     setIsAppInitializing(false);
+
+    // Listen for install prompt
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
+
+  const handleInstallClick = () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    installPrompt.userChoice.then((choiceResult: any) => {
+      if (choiceResult.outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    });
+  };
 
   const handleLogin = (user: User) => {
     saveUser(user);
@@ -197,7 +218,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Navbar */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <nav className="bg-white border-b border-slate-200 sticky top-0 z-30 safe-top">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div 
             className="flex items-center gap-2 cursor-pointer" 
@@ -208,6 +229,18 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
+            {installPrompt && (
+              <button
+                onClick={handleInstallClick}
+                className="hidden sm:flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Install App
+              </button>
+            )}
+
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
               <button 
                 onClick={() => setState(prev => ({...prev, view: 'dashboard'}))}
@@ -248,7 +281,6 @@ const App: React.FC = () => {
                     className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
                     title="Logout"
                  >
-                    <span className="hidden sm:inline text-xs font-semibold">Logout</span>
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
@@ -260,7 +292,26 @@ const App: React.FC = () => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6">
+      <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 pb-24 safe-bottom">
+        {/* Mobile Install Banner - Visible only if prompt available */}
+        {installPrompt && (
+          <div className="sm:hidden mb-4 bg-indigo-600 text-white p-3 rounded-xl flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl">🎓</div>
+              <div>
+                <p className="font-bold text-sm">Install ExamMaster</p>
+                <p className="text-xs text-indigo-200">Practice offline & better experience</p>
+              </div>
+            </div>
+            <button 
+              onClick={handleInstallClick}
+              className="bg-white text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold"
+            >
+              Install
+            </button>
+          </div>
+        )}
+
         {state.view === 'dashboard' && (
           <Dashboard 
             stats={state.stats} 
