@@ -129,11 +129,23 @@ export const updateStats = (userId: string, isCorrect: boolean, subject: string,
 };
 
 // Preferences Storage
-export const saveUserPref = (userId: string, exam: ExamType): void => {
-  localStorage.setItem(getUserKey(PREFS_KEY, userId), JSON.stringify({ selectedExam: exam }));
+interface UserPrefs {
+  selectedExam: ExamType | null;
+  showTimer: boolean;
+}
+
+const DEFAULT_PREFS: UserPrefs = {
+  selectedExam: null,
+  showTimer: true
 };
 
-export const getUserPref = (userId: string): { selectedExam: ExamType | null } => {
+export const saveUserPref = (userId: string, newPrefs: Partial<UserPrefs>): void => {
+  const current = getUserPref(userId);
+  const updated = { ...current, ...newPrefs };
+  localStorage.setItem(getUserKey(PREFS_KEY, userId), JSON.stringify(updated));
+};
+
+export const getUserPref = (userId: string): UserPrefs => {
   const data = localStorage.getItem(getUserKey(PREFS_KEY, userId));
-  return data ? JSON.parse(data) : { selectedExam: null };
+  return data ? { ...DEFAULT_PREFS, ...JSON.parse(data) } : { ...DEFAULT_PREFS };
 };

@@ -18,14 +18,16 @@ import { Dashboard } from './components/Dashboard';
 import { QuestionCard } from './components/QuestionCard';
 import { UploadForm } from './components/UploadForm';
 import { LoginScreen } from './components/LoginScreen';
+import { Timer } from './components/Timer';
 import { Button } from './components/Button';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
-    view: 'login', // Initial state, effectively controlled by useEffect
+    view: 'login',
     selectedExam: null,
     stats: INITIAL_STATS,
-    user: null
+    user: null,
+    showTimer: true
   });
 
   const [practiceQueue, setPracticeQueue] = useState<Question[]>([]);
@@ -37,12 +39,12 @@ const App: React.FC = () => {
   useEffect(() => {
     const user = getUser();
     if (user) {
-      const { selectedExam } = getUserPref(user.id);
+      const { selectedExam, showTimer } = getUserPref(user.id);
       const userStats = getStats(user.id);
       if (selectedExam) {
-        setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: 'dashboard' }));
+        setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: 'dashboard', showTimer }));
       } else {
-        setState(prev => ({ ...prev, user, stats: userStats, view: 'onboarding' }));
+        setState(prev => ({ ...prev, user, stats: userStats, view: 'onboarding', showTimer }));
       }
     } else {
       setState(prev => ({ ...prev, view: 'login' }));
@@ -52,14 +54,15 @@ const App: React.FC = () => {
 
   const handleLogin = (user: User) => {
     saveUser(user);
-    const { selectedExam } = getUserPref(user.id);
+    const { selectedExam, showTimer } = getUserPref(user.id);
     const userStats = getStats(user.id);
     setState(prev => ({ 
       ...prev, 
       user, 
       selectedExam, 
       stats: userStats,
-      view: selectedExam ? 'dashboard' : 'onboarding' 
+      view: selectedExam ? 'dashboard' : 'onboarding',
+      showTimer
     }));
   };
 
@@ -76,8 +79,15 @@ const App: React.FC = () => {
 
   const handleExamSelect = (exam: ExamType) => {
     if (!state.user) return;
-    saveUserPref(state.user.id, exam);
+    saveUserPref(state.user.id, { selectedExam: exam });
     setState(prev => ({ ...prev, selectedExam: exam, view: 'dashboard' }));
+  };
+  
+  const toggleTimer = () => {
+    if (!state.user) return;
+    const newState = !state.showTimer;
+    saveUserPref(state.user.id, { showTimer: newState });
+    setState(prev => ({ ...prev, showTimer: newState }));
   };
 
   const startPractice = async () => {
@@ -254,8 +264,10 @@ const App: React.FC = () => {
         {state.view === 'dashboard' && (
           <Dashboard 
             stats={state.stats} 
+            showTimer={state.showTimer}
             onStartPractice={startPractice} 
             onUpload={() => setState(prev => ({...prev, view: 'upload'}))} 
+            onToggleTimer={toggleTimer}
           />
         )}
 
@@ -282,6 +294,9 @@ const App: React.FC = () => {
           <div className="h-full flex flex-col justify-center py-4">
              <div className="mb-4 flex justify-between items-center text-sm text-slate-500 px-2">
                 <span>Question {currentQIndex + 1} of {practiceQueue.length}</span>
+                
+                {state.showTimer && <Timer />}
+
                 <button 
                   onClick={() => setState(prev => ({...prev, view: 'dashboard'}))}
                   className="hover:text-red-500 font-medium"

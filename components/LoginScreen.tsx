@@ -28,6 +28,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   return (
     <div className="min-h-screen w-full relative bg-slate-900 flex flex-col items-center justify-between overflow-hidden font-sans selection:bg-indigo-500 selection:text-white">
       
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-15px); }
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+        .animate-title-enter {
+          animation: fadeInUp 0.8s ease-out forwards;
+        }
+        .animate-subtitle-enter {
+          opacity: 0;
+          animation: fadeInUp 0.8s ease-out 0.2s forwards;
+        }
+        .animate-fade-in {
+          animation: fadeInUp 1s ease-out forwards;
+        }
+      `}</style>
+
       {/* Dynamic Background Elements */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600 rounded-full blur-[120px] opacity-30 animate-pulse"></div>
@@ -40,15 +64,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         
         {/* Top Section: Logo & Title */}
         <div className={`flex flex-col items-center text-center transition-all duration-700 ${showLoginOptions ? 'mt-4 scale-90' : 'mt-20'}`}>
-          <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-500/30 mb-8 animate-fade-in-down">
-            <span className="text-4xl">🎓</span>
+          <div className="animate-float w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-500/30 mb-8">
+            <span className="text-4xl filter drop-shadow-md">🎓</span>
           </div>
           
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-lg">
+          <h1 className="animate-title-enter text-4xl sm:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-lg">
             ExamMaster <span className="text-indigo-400">AI</span>
           </h1>
           
-          <p className="text-indigo-200 text-lg leading-relaxed max-w-xs mx-auto opacity-90">
+          <p className="animate-subtitle-enter text-indigo-200 text-lg leading-relaxed max-w-xs mx-auto opacity-90">
             Master your competitive exams with AI-powered Previous Year Questions.
           </p>
         </div>
@@ -64,7 +88,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                   <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-100 to-indigo-300 drop-shadow-sm font-serif tracking-wide">
                     Ritik Pandey
                   </span>
-                  <span className="text-lg">✨</span>
+                  <span className="text-lg animate-pulse">✨</span>
                 </div>
               </div>
             </div>
@@ -76,7 +100,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           {!showLoginOptions ? (
             <button
               onClick={() => setShowLoginOptions(true)}
-              className="w-full group relative flex items-center justify-center gap-3 bg-white text-indigo-900 font-bold text-lg py-4 rounded-2xl shadow-xl shadow-indigo-900/20 hover:scale-[1.02] transition-all duration-300 overflow-hidden"
+              className="animate-fade-in w-full group relative flex items-center justify-center gap-3 bg-white text-indigo-900 font-bold text-lg py-4 rounded-2xl shadow-xl shadow-indigo-900/20 hover:scale-[1.02] transition-all duration-300 overflow-hidden"
             >
               <span className="relative z-10">Get Started</span>
               <svg className="w-5 h-5 text-indigo-600 group-hover:translate-x-1 transition-transform relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -85,7 +109,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </button>
           ) : (
-            <div className="space-y-4 animate-fade-in-up">
+            <div className="space-y-4 animate-fade-in">
               <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl">
                 <div className="text-center mb-6">
                   <h2 className="text-white text-xl font-bold">Sign In</h2>

@@ -55,4 +55,5 @@ export interface AppState {
   selectedExam: ExamType | null;
   stats: UserStats;
   user: User | null;
+  showTimer: boolean;
 }
