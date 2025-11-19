@@ -22,6 +22,7 @@ import { SignupScreen } from './components/SignupScreen';
 import { Timer } from './components/Timer';
 import { Button } from './components/Button';
 import { Tutorial } from './components/Tutorial';
+import { ProfileScreen } from './components/ProfileScreen';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -116,6 +117,11 @@ const App: React.FC = () => {
       view: 'tutorial',
       showTimer: true
     }));
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+    saveUser(updatedUser);
+    setState(prev => ({ ...prev, user: updatedUser }));
   };
 
   const handleLogout = () => {
@@ -311,7 +317,11 @@ const App: React.FC = () => {
                
                {/* User Profile & Logout */}
                <div className="flex items-center gap-2">
-                 <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm" title={state.user?.name}>
+                 <button 
+                    onClick={() => setState(prev => ({...prev, view: 'profile'}))}
+                    className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm hover:ring-2 hover:ring-indigo-400 transition-all" 
+                    title="View Profile"
+                 >
                     {state.user?.photoURL ? (
                       <img src={state.user.photoURL} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
@@ -319,16 +329,6 @@ const App: React.FC = () => {
                         {state.user?.name?.[0] || 'U'}
                       </div>
                     )}
-                 </div>
-                 
-                 <button 
-                    onClick={handleLogout}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
-                    title="Logout"
-                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
                  </button>
                </div>
             </div>
@@ -364,6 +364,17 @@ const App: React.FC = () => {
             onStartPractice={startPractice} 
             onUpload={() => setState(prev => ({...prev, view: 'upload'}))} 
             onToggleTimer={toggleTimer}
+          />
+        )}
+        
+        {state.view === 'profile' && state.user && (
+          <ProfileScreen 
+            user={state.user}
+            stats={state.stats}
+            selectedExam={state.selectedExam!}
+            onUpdateUser={handleUpdateUser}
+            onBack={() => setState(prev => ({...prev, view: 'dashboard'}))}
+            onLogout={handleLogout}
           />
         )}
 

@@ -4,7 +4,8 @@ import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 
 // Initialize the client with the environment variable
 // Assuming process.env.API_KEY is injected by the runtime environment
-const apiKey = process.env.API_KEY || ''; 
+// We add a check to ensure the code doesn't crash if process is undefined during build/SSR
+const apiKey = typeof process !== 'undefined' && process.env ? process.env.API_KEY : '';
 const ai = new GoogleGenAI({ apiKey });
 
 export const generateExamQuestions = async (
@@ -14,15 +15,20 @@ export const generateExamQuestions = async (
 ): Promise<Question[]> => {
   if (!apiKey) {
     console.warn("No API Key found, using mock data.");
-    // Return simulated data derived from mocks, filtered slightly if possible, or just raw mocks
     return MOCK_QUESTIONS_FALLBACK.map(q => ({...q, id: `mock-${Math.random()}`})) as unknown as Question[];
   }
 
+  // Enhanced prompt to leverage "Internet" knowledge and "PYQ" focus
   const prompt = `
-    Generate ${count} high-quality multiple-choice questions for the Indian Competitive Exam: "${exam}".
+    Act as an expert exam setter for the Indian Competitive Exam: "${exam}".
     Subject: "${subject}".
-    The questions should be similar in difficulty and style to previous year questions (PYQs).
-    Each question must have 4 options, one correct answer, and a detailed explanation.
+    
+    TASK: Generate ${count} multiple-choice questions.
+    
+    CRITICAL REQUIREMENTS:
+    1. SOURCE: Prioritize ACTUAL Previous Year Questions (PYQs) that have appeared in ${exam} papers (2018-2024) found on the internet.
+    2. PATTERN: If exact PYQs are not contextually fit, generate questions that strictly mimic the difficulty, style, and keywords of real ${exam} questions from top online resources.
+    3. FORMAT: Each question must have 4 options, one correct answer, and a detailed explanation.
   `;
 
   try {
@@ -36,13 +42,13 @@ export const generateExamQuestions = async (
           items: {
             type: Type.OBJECT,
             properties: {
-              text: { type: Type.STRING },
+              text: { type: Type.STRING, description: "The question text (e.g. 'Which article of the Constitution...')" },
               options: {
                 type: Type.ARRAY,
                 items: { type: Type.STRING }
               },
               correctIndex: { type: Type.INTEGER, description: "Zero-based index of the correct option (0-3)" },
-              explanation: { type: Type.STRING },
+              explanation: { type: Type.STRING, description: "Detailed reason why the answer is correct, citing rules or facts." },
               tags: {
                 type: Type.ARRAY,
                 items: { type: Type.STRING }
@@ -75,5 +81,58 @@ export const generateExamQuestions = async (
   } catch (error) {
     console.error("Gemini generation failed:", error);
     return MOCK_QUESTIONS_FALLBACK.map(q => ({...q, id: `fallback-${Math.random()}`})) as unknown as Question[];
+  }
+};
+
+export const generateSingleQuestion = async (
+  exam: string,
+  subject: string,
+  topic: string
+): Promise<Partial<Question> | null> => {
+  if (!apiKey) return null;
+
+  const prompt = `
+    Generate 1 high-quality multiple-choice question for the exam: "${exam}".
+    Subject: "${subject}".
+    Topic/Keyword: "${topic}".
+    
+    The question should be based on real PYQ patterns found on the internet for this specific topic.
+    Include a clear question, 4 plausible options, the correct answer, and a helpful explanation.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            text: { type: Type.STRING },
+            options: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            correctIndex: { type: Type.INTEGER },
+            explanation: { type: Type.STRING },
+            tags: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ['text', 'options', 'correctIndex', 'explanation']
+        }
+      }
+    });
+
+    const jsonStr = response.text;
+    if (!jsonStr) return null;
+
+    return JSON.parse(jsonStr);
+
+  } catch (error) {
+    console.error("Single question generation failed:", error);
+    return null;
   }
 };

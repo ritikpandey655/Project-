@@ -78,26 +78,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
           </p>
         </div>
 
-        {/* Middle Section: Attractive Owner Credit (Visible when not logging in) */}
-        {!showLoginOptions && (
-          <div className="flex-1 flex flex-col justify-center items-center animate-fade-in">
-             <div className="group relative px-8 py-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md overflow-hidden transition-all duration-300 hover:bg-white/10 hover:scale-105 cursor-default shadow-lg shadow-black/20">
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative flex flex-col items-center gap-1">
-                <span className="text-[10px] tracking-[0.3em] text-indigo-300 uppercase font-semibold">Created By</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-100 to-indigo-300 drop-shadow-sm font-serif tracking-wide">
-                    Ritik Pandey
-                  </span>
-                  <span className="text-lg animate-pulse">✨</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Spacer to push content down */}
+        <div className="flex-1"></div>
 
         {/* Bottom Section: Actions */}
-        <div className="w-full mt-auto pt-10">
+        <div className="w-full mt-auto pt-10 mb-12">
           {!showLoginOptions ? (
             <button
               onClick={() => setShowLoginOptions(true)}
@@ -162,9 +147,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
       </div>
       
-      {/* Footer Copyright */}
-      <div className="absolute bottom-2 text-[10px] text-white/20">
-        © 2025 ExamMaster AI
+      {/* Footer Copyright & Credit Badge */}
+      <div className="absolute bottom-6 flex flex-col items-center gap-3 z-20 w-full pointer-events-none">
+        <div className="pointer-events-auto px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md shadow-lg hover:bg-white/10 transition-all cursor-default group">
+           <span className="text-[10px] text-indigo-300/80 uppercase tracking-widest mr-1.5 font-semibold">Created By</span>
+           <span className="font-serif italic text-sm text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-purple-200 to-indigo-200 font-bold group-hover:text-white transition-colors">Ritik Pandey</span>
+        </div>
+        <div className="text-[10px] text-white/20">
+          © 2025 ExamMaster AI
+        </div>
       </div>
     </div>
   );

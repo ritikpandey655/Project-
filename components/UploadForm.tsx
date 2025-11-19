@@ -4,6 +4,7 @@ import { ExamType, QuestionSource, Question } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
 import { Button } from './Button';
 import { saveUserQuestion } from '../services/storageService';
+import { generateSingleQuestion } from '../services/geminiService';
 
 interface UploadFormProps {
   userId: string;
@@ -18,12 +19,46 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
   const [explanation, setExplanation] = useState('');
   const [subject, setSubject] = useState(EXAM_SUBJECTS[examType][0]);
   const [tags, setTags] = useState('');
+  const [topic, setTopic] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleOptionChange = (index: number, val: string) => {
     const newOpts = [...options];
     newOpts[index] = val;
     setOptions(newOpts);
+  };
+
+  const handleAutoGenerate = async () => {
+    if (!topic.trim()) {
+      alert("Please enter a Topic or Keyword first (e.g., 'Mughal Empire' or 'Thermodynamics')");
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const aiQuestion = await generateSingleQuestion(examType, subject, topic);
+      if (aiQuestion) {
+        setText(aiQuestion.text || '');
+        if (aiQuestion.options && aiQuestion.options.length === 4) {
+          setOptions(aiQuestion.options);
+        }
+        setCorrectIndex(aiQuestion.correctIndex || 0);
+        setExplanation(aiQuestion.explanation || '');
+        
+        // Merge tags
+        const newTags = aiQuestion.tags || [];
+        // Add the topic itself as a tag if not present
+        if (!newTags.includes(topic)) newTags.unshift(topic);
+        setTags(newTags.join(', '));
+      } else {
+        alert("Could not generate a question. Please try a different topic.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error generating question.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -54,14 +89,51 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
       setOptions(['', '', '', '']);
       setExplanation('');
       setTags('');
+      setTopic('');
     }, 600);
   };
 
   return (
     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200 max-w-3xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Add to Self-Revision</h2>
-        <p className="text-slate-500 mt-1">Digitize your notes. We'll quiz you on this later.</p>
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            Add to Self-Revision
+            <span className="text-xs font-medium px-2 py-1 rounded-md bg-indigo-100 text-indigo-700 border border-indigo-200">
+              {examType}
+            </span>
+          </h2>
+          <p className="text-slate-500 mt-1 text-sm">Digitize your notes. We'll quiz you on this later.</p>
+        </div>
+      </div>
+
+      {/* AI Helper Section */}
+      <div className="mb-8 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+        <label className="block text-xs font-bold text-indigo-800 uppercase mb-2 tracking-wide">
+          ✨ AI Auto-Fill (Optional)
+        </label>
+        <div className="flex gap-2">
+          <input 
+            type="text" 
+            placeholder="Enter a topic (e.g. 'Battle of Plassey', 'Trigonometry')" 
+            value={topic}
+            onChange={e => setTopic(e.target.value)}
+            className="flex-1 p-2.5 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAutoGenerate())}
+          />
+          <Button 
+            type="button" 
+            variant="secondary" 
+            onClick={handleAutoGenerate} 
+            isLoading={isGenerating}
+            className="whitespace-nowrap text-indigo-700 bg-white shadow-sm hover:bg-indigo-50 border-indigo-200"
+          >
+             Auto-Fill with AI
+          </Button>
+        </div>
+        <p className="text-[10px] text-indigo-400 mt-1.5 ml-1">
+          Fetches a PYQ-style question from the internet/AI based on your topic.
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -79,7 +151,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Tags (Optional)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Tags</label>
             <input 
               type="text" 
               placeholder="e.g. hard, imp, history" 

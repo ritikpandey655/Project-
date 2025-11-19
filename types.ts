@@ -46,9 +46,12 @@ export interface User {
   name: string;
   email: string;
   photoURL?: string;
+  educationLevel?: string;
+  targetYear?: string;
+  dailyGoal?: number;
 }
 
-export type ViewState = 'login' | 'signup' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats';
+export type ViewState = 'login' | 'signup' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile';
 
 export interface AppState {
   view: ViewState;
