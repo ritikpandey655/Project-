@@ -2,11 +2,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionSource } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 
-// Initialize the client with the environment variable
-// Assuming process.env.API_KEY is injected by the runtime environment
-// We add a check to ensure the code doesn't crash if process is undefined during build/SSR
-const apiKey = typeof process !== 'undefined' && process.env ? process.env.API_KEY : '';
-const ai = new GoogleGenAI({ apiKey });
+// Initialize the client with the environment variable.
+// Vite replaces 'process.env.API_KEY' with the actual string during build.
+// We assign it directly so the replacement works. 
+const apiKey = process.env.API_KEY;
+
+// Check if key is actually present (after replacement) to prevent empty key errors
+const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 export const generateExamQuestions = async (
   exam: string,
