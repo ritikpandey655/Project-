@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { AppState, ExamType, Question, User } from './types';
+import { AppState, ExamType, Question, User, ViewState } from './types';
 import { EXAM_SUBJECTS } from './constants';
 import { 
   getUserPref, 
@@ -17,8 +18,10 @@ import { Dashboard } from './components/Dashboard';
 import { QuestionCard } from './components/QuestionCard';
 import { UploadForm } from './components/UploadForm';
 import { LoginScreen } from './components/LoginScreen';
+import { SignupScreen } from './components/SignupScreen';
 import { Timer } from './components/Timer';
 import { Button } from './components/Button';
+import { Tutorial } from './components/Tutorial';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -39,13 +42,16 @@ const App: React.FC = () => {
   useEffect(() => {
     const user = getUser();
     if (user) {
-      const { selectedExam, showTimer } = getUserPref(user.id);
+      const { selectedExam, showTimer, hasSeenTutorial } = getUserPref(user.id);
       const userStats = getStats(user.id);
+      
+      let nextView: ViewState = 'onboarding';
       if (selectedExam) {
-        setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: 'dashboard', showTimer }));
-      } else {
-        setState(prev => ({ ...prev, user, stats: userStats, view: 'onboarding', showTimer }));
+        // If exam selected, check if they need to see tutorial
+        nextView = hasSeenTutorial ? 'dashboard' : 'tutorial';
       }
+
+      setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: nextView, showTimer }));
     } else {
       setState(prev => ({ ...prev, view: 'login' }));
     }
@@ -75,15 +81,40 @@ const App: React.FC = () => {
 
   const handleLogin = (user: User) => {
     saveUser(user);
-    const { selectedExam, showTimer } = getUserPref(user.id);
+    const { selectedExam, showTimer, hasSeenTutorial } = getUserPref(user.id);
     const userStats = getStats(user.id);
+    
+    let nextView: ViewState = 'onboarding';
+    if (selectedExam) {
+       nextView = hasSeenTutorial ? 'dashboard' : 'tutorial';
+    }
+    
     setState(prev => ({ 
       ...prev, 
       user, 
       selectedExam, 
       stats: userStats,
-      view: selectedExam ? 'dashboard' : 'onboarding',
+      view: nextView,
       showTimer
+    }));
+  };
+
+  const handleSignup = (user: User, exam: ExamType) => {
+    saveUser(user);
+    // Save the selected exam immediately
+    saveUserPref(user.id, { selectedExam: exam });
+    
+    // Initialize stats (implicitly handled by storage service getter, but good to have)
+    const userStats = getStats(user.id);
+
+    // Go to tutorial since it's a fresh user
+    setState(prev => ({ 
+      ...prev, 
+      user, 
+      selectedExam: exam,
+      stats: userStats,
+      view: 'tutorial',
+      showTimer: true
     }));
   };
 
@@ -101,7 +132,13 @@ const App: React.FC = () => {
   const handleExamSelect = (exam: ExamType) => {
     if (!state.user) return;
     saveUserPref(state.user.id, { selectedExam: exam });
-    setState(prev => ({ ...prev, selectedExam: exam, view: 'dashboard' }));
+    setState(prev => ({ ...prev, selectedExam: exam, view: 'tutorial' }));
+  };
+  
+  const finishTutorial = () => {
+    if (!state.user) return;
+    saveUserPref(state.user.id, { hasSeenTutorial: true });
+    setState(prev => ({ ...prev, view: 'dashboard' }));
   };
   
   const toggleTimer = () => {
@@ -170,7 +207,15 @@ const App: React.FC = () => {
   }
 
   if (state.view === 'login') {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen onLogin={handleLogin} onNavigateToSignup={() => setState(prev => ({...prev, view: 'signup'}))} />;
+  }
+
+  if (state.view === 'signup') {
+    return <SignupScreen onSignup={handleSignup} onBackToLogin={() => setState(prev => ({...prev, view: 'login'}))} />;
+  }
+  
+  if (state.view === 'tutorial') {
+    return <Tutorial onComplete={finishTutorial} />;
   }
 
   if (isLoading) {
@@ -191,8 +236,8 @@ const App: React.FC = () => {
         >
           Logout
         </button>
-        <div className="max-w-md w-full text-center">
-          <div className="w-20 h-20 bg-indigo-100 rounded-2xl mx-auto flex items-center justify-center mb-6 text-3xl">
+        <div className="max-w-md w-full text-center animate-fade-in">
+          <div className="w-20 h-20 bg-indigo-100 rounded-2xl mx-auto flex items-center justify-center mb-6 text-3xl shadow-sm">
             🎓
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-3">Welcome, {state.user?.name?.split(' ')[0] || 'Student'}!</h1>
@@ -203,10 +248,10 @@ const App: React.FC = () => {
               <button
                 key={exam}
                 onClick={() => handleExamSelect(exam)}
-                className="w-full p-4 text-left rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700 flex justify-between items-center group"
+                className="w-full p-4 text-left rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700 flex justify-between items-center group bg-white shadow-sm hover:shadow-md"
               >
                 {exam}
-                <span className="opacity-0 group-hover:opacity-100 text-indigo-600">→</span>
+                <span className="opacity-0 group-hover:opacity-100 text-indigo-600 transition-opacity">→</span>
               </button>
             ))}
           </div>
@@ -323,7 +368,7 @@ const App: React.FC = () => {
         )}
 
         {state.view === 'upload' && state.user && (
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto animate-fade-in">
             <button 
               onClick={() => setState(prev => ({...prev, view: 'dashboard'}))}
               className="mb-4 text-sm text-slate-500 hover:text-indigo-600 flex items-center gap-1"
@@ -342,7 +387,7 @@ const App: React.FC = () => {
         )}
 
         {state.view === 'practice' && practiceQueue.length > 0 && (
-          <div className="h-full flex flex-col justify-center py-4">
+          <div className="h-full flex flex-col justify-center py-4 animate-fade-in">
              <div className="mb-4 flex justify-between items-center text-sm text-slate-500 px-2">
                 <span>Question {currentQIndex + 1} of {practiceQueue.length}</span>
                 

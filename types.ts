@@ -21,7 +21,7 @@ export interface Question {
   correctIndex: number;
   explanation?: string;
   source: QuestionSource;
-  examType: string; // e.g., 'SSC CGL'
+  examType: ExamType; // e.g., 'SSC CGL'
   subject?: string;
   createdAt: number;
   tags?: string[];
@@ -48,7 +48,7 @@ export interface User {
   photoURL?: string;
 }
 
-export type ViewState = 'login' | 'onboarding' | 'dashboard' | 'practice' | 'upload' | 'stats';
+export type ViewState = 'login' | 'signup' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats';
 
 export interface AppState {
   view: ViewState;

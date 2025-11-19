@@ -132,11 +132,13 @@ export const updateStats = (userId: string, isCorrect: boolean, subject: string,
 interface UserPrefs {
   selectedExam: ExamType | null;
   showTimer: boolean;
+  hasSeenTutorial: boolean;
 }
 
 const DEFAULT_PREFS: UserPrefs = {
   selectedExam: null,
-  showTimer: true
+  showTimer: true,
+  hasSeenTutorial: false
 };
 
 export const saveUserPref = (userId: string, newPrefs: Partial<UserPrefs>): void => {

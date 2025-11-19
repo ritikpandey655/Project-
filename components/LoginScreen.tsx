@@ -4,9 +4,10 @@ import { User } from '../types';
 
 interface LoginScreenProps {
   onLogin: (user: User) => void;
+  onNavigateToSignup: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToSignup }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showLoginOptions, setShowLoginOptions] = useState(false);
 
@@ -133,6 +134,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                   )}
                   <span>Continue with Google</span>
                 </button>
+
+                <div className="flex items-center gap-3 my-4">
+                   <div className="h-px bg-white/10 flex-1"></div>
+                   <span className="text-xs text-indigo-200">OR</span>
+                   <div className="h-px bg-white/10 flex-1"></div>
+                </div>
+
+                <button
+                  onClick={onNavigateToSignup}
+                  className="w-full text-white bg-white/10 hover:bg-white/20 border border-white/20 py-3.5 rounded-xl font-bold transition-colors"
+                >
+                   Create Account
+                </button>
+
               </div>
               
               <button 
