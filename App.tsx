@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AppState, ExamType, Question, User, ViewState } from './types';
 import { EXAM_SUBJECTS } from './constants';
@@ -20,7 +19,6 @@ import { UploadForm } from './components/UploadForm';
 import { LoginScreen } from './components/LoginScreen';
 import { SignupScreen } from './components/SignupScreen';
 import { Timer } from './components/Timer';
-import { Button } from './components/Button';
 import { Tutorial } from './components/Tutorial';
 import { ProfileScreen } from './components/ProfileScreen';
 
@@ -63,12 +61,39 @@ const App: React.FC = () => {
       e.preventDefault();
       setInstallPrompt(e);
     };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    // Fix: Cast event name to any to avoid TS error since beforeinstallprompt is not standard yet
+    window.addEventListener('beforeinstallprompt' as any, handleBeforeInstallPrompt);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('beforeinstallprompt' as any, handleBeforeInstallPrompt);
     };
   }, []);
+
+  // Handle browser back button (History API)
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.view) {
+        setState(prev => ({ ...prev, view: event.state.view }));
+      } else {
+        // Default fallback if no state (e.g. initial load)
+        // If user is logged in, go to dashboard, else login
+        if (state.user) {
+          setState(prev => ({ ...prev, view: 'dashboard' }));
+        } else {
+          setState(prev => ({ ...prev, view: 'login' }));
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [state.user]);
+
+  // Helper to navigate and push history
+  const navigateTo = (view: ViewState) => {
+    window.history.pushState({ view }, '', `/${view === 'dashboard' ? '' : view}`);
+    setState(prev => ({ ...prev, view }));
+  };
 
   const handleInstallClick = () => {
     if (!installPrompt) return;
@@ -98,6 +123,9 @@ const App: React.FC = () => {
       view: nextView,
       showTimer
     }));
+    
+    // Push history for the new view
+    window.history.pushState({ view: nextView }, '', '/');
   };
 
   const handleSignup = (user: User, exam: ExamType) => {
@@ -109,14 +137,16 @@ const App: React.FC = () => {
     const userStats = getStats(user.id);
 
     // Go to tutorial since it's a fresh user
+    const nextView = 'tutorial';
     setState(prev => ({ 
       ...prev, 
       user, 
       selectedExam: exam,
       stats: userStats,
-      view: 'tutorial',
+      view: nextView,
       showTimer: true
     }));
+    window.history.pushState({ view: nextView }, '', '/tutorial');
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -133,18 +163,20 @@ const App: React.FC = () => {
       selectedExam: null,
       stats: INITIAL_STATS
     }));
+    window.history.pushState({ view: 'login' }, '', '/login');
   };
 
   const handleExamSelect = (exam: ExamType) => {
     if (!state.user) return;
     saveUserPref(state.user.id, { selectedExam: exam });
-    setState(prev => ({ ...prev, selectedExam: exam, view: 'tutorial' }));
+    navigateTo('tutorial');
+    setState(prev => ({ ...prev, selectedExam: exam }));
   };
   
   const finishTutorial = () => {
     if (!state.user) return;
     saveUserPref(state.user.id, { hasSeenTutorial: true });
-    setState(prev => ({ ...prev, view: 'dashboard' }));
+    navigateTo('dashboard');
   };
   
   const toggleTimer = () => {
@@ -177,7 +209,7 @@ const App: React.FC = () => {
       // Shuffle final deck
       setPracticeQueue(combined.sort(() => 0.5 - Math.random()));
       setCurrentQIndex(0);
-      setState(prev => ({ ...prev, view: 'practice' }));
+      navigateTo('practice');
     } catch (error) {
       console.error("Practice load failed", error);
       alert("Failed to generate practice session. Please try again.");
@@ -202,7 +234,7 @@ const App: React.FC = () => {
       setCurrentQIndex(prev => prev + 1);
     } else {
       // End of session
-      setState(prev => ({ ...prev, view: 'dashboard' }));
+      navigateTo('dashboard');
     }
   };
 
@@ -213,11 +245,11 @@ const App: React.FC = () => {
   }
 
   if (state.view === 'login') {
-    return <LoginScreen onLogin={handleLogin} onNavigateToSignup={() => setState(prev => ({...prev, view: 'signup'}))} />;
+    return <LoginScreen onLogin={handleLogin} onNavigateToSignup={() => navigateTo('signup')} />;
   }
 
   if (state.view === 'signup') {
-    return <SignupScreen onSignup={handleSignup} onBackToLogin={() => setState(prev => ({...prev, view: 'login'}))} />;
+    return <SignupScreen onSignup={handleSignup} onBackToLogin={() => navigateTo('login')} />;
   }
   
   if (state.view === 'tutorial') {
@@ -273,7 +305,7 @@ const App: React.FC = () => {
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div 
             className="flex items-center gap-2 cursor-pointer" 
-            onClick={() => setState(prev => ({...prev, view: 'dashboard'}))}
+            onClick={() => navigateTo('dashboard')}
           >
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-200">E</div>
             <span className="font-bold text-slate-800 hidden sm:block">ExamMaster</span>
@@ -294,13 +326,13 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
               <button 
-                onClick={() => setState(prev => ({...prev, view: 'dashboard'}))}
+                onClick={() => navigateTo('dashboard')}
                 className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'dashboard' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Dash
               </button>
               <button 
-                onClick={() => setState(prev => ({...prev, view: 'upload'}))}
+                onClick={() => navigateTo('upload')}
                 className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'upload' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Add Notes
@@ -318,7 +350,7 @@ const App: React.FC = () => {
                {/* User Profile & Logout */}
                <div className="flex items-center gap-2">
                  <button 
-                    onClick={() => setState(prev => ({...prev, view: 'profile'}))}
+                    onClick={() => navigateTo('profile')}
                     className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm hover:ring-2 hover:ring-indigo-400 transition-all" 
                     title="View Profile"
                  >
@@ -362,7 +394,7 @@ const App: React.FC = () => {
             stats={state.stats} 
             showTimer={state.showTimer}
             onStartPractice={startPractice} 
-            onUpload={() => setState(prev => ({...prev, view: 'upload'}))} 
+            onUpload={() => navigateTo('upload')} 
             onToggleTimer={toggleTimer}
           />
         )}
@@ -373,7 +405,7 @@ const App: React.FC = () => {
             stats={state.stats}
             selectedExam={state.selectedExam!}
             onUpdateUser={handleUpdateUser}
-            onBack={() => setState(prev => ({...prev, view: 'dashboard'}))}
+            onBack={() => navigateTo('dashboard')}
             onLogout={handleLogout}
           />
         )}
@@ -381,7 +413,7 @@ const App: React.FC = () => {
         {state.view === 'upload' && state.user && (
           <div className="max-w-3xl mx-auto animate-fade-in">
             <button 
-              onClick={() => setState(prev => ({...prev, view: 'dashboard'}))}
+              onClick={() => navigateTo('dashboard')}
               className="mb-4 text-sm text-slate-500 hover:text-indigo-600 flex items-center gap-1"
             >
               ← Back to Dashboard
@@ -391,7 +423,7 @@ const App: React.FC = () => {
               examType={state.selectedExam!} 
               onSuccess={() => {
                 alert("Question saved to your revision bank!");
-                setState(prev => ({...prev, view: 'dashboard'}));
+                navigateTo('dashboard');
               }} 
             />
           </div>
@@ -405,7 +437,7 @@ const App: React.FC = () => {
                 {state.showTimer && <Timer />}
 
                 <button 
-                  onClick={() => setState(prev => ({...prev, view: 'dashboard'}))}
+                  onClick={() => navigateTo('dashboard')}
                   className="hover:text-red-500 font-medium"
                 >
                   Quit Practice
