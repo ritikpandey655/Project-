@@ -52,33 +52,49 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       
       <style>{`
         @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-15px); }
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-15px) rotate(3deg); }
         }
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes scaleIn {
+          from { transform: scale(0.8); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.2; transform: scale(1); }
+          50% { opacity: 0.3; transform: scale(1.1); }
+        }
         .animate-float {
           animation: float 6s ease-in-out infinite;
         }
-        .animate-title-enter {
-          animation: fadeInUp 0.8s ease-out forwards;
+        .animate-scale-in {
+          animation: scaleIn 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
-        .animate-subtitle-enter {
+        .animate-title-enter {
           opacity: 0;
           animation: fadeInUp 0.8s ease-out 0.2s forwards;
         }
+        .animate-subtitle-enter {
+          opacity: 0;
+          animation: fadeInUp 0.8s ease-out 0.4s forwards;
+        }
         .animate-fade-in {
-          animation: fadeInUp 1s ease-out forwards;
+          opacity: 0;
+          animation: fadeInUp 1s ease-out 0.6s forwards;
+        }
+        .animate-blob {
+          animation: pulseGlow 8s ease-in-out infinite;
         }
       `}</style>
 
       {/* Dynamic Background Elements */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600 rounded-full blur-[120px] opacity-30 animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-600 rounded-full blur-[120px] opacity-30 animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute top-[40%] left-[50%] transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-900 rounded-full blur-[150px] opacity-20"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600 rounded-full blur-[120px] animate-blob"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-600 rounded-full blur-[120px] animate-blob" style={{animationDelay: '2s'}}></div>
+        <div className="absolute top-[40%] left-[50%] transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-900 rounded-full blur-[150px] opacity-20 animate-blob" style={{animationDelay: '4s'}}></div>
       </div>
 
       {/* Content Container */}
@@ -86,16 +102,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         
         {/* Top Section: Logo & Title */}
         <div className={`flex flex-col items-center text-center transition-all duration-700 ${showLoginOptions ? 'mt-4 scale-90' : 'mt-20'}`}>
-          <div className="animate-float w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-500/30 mb-8">
-            <span className="text-4xl filter drop-shadow-md">🎓</span>
+          
+          {/* Logo Container with Scale In */}
+          <div className="animate-scale-in">
+            <div className="animate-float w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-500/30 mb-8 border border-white/10 backdrop-blur-sm">
+              <span className="text-5xl filter drop-shadow-md">🎓</span>
+            </div>
           </div>
           
-          <h1 className="animate-title-enter text-4xl sm:text-5xl font-extrabold text-white tracking-tight mb-4 drop-shadow-lg">
-            ExamMaster <span className="text-indigo-400">AI</span>
+          <h1 className="animate-title-enter text-5xl sm:text-6xl font-extrabold text-white tracking-tight mb-4 drop-shadow-lg">
+            ExamMaster <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-300">AI</span>
           </h1>
           
-          <p className="animate-subtitle-enter text-indigo-200 text-lg leading-relaxed max-w-xs mx-auto opacity-90">
-            Master your competitive exams with AI-powered Previous Year Questions.
+          <p className="animate-subtitle-enter text-indigo-200 text-lg leading-relaxed max-w-xs mx-auto opacity-90 font-medium">
+            Your personalized AI tutor for <br/> competitive exam success.
           </p>
         </div>
 

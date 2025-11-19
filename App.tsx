@@ -37,7 +37,9 @@ const App: React.FC = () => {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isAppInitializing, setIsAppInitializing] = useState(true);
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSHelp, setShowIOSHelp] = useState(false);
 
   // Initialize App & PWA Install Prompt
   useEffect(() => {
@@ -58,16 +60,21 @@ const App: React.FC = () => {
     }
     setIsAppInitializing(false);
 
+    // Check for iOS
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(isIOSDevice);
+
     // Listen for install prompt
-    const handleBeforeInstallPrompt = (e: Event) => {
+    const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
       setInstallPrompt(e);
+      console.log("Install prompt captured");
     };
-    // Fix: Cast event name to any to avoid TS error since beforeinstallprompt is not standard yet
-    window.addEventListener('beforeinstallprompt' as any, handleBeforeInstallPrompt);
+    
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt' as any, handleBeforeInstallPrompt);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 
@@ -98,13 +105,16 @@ const App: React.FC = () => {
   };
 
   const handleInstallClick = () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    installPrompt.userChoice.then((choiceResult: any) => {
-      if (choiceResult.outcome === 'accepted') {
-        setInstallPrompt(null);
-      }
-    });
+    if (isIOS) {
+      setShowIOSHelp(true);
+    } else if (installPrompt) {
+      installPrompt.prompt();
+      installPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          setInstallPrompt(null);
+        }
+      });
+    }
   };
 
   const handleLogin = (user: User) => {
@@ -324,7 +334,8 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
-            {installPrompt && (
+            {/* Install App Button Logic */}
+            {(installPrompt || isIOS) && (
               <button
                 onClick={handleInstallClick}
                 className="hidden sm:flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-colors"
@@ -382,8 +393,8 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 pb-24 safe-bottom">
-        {/* Mobile Install Banner - Visible only if prompt available */}
-        {installPrompt && (
+        {/* Mobile Install Banner - Visible only if prompt available or iOS */}
+        {(installPrompt || isIOS) && (
           <div className="sm:hidden mb-4 bg-indigo-600 text-white p-3 rounded-xl flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl">🎓</div>
@@ -398,6 +409,39 @@ const App: React.FC = () => {
             >
               Install
             </button>
+          </div>
+        )}
+
+        {/* iOS Help Modal */}
+        {showIOSHelp && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowIOSHelp(false)}>
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-slate-800">Install on iOS</h3>
+                <button onClick={() => setShowIOSHelp(false)} className="text-slate-400 hover:text-slate-600">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-4 text-sm text-slate-600">
+                <p>To install the app on your iPhone or iPad:</p>
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                  <span className="font-bold text-indigo-600">1.</span>
+                  <span>Tap the <strong className="text-slate-800">Share</strong> button <svg className="w-4 h-4 inline text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> in Safari.</span>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                  <span className="font-bold text-indigo-600">2.</span>
+                  <span>Scroll down and tap <strong className="text-slate-800">Add to Home Screen</strong>.</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowIOSHelp(false)}
+                className="w-full mt-6 bg-indigo-600 text-white font-bold py-3 rounded-xl"
+              >
+                Got it
+              </button>
+            </div>
           </div>
         )}
 
