@@ -123,21 +123,35 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </div>
 
             {/* Info Fields */}
-            <div className="w-full space-y-3 relative z-10">
+            <div className="w-full space-y-3 relative z-10 flex flex-col items-center">
               {isEditing ? (
-                <input 
-                  type="text" 
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full text-center font-bold text-xl text-slate-800 border-b-2 border-indigo-200 focus:border-indigo-500 outline-none bg-transparent pb-1"
-                />
+                <>
+                  <input 
+                    type="text" 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full text-center font-bold text-xl text-slate-800 border-b-2 border-indigo-200 focus:border-indigo-500 outline-none bg-transparent pb-1"
+                    placeholder="Your Name"
+                  />
+                  
+                  <div className="w-full max-w-xs">
+                    <label className="text-[10px] text-slate-400 font-bold uppercase mb-1 block">Photo URL</label>
+                    <input 
+                       type="text"
+                       value={photoURL}
+                       onChange={(e) => setPhotoURL(e.target.value)}
+                       placeholder="https://example.com/image.png"
+                       className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none text-center"
+                    />
+                  </div>
+                </>
               ) : (
                 <h2 className="text-xl font-bold text-slate-800">{user.name}</h2>
               )}
               
-              <p className="text-slate-500 text-sm">{user.email}</p>
+              {!isEditing && <p className="text-slate-500 text-sm">{user.email}</p>}
               
-              <div className="pt-4 pb-2">
+              <div className="pt-2 pb-2">
                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
                     🎯 Target: {selectedExam}
                  </span>
