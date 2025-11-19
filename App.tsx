@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AppState, ExamType, Question, User, ViewState } from './types';
 import { EXAM_SUBJECTS } from './constants';
@@ -18,6 +19,7 @@ import { QuestionCard } from './components/QuestionCard';
 import { UploadForm } from './components/UploadForm';
 import { LoginScreen } from './components/LoginScreen';
 import { SignupScreen } from './components/SignupScreen';
+import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
 import { Timer } from './components/Timer';
 import { Tutorial } from './components/Tutorial';
 import { ProfileScreen } from './components/ProfileScreen';
@@ -245,11 +247,21 @@ const App: React.FC = () => {
   }
 
   if (state.view === 'login') {
-    return <LoginScreen onLogin={handleLogin} onNavigateToSignup={() => navigateTo('signup')} />;
+    return (
+      <LoginScreen 
+        onLogin={handleLogin} 
+        onNavigateToSignup={() => navigateTo('signup')} 
+        onForgotPassword={() => navigateTo('forgotPassword')}
+      />
+    );
   }
 
   if (state.view === 'signup') {
     return <SignupScreen onSignup={handleSignup} onBackToLogin={() => navigateTo('login')} />;
+  }
+
+  if (state.view === 'forgotPassword') {
+    return <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />;
   }
   
   if (state.view === 'tutorial') {

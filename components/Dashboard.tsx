@@ -84,7 +84,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
       </div>
 
       {/* Filter Section */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar touch-pan-x">
         <button
           onClick={() => setActiveFilter('All')}
           className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${

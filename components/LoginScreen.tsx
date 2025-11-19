@@ -5,9 +5,10 @@ import { User } from '../types';
 interface LoginScreenProps {
   onLogin: (user: User) => void;
   onNavigateToSignup: () => void;
+  onForgotPassword: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToSignup }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToSignup, onForgotPassword }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showLoginOptions, setShowLoginOptions] = useState(false);
   const [email, setEmail] = useState('');
@@ -142,6 +143,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                       required
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-indigo-200/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
                     />
+                  </div>
+                  
+                  <div className="text-right">
+                    <button 
+                      type="button" 
+                      onClick={onForgotPassword}
+                      className="text-xs text-indigo-300 hover:text-white transition-colors"
+                    >
+                      Forgot Password?
+                    </button>
                   </div>
                   
                   <button

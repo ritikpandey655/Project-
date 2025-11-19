@@ -57,7 +57,7 @@ export interface User {
   pincode?: string;
 }
 
-export type ViewState = 'login' | 'signup' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile';
+export type ViewState = 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile';
 
 export interface AppState {
   view: ViewState;

@@ -25,7 +25,7 @@ export const generateExamQuestions = async (
     Act as an expert exam setter for the Indian Competitive Exam: "${exam}".
     Subject: "${subject}".
     Difficulty Level: "${difficulty}".
-    ${topics.length > 0 ? `Focus specific questions on these topics: "${topics.join(', ')}".` : ''}
+    ${topics.length > 0 ? `CRITICAL: STRICTLY generate questions ONLY related to these specific topics: "${topics.join(', ')}". Do not include general "${subject}" questions outside these topics.` : ''}
     
     TASK: Generate ${count} multiple-choice questions.
     
