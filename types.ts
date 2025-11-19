@@ -49,6 +49,12 @@ export interface User {
   educationLevel?: string;
   targetYear?: string;
   dailyGoal?: number;
+  // New profile fields
+  mobile?: string;
+  currentClass?: string;
+  address?: string;
+  state?: string;
+  pincode?: string;
 }
 
 export type ViewState = 'login' | 'signup' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile';
