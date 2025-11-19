@@ -48,7 +48,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
   };
 
   return (
-    <div className="min-h-screen w-full relative bg-slate-900 flex flex-col items-center justify-between overflow-hidden font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen w-full relative bg-slate-900 flex flex-col items-center justify-between overflow-hidden font-sans selection:bg-indigo-500 selection:text-white overflow-y-auto">
       
       <style>{`
         @keyframes float {
@@ -98,7 +98,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       </div>
 
       {/* Content Container */}
-      <div className="relative z-10 flex flex-col h-full w-full max-w-md mx-auto px-6 pt-12 pb-8">
+      <div className="relative z-10 flex flex-col min-h-screen w-full max-w-md mx-auto px-6 pt-12 pb-8">
         
         {/* Top Section: Logo & Title */}
         <div className={`flex flex-col items-center text-center transition-all duration-700 ${showLoginOptions ? 'mt-4 scale-90' : 'mt-20'}`}>
@@ -123,7 +123,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         <div className="flex-1"></div>
 
         {/* Bottom Section: Actions */}
-        <div className="w-full mt-auto pt-6 mb-12">
+        <div className="w-full mt-auto pt-6 mb-8">
           {!showLoginOptions ? (
             <button
               onClick={() => setShowLoginOptions(true)}
@@ -221,28 +221,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                 </div>
 
               </div>
-              
-              <button 
-                onClick={() => setShowLoginOptions(false)}
-                className="w-full text-indigo-300 text-sm hover:text-white py-2 transition-colors"
-              >
-                Go Back
-              </button>
             </div>
           )}
         </div>
 
-      </div>
-      
-      {/* Footer Copyright & Credit Badge */}
-      <div className="absolute bottom-6 flex flex-col items-center gap-3 z-20 w-full pointer-events-none">
-        <div className="pointer-events-auto px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md shadow-lg hover:bg-white/10 transition-all cursor-default group">
-           <span className="text-[10px] text-indigo-300/80 uppercase tracking-widest mr-1.5 font-semibold">Created By</span>
-           <span className="font-serif italic text-sm text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 via-purple-200 to-indigo-200 font-bold group-hover:text-white transition-colors">Ritik Pandey</span>
-        </div>
-        <div className="text-[10px] text-white/20">
-          © 2025 ExamMaster AI
-        </div>
       </div>
     </div>
   );
