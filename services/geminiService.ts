@@ -11,7 +11,9 @@ const ai = new GoogleGenAI({ apiKey });
 export const generateExamQuestions = async (
   exam: string,
   subject: string,
-  count: number = 5
+  count: number = 5,
+  difficulty: string = 'Medium',
+  topics: string[] = []
 ): Promise<Question[]> => {
   if (!apiKey) {
     console.warn("No API Key found, using mock data.");
@@ -22,6 +24,8 @@ export const generateExamQuestions = async (
   const prompt = `
     Act as an expert exam setter for the Indian Competitive Exam: "${exam}".
     Subject: "${subject}".
+    Difficulty Level: "${difficulty}".
+    ${topics.length > 0 ? `Focus specific questions on these topics: "${topics.join(', ')}".` : ''}
     
     TASK: Generate ${count} multiple-choice questions.
     
