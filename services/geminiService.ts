@@ -49,7 +49,7 @@ export const generateExamQuestions = async (
   try {
     let response;
     if (useSearch) {
-      // Use gemini-2.5-flash-latest with Google Search tool
+      // Use gemini-2.5-flash with Google Search tool
       response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
@@ -201,20 +201,53 @@ export const generateFullPaper = async (
 
   const ai = new GoogleGenAI({ apiKey });
 
+  // Construct paper structure for the prompt
+  const paperStructure = [];
+  if (config.includeMCQ) paperStructure.push({type:"MCQ", count: 10, marks: 1, difficulty: "mixed"});
+  if (config.includeShort) paperStructure.push({type:"ShortAnswer", count: 5, marks: 3, difficulty: difficulty.toLowerCase()});
+  if (config.includeLong) paperStructure.push({type:"LongAnswer", count: 3, marks: 10, difficulty: difficulty.toLowerCase()});
+  if (config.includeViva) paperStructure.push({type:"Viva", count: 5, marks: 2, difficulty: difficulty.toLowerCase()});
+
+  const totalMarks = paperStructure.reduce((acc, curr) => acc + (curr.count * curr.marks), 0);
+  const timeLimit = Math.min(180, Math.max(30, totalMarks * 1.5)); // Approx 1.5 mins per mark
+
   const prompt = `
-    Act as an Exam Controller. Create a comprehensive practice paper for:
+    SYSTEM: Aap ek experienced exam paper setter hain for Indian competitive exam style. Har question bilkul exam-suitable, balanced difficulty aur marking scheme ke saath banaiye. Avoid verbatim copying of public PYQs; ensure originality.
+
+    USER:
     Exam: ${exam}
-    Subject: ${subject}
-    Difficulty: ${difficulty}
-    ${seedData ? `Seed Content/Topics (Focus on these): ${seedData}` : ''}
+    Subject/Section: ${subject}
+    Audience: Aspirants of ${exam}
+    Paper settings:
+    - Total marks: ${totalMarks}
+    - Time limit (mins): ${timeLimit}
+    - Structure: ${JSON.stringify(paperStructure)}
+    - Difficulty: ${difficulty}
+    - Seed Data/Constraints: ${seedData || "None"}
 
-    Structure Requirements:
-    ${config.includeMCQ ? '- Section A: 5 Multiple Choice Questions (MCQ). Provide options and correct index.' : ''}
-    ${config.includeShort ? '- Section B: 3 Short Answer Questions. Provide a concise model answer.' : ''}
-    ${config.includeLong ? '- Section C: 2 Long Answer/Descriptive Questions. Provide a detailed model answer/key points.' : ''}
-    ${config.includeViva ? '- Section D: 3 Viva/Oral Questions. Provide expected answers.' : ''}
+    Output requirements (strict):
+    1. Return a valid JSON object with the exact keys below.
+    2. For MCQs: exactly ONE correct option; generate 3 plausible distractors.
+    3. For each long/short Q include concise model answer and marking rubric.
+    4. Language: English (or Hindi if specified in seed data).
 
-    Output must be a valid JSON object representing the paper structure with a marking scheme.
+    Output JSON Schema:
+    {
+      "meta": {"exam":"String","subject":"String","total_marks":Number,"time_mins":Number},
+      "paper": [
+        { 
+          "q_no": Number, 
+          "type": "MCQ" | "ShortAnswer" | "LongAnswer" | "Viva", 
+          "q_text": "String", 
+          "options": ["String"] (Only for MCQ), 
+          "answer": "String" (Option letter for MCQ, Model Answer for others), 
+          "marks": Number, 
+          "difficulty": "String", 
+          "explanation": "String" (Reasoning or Rubric)
+        }
+      ]
+    }
+    Return only the JSON.
   `;
 
   try {
@@ -225,40 +258,38 @@ export const generateFullPaper = async (
       config: {
         thinkingConfig: { thinkingBudget: 32768 },
         responseMimeType: "application/json",
+        // Defining schema explicitly helps structure stability
         responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING, description: "Paper Title, e.g. 'UPSC History Mock 1'" },
-            totalMarks: { type: Type.INTEGER },
-            durationMinutes: { type: Type.INTEGER },
-            sections: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  title: { type: Type.STRING, description: "e.g. 'Section A: MCQs'" },
-                  instructions: { type: Type.STRING },
-                  marksPerQuestion: { type: Type.INTEGER },
-                  questionType: { type: Type.STRING, enum: [QuestionType.MCQ, QuestionType.SHORT_ANSWER, QuestionType.LONG_ANSWER, QuestionType.VIVA] },
-                  questions: {
+            type: Type.OBJECT,
+            properties: {
+                meta: { 
+                    type: Type.OBJECT, 
+                    properties: { 
+                        exam: {type: Type.STRING},
+                        subject: {type: Type.STRING},
+                        total_marks: {type: Type.INTEGER},
+                        time_mins: {type: Type.INTEGER}
+                    }
+                },
+                paper: {
                     type: Type.ARRAY,
                     items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        text: { type: Type.STRING },
-                        options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        correctIndex: { type: Type.INTEGER },
-                        answer: { type: Type.STRING, description: "Model answer for non-MCQ questions or explanation for MCQ" }
-                      },
-                      required: ['text']
+                        type: Type.OBJECT,
+                        properties: {
+                            q_no: {type: Type.INTEGER},
+                            type: {type: Type.STRING},
+                            q_text: {type: Type.STRING},
+                            options: {type: Type.ARRAY, items: {type: Type.STRING}},
+                            answer: {type: Type.STRING},
+                            marks: {type: Type.INTEGER},
+                            difficulty: {type: Type.STRING},
+                            explanation: {type: Type.STRING}
+                        },
+                        required: ['q_no', 'type', 'q_text', 'answer', 'marks']
                     }
-                  }
-                },
-                required: ['title', 'questions', 'marksPerQuestion']
-              }
-            }
-          },
-          required: ['title', 'totalMarks', 'sections']
+                }
+            },
+            required: ['meta', 'paper']
         }
       }
     });
@@ -266,59 +297,88 @@ export const generateFullPaper = async (
     let jsonStr = response.text;
     if (!jsonStr) return null;
     
-    // Thinking models can sometimes output markdown blocks even with JSON schema
     jsonStr = cleanJson(jsonStr);
+    const rawData = JSON.parse(jsonStr);
 
-    const rawPaper = JSON.parse(jsonStr);
+    // Transform flat paper array into Sections for App Data Model
+    const sectionsMap: Record<string, any> = {};
+    
+    rawData.paper.forEach((q: any) => {
+        const type = q.type;
+        if (!sectionsMap[type]) {
+            sectionsMap[type] = {
+                id: `sec-${type}`,
+                title: type === 'MCQ' ? 'Section A: Multiple Choice' : 
+                       type === 'ShortAnswer' ? 'Section B: Short Answers' : 
+                       type === 'LongAnswer' ? 'Section C: Detailed Questions' : 'Section D: Viva / Oral',
+                questions: [],
+                marksPerQuestion: q.marks
+            };
+        }
+        
+        // Normalize data for Question interface
+        sectionsMap[type].questions.push({
+            id: `q-${q.q_no}`,
+            text: q.q_text,
+            options: q.options || [],
+            correctIndex: q.type === 'MCQ' && q.options ? q.options.findIndex((o: string) => o.startsWith(q.answer) || q.answer.includes(o)) : -1,
+            // If index calc failed but we have an answer letter (e.g. 'B'), map it
+            answer: q.answer, 
+            explanation: q.explanation,
+            type: q.type === 'MCQ' ? QuestionType.MCQ : 
+                  q.type === 'ShortAnswer' ? QuestionType.SHORT_ANSWER :
+                  q.type === 'LongAnswer' ? QuestionType.LONG_ANSWER : QuestionType.VIVA,
+            examType: exam as ExamType,
+            source: QuestionSource.PYQ_AI,
+            createdAt: Date.now(),
+            marks: q.marks
+        });
+    });
 
-    // Hydrate with local IDs and types
+    // Fix correctIndex for MCQs if strictly letters were returned
+    Object.values(sectionsMap).forEach((sec: any) => {
+        sec.questions.forEach((q: any) => {
+             if (q.type === QuestionType.MCQ && q.correctIndex === -1 && typeof q.answer === 'string') {
+                 // Try to map 'A', 'B', 'C', 'D' to 0, 1, 2, 3
+                 const charCode = q.answer.trim().toUpperCase().charCodeAt(0);
+                 if (charCode >= 65 && charCode <= 68) {
+                     q.correctIndex = charCode - 65;
+                 }
+             }
+        });
+    });
+
     const paper: QuestionPaper = {
       id: `paper-${Date.now()}`,
-      title: rawPaper.title,
+      title: `${exam} Mock Paper (${subject})`,
       examType: exam as ExamType,
       subject: subject,
       difficulty: difficulty,
-      totalMarks: rawPaper.totalMarks,
-      durationMinutes: rawPaper.durationMinutes || 60,
+      totalMarks: rawData.meta.total_marks || totalMarks,
+      durationMinutes: rawData.meta.time_mins || timeLimit,
       createdAt: Date.now(),
-      sections: rawPaper.sections.map((sec: any, sIdx: number) => ({
-        id: `sec-${sIdx}`,
-        title: sec.title,
-        instructions: sec.instructions || '',
-        marksPerQuestion: sec.marksPerQuestion,
-        questions: sec.questions.map((q: any, qIdx: number) => ({
-          id: `q-${sIdx}-${qIdx}`,
-          text: q.text,
-          options: q.options || [],
-          correctIndex: q.correctIndex ?? -1,
-          explanation: q.answer, // Map model answer to explanation field for compatibility
-          answer: q.answer,
-          type: sec.questionType as QuestionType || QuestionType.SHORT_ANSWER,
-          examType: exam as ExamType,
-          source: QuestionSource.PYQ_AI,
-          createdAt: Date.now(),
-          marks: sec.marksPerQuestion
-        }))
-      }))
+      sections: Object.values(sectionsMap)
     };
 
     return paper;
 
   } catch (error) {
-    console.error("Full paper generation failed (retrying with Flash):", error);
-    // Fallback to Flash if Pro/Thinking fails
+    console.error("Full paper generation failed (Gemini Pro):", error);
+    
+    // Fallback to Flash model with simpler prompt if Pro fails
     try {
+        console.log("Retrying with Gemini Flash...");
         const fallbackAi = new GoogleGenAI({ apiKey });
+        const simplePrompt = `Create a ${exam} exam paper for ${subject}. Return JSON with title, totalMarks, durationMinutes, and sections (title, questions array). Questions must have text, options (for MCQ), answer, marks.`;
+        
         const response = await fallbackAi.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: simplePrompt,
             config: { responseMimeType: "application/json" }
         });
-        let jsonStr = cleanJson(response.text || '');
-        if (!jsonStr) return null;
-        const rawPaper = JSON.parse(jsonStr);
         
-        // Same hydration logic...
+        const rawPaper = JSON.parse(cleanJson(response.text || ''));
+        // Basic Hydration for fallback
         return {
             id: `paper-${Date.now()}`,
             title: rawPaper.title || `${exam} Practice Paper`,
@@ -331,23 +391,23 @@ export const generateFullPaper = async (
             sections: (rawPaper.sections || []).map((sec: any, sIdx: number) => ({
                 id: `sec-${sIdx}`,
                 title: sec.title || 'Section',
-                instructions: sec.instructions || '',
-                marksPerQuestion: sec.marksPerQuestion || 1,
+                instructions: '',
+                marksPerQuestion: 1,
                 questions: (sec.questions || []).map((q: any, qIdx: number) => ({
                     id: `q-${sIdx}-${qIdx}`,
                     text: q.text,
                     options: q.options || [],
-                    correctIndex: q.correctIndex ?? -1,
-                    explanation: q.answer,
-                    answer: q.answer,
-                    type: sec.questionType || QuestionType.SHORT_ANSWER,
+                    correctIndex: 0, // Fallback assumption
+                    answer: q.answer || '',
+                    type: QuestionType.MCQ,
                     examType: exam as ExamType,
                     source: QuestionSource.PYQ_AI,
                     createdAt: Date.now(),
-                    marks: sec.marksPerQuestion || 1
+                    marks: q.marks || 1
                 }))
             }))
         };
+
     } catch (fallbackError) {
         console.error("Fallback generation failed:", fallbackError);
         return null;
