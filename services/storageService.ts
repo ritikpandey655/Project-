@@ -1,10 +1,12 @@
 
-import { Question, UserStats, ExamType, User } from '../types';
+import { Question, UserStats, ExamType, User, ExamResult } from '../types';
 
 const QUESTIONS_KEY = 'exam_master_questions';
 const STATS_KEY = 'exam_master_stats';
 const PREFS_KEY = 'exam_master_prefs';
 const USER_KEY = 'exam_master_user';
+const RESULTS_KEY = 'exam_master_results';
+const PRACTICE_SESSION_KEY = 'exam_master_practice_session';
 
 export const INITIAL_STATS: UserStats = {
   totalAttempted: 0,
@@ -20,7 +22,6 @@ export const INITIAL_STATS: UserStats = {
 const getUserKey = (key: string, userId: string) => `${key}_${userId}`;
 
 // User Auth Storage
-// Keeps track of the currently logged-in user session
 export const saveUser = (user: User): void => {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 };
@@ -127,6 +128,60 @@ export const updateStats = (userId: string, isCorrect: boolean, subject: string,
 
   localStorage.setItem(getUserKey(STATS_KEY, userId), JSON.stringify(stats));
 };
+
+// Exam Result History Storage
+export const saveExamResult = (userId: string, result: ExamResult): void => {
+  const key = getUserKey(RESULTS_KEY, userId);
+  const existingData = localStorage.getItem(key);
+  const history: ExamResult[] = existingData ? JSON.parse(existingData) : [];
+  
+  // Append new result
+  history.push(result);
+  
+  // Keep only last 20 results to save space
+  if (history.length > 20) {
+    history.shift();
+  }
+  
+  localStorage.setItem(key, JSON.stringify(history));
+};
+
+export const getExamHistory = (userId: string): ExamResult[] => {
+  const key = getUserKey(RESULTS_KEY, userId);
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : [];
+};
+
+
+// Practice Session Persistence
+export interface SavedPracticeSession {
+  queue: Question[];
+  currentIndex: number;
+  config: { mode: 'finite' | 'endless'; subject: string };
+  timestamp: number;
+}
+
+export const savePracticeSession = (userId: string, session: SavedPracticeSession): void => {
+  localStorage.setItem(getUserKey(PRACTICE_SESSION_KEY, userId), JSON.stringify(session));
+};
+
+export const getPracticeSession = (userId: string): SavedPracticeSession | null => {
+  const data = localStorage.getItem(getUserKey(PRACTICE_SESSION_KEY, userId));
+  if (!data) return null;
+  
+  const session: SavedPracticeSession = JSON.parse(data);
+  // Check if session is stale (e.g., older than 24 hours)
+  if (Date.now() - session.timestamp > 24 * 60 * 60 * 1000) {
+    clearPracticeSession(userId);
+    return null;
+  }
+  return session;
+};
+
+export const clearPracticeSession = (userId: string): void => {
+  localStorage.removeItem(getUserKey(PRACTICE_SESSION_KEY, userId));
+};
+
 
 // Preferences Storage
 interface UserPrefs {

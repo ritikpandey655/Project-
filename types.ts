@@ -60,6 +60,18 @@ export interface QuestionPaper {
   createdAt: number;
 }
 
+export interface ExamResult {
+  id: string;
+  examType: ExamType;
+  paperTitle: string;
+  score: number;
+  totalMarks: number;
+  accuracy: number;
+  date: number; // Timestamp
+  timeTakenSeconds: number;
+  topicAnalysis: Record<string, { correct: number; total: number }>; // e.g. {'Algebra': {correct: 2, total: 5}}
+}
+
 export interface UserStats {
   totalAttempted: number;
   totalCorrect: number;

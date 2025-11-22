@@ -7,6 +7,11 @@ import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 // Vite replaces 'process.env.API_KEY' with the actual string during build.
 const apiKey = process.env.API_KEY;
 
+// Helper to warn in production if key is missing (debugging Vercel issues)
+if (typeof window !== 'undefined' && !apiKey) {
+  console.error("⚠️ API_KEY is missing! The app cannot contact Gemini. Please check your Vercel Environment Variables.");
+}
+
 const cleanJson = (text: string) => {
   // Remove Markdown code blocks
   let clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -55,10 +60,6 @@ export const generateExamQuestions = async (
 
   const ai = new GoogleGenAI({ apiKey });
 
-  // Use Search Grounding for Current Affairs or dynamic topics
-  const useSearch = subject.toLowerCase().includes('current affairs') || 
-                    topics.some(t => t.toLowerCase().includes('news') || t.toLowerCase().includes('latest'));
-
   const prompt = `
     Act as an expert exam setter for the Indian Competitive Exam: "${exam}".
     Subject: "${subject}".
@@ -68,56 +69,42 @@ export const generateExamQuestions = async (
     TASK: Generate ${count} high-quality multiple-choice questions.
     
     CRITICAL REQUIREMENTS:
-    1. CONTEXT: The questions must be specifically tailored for "${exam}". For example, if the exam is UPSC, focus on analytical depth. If SSC CGL, focus on factual accuracy.
-    2. SOURCE: Prioritize ACTUAL Previous Year Questions (PYQs) or questions that strictly mimic the pattern of ${exam} papers (2018-2024).
-    3. FORMAT: Each question must have 4 options, one correct answer, and a detailed explanation.
-    ${useSearch ? '4. INFO: Use the Google Search tool to get the most up-to-date information.' : ''}
+    1. CONTEXT: The questions must be specifically tailored for "${exam}".
+    2. SOURCE: Prioritize ACTUAL Previous Year Questions (PYQs) or pattern mimics.
+    3. FORMAT: Each question must have 4 options, one correct answer, and a concise explanation.
     
     Output a JSON array of objects with keys: text, options, correctIndex, explanation, tags.
   `;
 
   try {
-    let response;
-    if (useSearch) {
-      // Use gemini-2.5-flash with Google Search tool
-      response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          tools: [{googleSearch: {}}],
-          // Response Schema is often not compatible with tools in raw mode, so we parse text
-        }
-      });
-    } else {
-      // Use standard generation
-      response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                text: { type: Type.STRING, description: "The question text" },
-                options: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING }
-                },
-                correctIndex: { type: Type.INTEGER, description: "Zero-based index of the correct option (0-3)" },
-                explanation: { type: Type.STRING, description: "Detailed reasoning" },
-                tags: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING }
-                }
+    // Use gemini-flash-lite-latest for speed
+    const response = await ai.models.generateContent({
+      model: 'gemini-flash-lite-latest',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              text: { type: Type.STRING, description: "The question text" },
+              options: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
               },
-              required: ['text', 'options', 'correctIndex', 'explanation']
-            }
+              correctIndex: { type: Type.INTEGER, description: "Zero-based index of the correct option (0-3)" },
+              explanation: { type: Type.STRING, description: "Concise reasoning" },
+              tags: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ['text', 'options', 'correctIndex', 'explanation']
           }
         }
-      });
-    }
+      }
+    });
 
     let jsonStr = response.text;
     if (!jsonStr) return [];
@@ -127,23 +114,12 @@ export const generateExamQuestions = async (
 
     const rawQuestions = JSON.parse(jsonStr);
     
-    // Append search sources if available
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    let sourcesText = "";
-    if (groundingChunks) {
-        const urls = groundingChunks
-            .map((c: any) => c.web?.uri)
-            .filter((uri: string) => uri)
-            .join(', ');
-        if (urls) sourcesText = `\n\nSources: ${urls}`;
-    }
-
     return rawQuestions.map((q: any, index: number) => ({
       id: `ai-${Date.now()}-${index}`,
       text: q.text,
       options: q.options,
       correctIndex: q.correctIndex,
-      explanation: q.explanation + (index === 0 ? sourcesText : ""), // Append sources to first question or spread them out
+      explanation: q.explanation, 
       source: QuestionSource.PYQ_AI,
       examType: exam as ExamType,
       subject: subject,
@@ -175,9 +151,7 @@ export const generateSingleQuestion = async (
     Generate 1 high-quality multiple-choice question for the exam: "${exam}".
     Subject: "${subject}".
     Topic/Keyword: "${topic}".
-    
-    The question should be specifically designed for "${exam}" candidates.
-    Include a clear question, 4 plausible options, the correct answer, and a helpful explanation.
+    Output JSON.
   `;
 
   try {
@@ -191,16 +165,10 @@ export const generateSingleQuestion = async (
           type: Type.OBJECT,
           properties: {
             text: { type: Type.STRING },
-            options: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
+            options: { type: Type.ARRAY, items: { type: Type.STRING } },
             correctIndex: { type: Type.INTEGER },
             explanation: { type: Type.STRING },
-            tags: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
+            tags: { type: Type.ARRAY, items: { type: Type.STRING } }
           },
           required: ['text', 'options', 'correctIndex', 'explanation']
         }
@@ -229,153 +197,156 @@ export const generateFullPaper = async (
     includeShort: boolean;
     includeLong: boolean;
     includeViva: boolean;
+    mcqCount?: number;
   }
 ): Promise<QuestionPaper | null> => {
-  if (!apiKey || apiKey.trim() === '') return null;
+  if (!apiKey || apiKey.trim() === '') {
+    alert("API Key is missing in production. Please configure Vercel env vars.");
+    return null;
+  }
 
   const ai = new GoogleGenAI({ apiKey });
 
-  // Construct paper structure for the prompt
-  const paperStructure = [];
-  if (config.includeMCQ) paperStructure.push({type:"MCQ", count: 10, marks: 1, difficulty: "mixed"});
-  if (config.includeShort) paperStructure.push({type:"ShortAnswer", count: 5, marks: 3, difficulty: difficulty.toLowerCase()});
-  if (config.includeLong) paperStructure.push({type:"LongAnswer", count: 3, marks: 10, difficulty: difficulty.toLowerCase()});
-  if (config.includeViva) paperStructure.push({type:"Viva", count: 5, marks: 2, difficulty: difficulty.toLowerCase()});
+  // 1. Construct the structure for Non-MCQ sections (generated in one go)
+  const nonMcqStructure = [];
+  if (config.includeShort) nonMcqStructure.push({type:"ShortAnswer", count: 5, marks: 3, difficulty: difficulty.toLowerCase()});
+  if (config.includeLong) nonMcqStructure.push({type:"LongAnswer", count: 3, marks: 10, difficulty: difficulty.toLowerCase()});
+  if (config.includeViva) nonMcqStructure.push({type:"Viva", count: 5, marks: 2, difficulty: difficulty.toLowerCase()});
 
-  const totalMarks = paperStructure.reduce((acc, curr) => acc + (curr.count * curr.marks), 0);
-  const timeLimit = Math.min(180, Math.max(30, totalMarks * 1.5)); // Approx 1.5 mins per mark
+  // 2. Handle MCQ Batching (To allow 180 questions without token limit)
+  const mcqTotal = config.includeMCQ ? (config.mcqCount || 10) : 0;
+  const BATCH_SIZE = 30; // Max questions per API call to stay within output limits
+  const mcqBatches = Math.ceil(mcqTotal / BATCH_SIZE);
 
-  const prompt = `
-    Create a complete mock exam paper for:
+  // Initial prompt only handles the 'Meta' and Non-MCQ structure to keep it light
+  // We will inject MCQs later
+  const initialPrompt = `
+    Create the structure for a mock exam paper for:
     Exam: ${exam}
     Subject: ${subject}
-    Structure: ${JSON.stringify(paperStructure)}
-    Total Marks: ${totalMarks}
-    Time: ${timeLimit} mins
+    Non-MCQ Structure: ${JSON.stringify(nonMcqStructure)}
     Difficulty: ${difficulty}
-    Context/Seed Data: ${seedData || "Standard Exam Syllabus"}
+    Seed Data: ${seedData}
 
-    STRICTLY OUTPUT JSON following this schema:
+    OUTPUT JSON Schema:
     {
-      "meta": {
-        "exam": "${exam}",
-        "subject": "${subject}",
-        "total_marks": ${totalMarks},
-        "time_mins": ${timeLimit}
-      },
-      "paper": [
-        { 
-          "q_no": 1, 
-          "type": "MCQ", 
-          "q_text": "Question text here...", 
-          "options": ["A", "B", "C", "D"], 
-          "answer": "Option Text or Letter", 
-          "marks": 1, 
-          "difficulty": "${difficulty}", 
-          "explanation": "Explanation here..."
-        }
+      "meta": { "exam": string, "subject": string, "total_marks": number, "time_mins": number },
+      "non_mcq_questions": [
+         { "q_no": number, "type": "ShortAnswer"|"LongAnswer"|"Viva", "q_text": string, "answer": string, "marks": number }
       ]
     }
-    For ShortAnswer/LongAnswer/Viva, "options" should be empty [], and "answer" should be the model answer.
-    Ensure unique questions.
+    If no Non-MCQ structure is provided, return empty array for "non_mcq_questions".
   `;
 
   try {
-    // Use gemini-2.5-flash for reliability and speed (Thinking mode removed for Flash)
-    const response = await ai.models.generateContent({
+    // Step A: Generate Skeleton (Meta + Non-MCQs)
+    const skeletonResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        // Defining schema explicitly helps structure stability
-        responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-                meta: { 
-                    type: Type.OBJECT, 
-                    properties: { 
-                        exam: {type: Type.STRING},
-                        subject: {type: Type.STRING},
-                        total_marks: {type: Type.INTEGER},
-                        time_mins: {type: Type.INTEGER}
-                    }
-                },
-                paper: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            q_no: {type: Type.INTEGER},
-                            type: {type: Type.STRING},
-                            q_text: {type: Type.STRING},
-                            options: {type: Type.ARRAY, items: {type: Type.STRING}},
-                            answer: {type: Type.STRING},
-                            marks: {type: Type.INTEGER},
-                            difficulty: {type: Type.STRING},
-                            explanation: {type: Type.STRING}
-                        },
-                        required: ['q_no', 'type', 'q_text', 'answer', 'marks']
-                    }
-                }
-            },
-            required: ['meta', 'paper']
-        }
-      }
+      contents: initialPrompt,
+      config: { responseMimeType: "application/json" }
     });
 
-    let jsonStr = response.text;
-    if (!jsonStr) return null;
-    
-    jsonStr = cleanJson(jsonStr);
-    const rawData = JSON.parse(jsonStr);
+    const skeletonJson = cleanJson(skeletonResponse.text || "{}");
+    const skeletonData = JSON.parse(skeletonJson);
 
-    // Transform flat paper array into Sections for App Data Model
-    const sectionsMap: Record<string, any> = {};
-    
-    rawData.paper.forEach((q: any) => {
-        const type = q.type;
-        if (!sectionsMap[type]) {
-            sectionsMap[type] = {
-                id: `sec-${type}`,
-                title: type === 'MCQ' ? 'Section A: Multiple Choice' : 
-                       type === 'ShortAnswer' ? 'Section B: Short Answers' : 
-                       type === 'LongAnswer' ? 'Section C: Detailed Questions' : 'Section D: Viva / Oral',
-                questions: [],
-                marksPerQuestion: q.marks
-            };
-        }
+    // Step B: Generate MCQs in Batches (Parallel)
+    let allMcqs: any[] = [];
+    if (mcqTotal > 0) {
+      const batchPromises = [];
+      for (let i = 0; i < mcqBatches; i++) {
+        const count = Math.min(BATCH_SIZE, mcqTotal - (i * BATCH_SIZE));
+        const startNum = (i * BATCH_SIZE) + 1;
         
-        // Normalize data for Question interface
-        sectionsMap[type].questions.push({
-            id: `q-${q.q_no}`,
-            text: q.q_text,
-            options: q.options || [],
-            correctIndex: q.type === 'MCQ' && q.options ? q.options.findIndex((o: string) => o.startsWith(q.answer) || q.answer.includes(o)) : -1,
-            // If index calc failed but we have an answer letter (e.g. 'B'), map it
-            answer: q.answer, 
-            explanation: q.explanation,
-            type: q.type === 'MCQ' ? QuestionType.MCQ : 
-                  q.type === 'ShortAnswer' ? QuestionType.SHORT_ANSWER :
-                  q.type === 'LongAnswer' ? QuestionType.LONG_ANSWER : QuestionType.VIVA,
-            examType: exam as ExamType,
-            source: QuestionSource.PYQ_AI,
-            createdAt: Date.now(),
-            marks: q.marks
-        });
-    });
+        const batchPrompt = `
+           Generate ${count} unique Multiple Choice Questions (MCQs) for ${exam} (${subject}).
+           Batch: ${i + 1}/${mcqBatches}.
+           Difficulty: ${difficulty}.
+           Context: ${seedData || "Standard Syllabus"}.
+           Starting Question Number: ${startNum}.
+           
+           STRICT JSON Output: Array of objects: 
+           [{ "q_no": number, "q_text": string, "options": string[], "answer": string (Option text), "explanation": string, "marks": 1 }]
+        `;
 
-    // Fix correctIndex for MCQs if strictly letters were returned
-    Object.values(sectionsMap).forEach((sec: any) => {
-        sec.questions.forEach((q: any) => {
-             if (q.type === QuestionType.MCQ && q.correctIndex === -1 && typeof q.answer === 'string') {
-                 // Try to map 'A', 'B', 'C', 'D' to 0, 1, 2, 3
-                 const charCode = q.answer.trim().toUpperCase().charCodeAt(0);
-                 if (charCode >= 65 && charCode <= 68) {
-                     q.correctIndex = charCode - 65;
-                 }
-             }
+        batchPromises.push(
+            ai.models.generateContent({
+                model: 'gemini-2.5-flash', // Use Flash for batching efficiency
+                contents: batchPrompt,
+                config: { responseMimeType: "application/json" }
+            }).then(res => {
+                const txt = cleanJson(res.text || "[]");
+                return JSON.parse(txt);
+            }).catch(err => {
+                console.error(`Batch ${i} failed`, err);
+                return [];
+            })
+        );
+      }
+
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(batch => allMcqs = [...allMcqs, ...batch]);
+    }
+
+    // Step C: Merge Everything into QuestionPaper model
+    const sectionsMap: Record<string, any> = {};
+
+    // 1. Process MCQs
+    if (allMcqs.length > 0) {
+        sectionsMap['MCQ'] = {
+            id: 'sec-mcq',
+            title: 'Section A: Multiple Choice',
+            questions: allMcqs.map((q: any, idx: number) => ({
+                id: `q-mcq-${idx}`,
+                text: q.q_text,
+                options: q.options || [],
+                correctIndex: q.options ? q.options.findIndex((o: string) => o === q.answer || o.startsWith(q.answer)) : -1,
+                answer: q.answer,
+                explanation: q.explanation,
+                type: QuestionType.MCQ,
+                examType: exam as ExamType,
+                source: QuestionSource.PYQ_AI,
+                createdAt: Date.now(),
+                marks: 1
+            })).filter(q => q.correctIndex !== -1), // Filter out malformed
+            marksPerQuestion: 1
+        };
+    }
+
+    // 2. Process Non-MCQs
+    if (skeletonData.non_mcq_questions && Array.isArray(skeletonData.non_mcq_questions)) {
+        skeletonData.non_mcq_questions.forEach((q: any) => {
+            if (!sectionsMap[q.type]) {
+                sectionsMap[q.type] = {
+                    id: `sec-${q.type}`,
+                    title: q.type === 'ShortAnswer' ? 'Section B: Short Answers' : 
+                           q.type === 'LongAnswer' ? 'Section C: Detailed' : 'Section D: Viva',
+                    questions: [],
+                    marksPerQuestion: q.marks
+                };
+            }
+            sectionsMap[q.type].questions.push({
+                id: `q-${q.q_no}`,
+                text: q.q_text,
+                options: [],
+                correctIndex: -1,
+                answer: q.answer,
+                type: q.type === 'ShortAnswer' ? QuestionType.SHORT_ANSWER : 
+                      q.type === 'LongAnswer' ? QuestionType.LONG_ANSWER : QuestionType.VIVA,
+                examType: exam as ExamType,
+                source: QuestionSource.PYQ_AI,
+                createdAt: Date.now(),
+                marks: q.marks
+            });
         });
-    });
+    }
+
+    // Recalculate totals based on actual generation
+    const sections = Object.values(sectionsMap);
+    const totalMarks = sections.reduce((sum, sec) => sum + (sec.questions.length * sec.marksPerQuestion), 0);
+    // Estimate duration: 1 min per MCQ, 5 min per Short, 10 min per Long
+    const totalTime = (allMcqs.length * 1) + 
+                      (sectionsMap['ShortAnswer']?.questions.length || 0) * 5 + 
+                      (sectionsMap['LongAnswer']?.questions.length || 0) * 15;
 
     const paper: QuestionPaper = {
       id: `paper-${Date.now()}`,
@@ -383,10 +354,10 @@ export const generateFullPaper = async (
       examType: exam as ExamType,
       subject: subject,
       difficulty: difficulty,
-      totalMarks: rawData.meta.total_marks || totalMarks,
-      durationMinutes: rawData.meta.time_mins || timeLimit,
+      totalMarks: totalMarks || skeletonData.meta?.total_marks || 100,
+      durationMinutes: totalTime || skeletonData.meta?.time_mins || 60,
       createdAt: Date.now(),
-      sections: Object.values(sectionsMap)
+      sections: sections
     };
 
     return paper;
@@ -408,44 +379,19 @@ export const generateQuestionFromImage = async (
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    // Use gemini-3-pro-preview for Image Understanding
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5-flash', // Use Flash for standard image tasks
       contents: {
         parts: [
-            {
-                inlineData: {
-                    mimeType: mimeType, 
-                    data: base64Image
-                }
-            },
-            {
-                text: `Analyze this image. It contains a question relevant to ${examType} (${subject}). 
-                Extract the question text, options (if any), and provide the correct answer and explanation.
-                If it's handwritten, transcribe it accurately.
-                Output JSON with keys: text, options, correctIndex, explanation, tags.`
-            }
+            { inlineData: { mimeType: mimeType, data: base64Image } },
+            { text: `Extract question from image for ${examType} (${subject}). Output JSON: {text, options[], correctIndex, explanation, tags[]}` }
         ]
       },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-                text: { type: Type.STRING },
-                options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                correctIndex: { type: Type.INTEGER },
-                explanation: { type: Type.STRING },
-                tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ['text', 'explanation']
-        }
-      }
+      config: { responseMimeType: "application/json" }
     });
 
     let jsonStr = response.text;
     if (!jsonStr) return null;
-    
     jsonStr = cleanJson(jsonStr);
     return JSON.parse(jsonStr);
 

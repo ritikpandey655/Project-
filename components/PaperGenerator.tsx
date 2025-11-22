@@ -17,6 +17,7 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
   const [difficulty, setDifficulty] = useState('Medium');
   const [seedData, setSeedData] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mcqCount, setMcqCount] = useState(20); // Default increased to 20, allows up to 180
 
   const [config, setConfig] = useState({
     includeMCQ: true,
@@ -33,7 +34,12 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
   const handleGenerate = async () => {
     setIsLoading(true);
     try {
-      const paper = await generateFullPaper(examType, subject, difficulty, seedData, config);
+      // Pass mcqCount to the service
+      const paper = await generateFullPaper(examType, subject, difficulty, seedData, {
+        ...config,
+        mcqCount: config.includeMCQ ? mcqCount : 0
+      });
+      
       if (paper) {
         onGenerate(paper);
       } else {
@@ -118,6 +124,32 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
           </div>
         </div>
 
+        {config.includeMCQ && (
+          <div className="animate-fade-in">
+            <div className="flex justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Number of MCQs</label>
+              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{mcqCount} Questions</span>
+            </div>
+            <input 
+              type="range" 
+              min="10" 
+              max="180" 
+              step="10" 
+              value={mcqCount} 
+              onChange={(e) => setMcqCount(parseInt(e.target.value))}
+              className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+            />
+            <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+              <span>10</span>
+              <span>Standard (50)</span>
+              <span>Full (180)</span>
+            </div>
+            {mcqCount > 50 && (
+              <p className="text-xs text-amber-500 mt-1">Generating {mcqCount} questions may take a minute. Please wait while we fetch them in batches.</p>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Seed Data / Custom Topics (Optional)</label>
           <textarea 
@@ -134,7 +166,7 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
           isLoading={isLoading} 
           className="w-full py-4 font-bold text-lg shadow-lg shadow-indigo-200 dark:shadow-none"
         >
-          Generate Paper
+          {config.includeMCQ && mcqCount > 50 ? 'Generate Large Paper' : 'Generate Paper'}
         </Button>
       </div>
     </div>
