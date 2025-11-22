@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QuestionPaper, QuestionType } from '../types';
 import { Button } from './Button';
 
@@ -15,6 +14,7 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
   const [score, setScore] = useState(0);
   const [warningCount, setWarningCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   // Format time as HH:MM:SS
   const formatTime = (seconds: number) => {
@@ -36,8 +36,6 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
       section.questions.forEach(q => {
         if (q.type === QuestionType.MCQ) {
           const userAns = answers[q.id];
-          // Assuming option text is stored in answer or index mapped
-          // Let's rely on exact string match of option text
           if (userAns && userAns === q.options[q.correctIndex]) {
             calculatedScore += (q.marks || section.marksPerQuestion);
           }
@@ -125,6 +123,27 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
         </div>
       )}
 
+      {/* Submit Confirmation Modal */}
+      {showSubmitConfirm && !isSubmitted && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-200 dark:border-slate-700">
+            <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600 dark:text-indigo-400">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Submit Exam?</h2>
+            <p className="text-slate-600 dark:text-slate-300 mb-6 text-sm">
+              You are about to submit your answers. You won't be able to change them afterwards.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="ghost" onClick={() => setShowSubmitConfirm(false)} className="flex-1 dark:text-slate-300">Cancel</Button>
+              <Button variant="primary" onClick={() => { handleSubmit(); setShowSubmitConfirm(false); }} className="flex-1">Yes, Submit</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header Toolbar */}
       <div className="sticky top-0 z-40 bg-slate-900 text-white p-4 shadow-md flex justify-between items-center">
         <div>
@@ -141,9 +160,7 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
             Exit Exam
           </Button>
         ) : (
-          <Button size="sm" variant="primary" onClick={() => {
-            if (window.confirm("Are you sure you want to submit the exam?")) handleSubmit();
-          }}>
+          <Button size="sm" variant="primary" onClick={() => setShowSubmitConfirm(true)}>
             Submit Paper
           </Button>
         )}
@@ -158,9 +175,12 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
               <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-2">
                 {score} <span className="text-lg text-slate-500 dark:text-slate-400">/ {paper.totalMarks}</span>
               </div>
-              <p className="text-slate-600 dark:text-slate-300">
+              <p className="text-slate-600 dark:text-slate-300 mb-4">
                  Subjective questions require self-evaluation. Check the model answers below.
               </p>
+              <Button onClick={onClose} variant="outline" className="border-indigo-200 dark:border-indigo-700">
+                Return to Dashboard
+              </Button>
            </div>
         )}
 
@@ -252,6 +272,19 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
               </div>
             </div>
           ))}
+
+          {/* Finish Exam Button (Bottom) */}
+          {!isSubmitted && (
+             <div className="flex justify-center pt-8">
+               <Button 
+                  size="lg" 
+                  onClick={() => setShowSubmitConfirm(true)}
+                  className="w-full sm:w-auto px-12 shadow-lg shadow-indigo-500/20"
+               >
+                 Finish & Submit Exam
+               </Button>
+             </div>
+          )}
         </div>
       </div>
     </div>
