@@ -37,6 +37,7 @@ export interface Question {
   type?: QuestionType;
   marks?: number;
   answer?: string; // Model answer for non-MCQ
+  userAnswer?: string; // Student's answer during mock test
 }
 
 export interface PaperSection {

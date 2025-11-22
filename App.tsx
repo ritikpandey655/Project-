@@ -333,6 +333,12 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, generatedPaper: paper }));
     navigateTo('paperView');
   };
+  
+  const handlePaperExit = () => {
+    // Here we could clear the generated paper if we wanted to force regeneration
+    // or keep it for review. For security, navigating back to dashboard is sufficient.
+    navigateTo('dashboard');
+  };
 
   // --- Views ---
 
@@ -402,6 +408,16 @@ const App: React.FC = () => {
         </div>
       </div>
     );
+  }
+  
+  // Paper View Mode (Fullscreen, no standard layout)
+  if (state.view === 'paperView' && state.generatedPaper) {
+     return (
+       <PaperView 
+         paper={state.generatedPaper}
+         onClose={handlePaperExit}
+       />
+     );
   }
 
   return (
@@ -559,13 +575,6 @@ const App: React.FC = () => {
             onBack={() => navigateTo('dashboard')}
             onExamChange={handleExamSelect}
           />
-        )}
-
-        {state.view === 'paperView' && state.generatedPaper && (
-           <PaperView 
-             paper={state.generatedPaper}
-             onClose={() => navigateTo('dashboard')}
-           />
         )}
         
         {state.view === 'profile' && state.user && (

@@ -10,12 +10,29 @@ const apiKey = process.env.API_KEY;
 const cleanJson = (text: string) => {
   // Remove Markdown code blocks
   let clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
-  // Find the first curly brace and last curly brace to isolate the JSON object
-  const firstBrace = clean.indexOf('{');
-  const lastBrace = clean.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    clean = clean.substring(firstBrace, lastBrace + 1);
+  
+  // Determine if it's an array or object based on which opening brace comes first
+  const firstSquare = clean.indexOf('[');
+  const firstCurly = clean.indexOf('{');
+
+  let startIndex = -1;
+  let endIndex = -1;
+
+  // Check which one is first (and exists)
+  if (firstSquare !== -1 && (firstCurly === -1 || firstSquare < firstCurly)) {
+    // It's likely an array
+    startIndex = firstSquare;
+    endIndex = clean.lastIndexOf(']');
+  } else if (firstCurly !== -1) {
+    // It's likely an object
+    startIndex = firstCurly;
+    endIndex = clean.lastIndexOf('}');
   }
+
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    clean = clean.substring(startIndex, endIndex + 1);
+  }
+  
   return clean;
 };
 
@@ -229,51 +246,46 @@ export const generateFullPaper = async (
   const timeLimit = Math.min(180, Math.max(30, totalMarks * 1.5)); // Approx 1.5 mins per mark
 
   const prompt = `
-    SYSTEM: Aap ek experienced exam paper setter hain for Indian competitive exam style. Har question bilkul exam-suitable, balanced difficulty aur marking scheme ke saath banaiye. Avoid verbatim copying of public PYQs; ensure originality.
-
-    USER:
+    Create a complete mock exam paper for:
     Exam: ${exam}
-    Subject/Section: ${subject}
-    Audience: Aspirants of ${exam}
-    Paper settings:
-    - Total marks: ${totalMarks}
-    - Time limit (mins): ${timeLimit}
-    - Structure: ${JSON.stringify(paperStructure)}
-    - Difficulty: ${difficulty}
-    - Seed Data/Constraints: ${seedData || "None"}
+    Subject: ${subject}
+    Structure: ${JSON.stringify(paperStructure)}
+    Total Marks: ${totalMarks}
+    Time: ${timeLimit} mins
+    Difficulty: ${difficulty}
+    Context/Seed Data: ${seedData || "Standard Exam Syllabus"}
 
-    Output requirements (strict):
-    1. Return a valid JSON object with the exact keys below.
-    2. For MCQs: exactly ONE correct option; generate 3 plausible distractors.
-    3. For each long/short Q include concise model answer and marking rubric.
-    4. Language: English (or Hindi if specified in seed data).
-
-    Output JSON Schema:
+    STRICTLY OUTPUT JSON following this schema:
     {
-      "meta": {"exam":"String","subject":"String","total_marks":Number,"time_mins":Number},
+      "meta": {
+        "exam": "${exam}",
+        "subject": "${subject}",
+        "total_marks": ${totalMarks},
+        "time_mins": ${timeLimit}
+      },
       "paper": [
         { 
-          "q_no": Number, 
-          "type": "MCQ" | "ShortAnswer" | "LongAnswer" | "Viva", 
-          "q_text": "String", 
-          "options": ["String"] (Only for MCQ), 
-          "answer": "String" (Option letter for MCQ, Model Answer for others), 
-          "marks": Number, 
-          "difficulty": "String", 
-          "explanation": "String" (Reasoning or Rubric)
+          "q_no": 1, 
+          "type": "MCQ", 
+          "q_text": "Question text here...", 
+          "options": ["A", "B", "C", "D"], 
+          "answer": "Option Text or Letter", 
+          "marks": 1, 
+          "difficulty": "${difficulty}", 
+          "explanation": "Explanation here..."
         }
       ]
     }
-    Return only the JSON.
+    For ShortAnswer/LongAnswer/Viva, "options" should be empty [], and "answer" should be the model answer.
+    Ensure unique questions.
   `;
 
   try {
-    // Use gemini-3-pro-preview with Thinking Mode for complex task
+    // Use gemini-2.5-flash for reliability and speed (Thinking mode removed for Flash)
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
-        thinkingConfig: { thinkingBudget: 32768 },
         responseMimeType: "application/json",
         // Defining schema explicitly helps structure stability
         responseSchema: {
@@ -380,55 +392,8 @@ export const generateFullPaper = async (
     return paper;
 
   } catch (error) {
-    console.error("Full paper generation failed (Gemini Pro):", error);
-    
-    // Fallback to Flash model with simpler prompt if Pro fails
-    try {
-        console.log("Retrying with Gemini Flash...");
-        const fallbackAi = new GoogleGenAI({ apiKey });
-        const simplePrompt = `Create a ${exam} exam paper for ${subject}. Return JSON with title, totalMarks, durationMinutes, and sections (title, questions array). Questions must have text, options (for MCQ), answer, marks.`;
-        
-        const response = await fallbackAi.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: simplePrompt,
-            config: { responseMimeType: "application/json" }
-        });
-        
-        const rawPaper = JSON.parse(cleanJson(response.text || ''));
-        // Basic Hydration for fallback
-        return {
-            id: `paper-${Date.now()}`,
-            title: rawPaper.title || `${exam} Practice Paper`,
-            examType: exam as ExamType,
-            subject: subject,
-            difficulty: difficulty,
-            totalMarks: rawPaper.totalMarks || 100,
-            durationMinutes: rawPaper.durationMinutes || 60,
-            createdAt: Date.now(),
-            sections: (rawPaper.sections || []).map((sec: any, sIdx: number) => ({
-                id: `sec-${sIdx}`,
-                title: sec.title || 'Section',
-                instructions: '',
-                marksPerQuestion: 1,
-                questions: (sec.questions || []).map((q: any, qIdx: number) => ({
-                    id: `q-${sIdx}-${qIdx}`,
-                    text: q.text,
-                    options: q.options || [],
-                    correctIndex: 0, // Fallback assumption
-                    answer: q.answer || '',
-                    type: QuestionType.MCQ,
-                    examType: exam as ExamType,
-                    source: QuestionSource.PYQ_AI,
-                    createdAt: Date.now(),
-                    marks: q.marks || 1
-                }))
-            }))
-        };
-
-    } catch (fallbackError) {
-        console.error("Fallback generation failed:", fallbackError);
-        return null;
-    }
+    console.error("Full paper generation failed:", error);
+    return null;
   }
 };
 

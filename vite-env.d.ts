@@ -1,7 +1,3 @@
-/// <reference types="node" />
-/// <reference types="vite/client" />
-
-// Augment the NodeJS namespace to include typed environment variables
 declare namespace NodeJS {
   interface ProcessEnv {
     API_KEY: string;
