@@ -25,6 +25,7 @@ import { Tutorial } from './components/Tutorial';
 import { ProfileScreen } from './components/ProfileScreen';
 import { PaperGenerator } from './components/PaperGenerator';
 import { PaperView } from './components/PaperView';
+import { PracticeConfigModal } from './components/PracticeConfigModal';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -44,6 +45,11 @@ const App: React.FC = () => {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSHelp, setShowIOSHelp] = useState(false);
+  
+  // Practice Config State
+  const [showPracticeConfig, setShowPracticeConfig] = useState(false);
+  const [practiceConfig, setPracticeConfig] = useState<{ mode: 'finite' | 'endless'; subject: string }>({ mode: 'finite', subject: 'Mixed' });
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   // Initialize App & PWA Install Prompt
   useEffect(() => {
@@ -233,30 +239,43 @@ const App: React.FC = () => {
     }
   };
 
-  const startPractice = async () => {
+  // Opens the config modal
+  const handleStartPractice = () => {
+    setShowPracticeConfig(true);
+  };
+
+  const startPracticeSession = async (config: { subject: string, count: number, mode: 'finite' | 'endless' }) => {
     if (!state.selectedExam || !state.user) return;
+    
+    setShowPracticeConfig(false);
+    setPracticeConfig({ mode: config.mode, subject: config.subject });
     setIsLoading(true);
     
     try {
-      // 1. Fetch user questions (Revision) - PASS USER ID
+      // 1. Fetch user questions (Revision)
       const userQuestions = getUserQuestions(state.user.id).filter(q => q.examType === state.selectedExam);
-      // Get up to 3 random user questions
       const shuffledUserQ = userQuestions.sort(() => 0.5 - Math.random()).slice(0, 3);
 
-      // 2. Generate AI questions (PYQ)
-      // Pick a random subject from the exam
-      const subjects = EXAM_SUBJECTS[state.selectedExam];
-      const randomSubject = subjects[Math.floor(Math.random() * subjects.length)];
-      
-      // Generate 5 questions
-      const aiQuestions = await generateExamQuestions(state.selectedExam, randomSubject, 5);
+      // 2. Determine Subject to generate
+      let subjectToGen = config.subject;
+      if (config.subject === 'Mixed') {
+        const subjects = EXAM_SUBJECTS[state.selectedExam];
+        subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
+      }
 
-      // 3. Merge
+      // 3. Generate AI questions (Initial batch)
+      // If endless, we start with 5. If finite, we try to get full count (up to 10 at a time to avoid timeout, simplified here to 5 + re-fetch)
+      const batchSize = Math.min(config.count, 5); 
+      const aiQuestions = await generateExamQuestions(state.selectedExam, subjectToGen, batchSize);
+
+      // 4. Merge
       const combined = [...shuffledUserQ, ...aiQuestions];
-      // Shuffle final deck
       setPracticeQueue(combined.sort(() => 0.5 - Math.random()));
       setCurrentQIndex(0);
       navigateTo('practice');
+      
+      // If finite and count > 5, we might need to fetch more immediately in background, but keeping logic simple for now.
+      
     } catch (error) {
       console.error("Practice load failed", error);
       alert("Failed to generate practice session. Please try again.");
@@ -269,19 +288,45 @@ const App: React.FC = () => {
     const currentQ = practiceQueue[currentQIndex];
     if (!state.user) return;
     
-    // Update stats with User ID
     updateStats(state.user.id, isCorrect, currentQ.subject || 'General', currentQ.examType);
-    
-    // Refresh stats in state
     setState(prev => ({ ...prev, stats: getStats(state.user!.id) }));
   };
 
-  const nextQuestion = () => {
-    if (currentQIndex < practiceQueue.length - 1) {
+  const nextQuestion = async () => {
+    const isEnd = currentQIndex >= practiceQueue.length - 1;
+
+    // Endless Mode: Check if we need to fetch more
+    if (practiceConfig.mode === 'endless' && !isFetchingMore) {
+      const remaining = practiceQueue.length - (currentQIndex + 1);
+      if (remaining < 3) {
+        setIsFetchingMore(true);
+        
+        // Determine subject
+        let subjectToGen = practiceConfig.subject;
+        if (practiceConfig.subject === 'Mixed') {
+           const subjects = EXAM_SUBJECTS[state.selectedExam!];
+           subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
+        }
+
+        generateExamQuestions(state.selectedExam!, subjectToGen, 5)
+          .then(newQs => {
+             setPracticeQueue(prev => [...prev, ...newQs]);
+          })
+          .finally(() => setIsFetchingMore(false));
+      }
+    }
+
+    if (!isEnd) {
       setCurrentQIndex(prev => prev + 1);
     } else {
-      // End of session
-      navigateTo('dashboard');
+      // If finite, end session. If endless, user explicitly quit or we wait for fetch (handled by UI button "Finish" vs "Next")
+      // For endless, we usually don't hit "End" unless fetch failed.
+      if (practiceConfig.mode === 'endless' && isFetchingMore) {
+         // Show loading?
+         alert("Fetching more questions... please wait a moment.");
+      } else {
+         navigateTo('dashboard');
+      }
     }
   };
 
@@ -293,7 +338,7 @@ const App: React.FC = () => {
   // --- Views ---
 
   if (isAppInitializing) {
-    return null; // Or a splash screen
+    return null; 
   }
 
   if (state.view === 'login') {
@@ -433,7 +478,7 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 pb-24 safe-bottom">
-        {/* Mobile Install Banner - Visible only if prompt available or iOS */}
+        {/* Mobile Install Banner */}
         {(installPrompt || isIOS) && (
           <div className="sm:hidden mb-4 bg-indigo-600 text-white p-3 rounded-xl flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-3">
@@ -450,6 +495,15 @@ const App: React.FC = () => {
               Install
             </button>
           </div>
+        )}
+
+        {/* Practice Config Modal */}
+        {showPracticeConfig && state.selectedExam && (
+          <PracticeConfigModal 
+            examType={state.selectedExam}
+            onStart={startPracticeSession}
+            onClose={() => setShowPracticeConfig(false)}
+          />
         )}
 
         {/* iOS Help Modal */}
@@ -490,7 +544,7 @@ const App: React.FC = () => {
             stats={state.stats} 
             showTimer={state.showTimer}
             darkMode={state.darkMode}
-            onStartPractice={startPractice} 
+            onStartPractice={handleStartPractice} 
             onUpload={() => navigateTo('upload')} 
             onToggleTimer={toggleTimer}
             onToggleDarkMode={toggleDarkMode}
@@ -546,22 +600,30 @@ const App: React.FC = () => {
         {state.view === 'practice' && practiceQueue.length > 0 && (
           <div className="h-full flex flex-col justify-center py-4 animate-fade-in">
              <div className="mb-4 flex justify-between items-center text-sm text-slate-500 dark:text-slate-400 px-2">
-                <span>Question {currentQIndex + 1} of {practiceQueue.length}</span>
+                <div className="flex items-center gap-2">
+                  <span>Question {currentQIndex + 1}</span>
+                  {practiceConfig.mode === 'endless' && (
+                     <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded text-xs font-bold">∞</span>
+                  )}
+                  {practiceConfig.mode !== 'endless' && (
+                     <span>of {practiceQueue.length}</span>
+                  )}
+                </div>
                 
                 {state.showTimer && <Timer />}
 
                 <button 
                   onClick={() => navigateTo('dashboard')}
-                  className="hover:text-red-500 font-medium"
+                  className="hover:text-red-500 font-medium transition-colors"
                 >
-                  Quit Practice
+                  {practiceConfig.mode === 'endless' ? 'Finish' : 'Quit'}
                 </button>
              </div>
             <QuestionCard 
               question={practiceQueue[currentQIndex]} 
               onAnswer={handleAnswer}
               onNext={nextQuestion}
-              isLast={currentQIndex === practiceQueue.length - 1}
+              isLast={practiceConfig.mode !== 'endless' && currentQIndex === practiceQueue.length - 1}
             />
           </div>
         )}

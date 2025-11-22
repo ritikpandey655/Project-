@@ -20,7 +20,11 @@ export const generateExamQuestions = async (
   // strict check for key existence
   if (!apiKey || apiKey.trim() === '') {
     console.warn("No API Key found, using mock data.");
-    return MOCK_QUESTIONS_FALLBACK.map(q => ({...q, id: `mock-${Math.random()}`})) as unknown as Question[];
+    return MOCK_QUESTIONS_FALLBACK.map(q => ({
+      ...q, 
+      id: `mock-${Math.random()}`,
+      type: QuestionType.MCQ // Explicitly add type to mock data
+    })) as unknown as Question[];
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -124,7 +128,11 @@ export const generateExamQuestions = async (
 
   } catch (error) {
     console.error("Gemini generation failed:", error);
-    return MOCK_QUESTIONS_FALLBACK.map(q => ({...q, id: `fallback-${Math.random()}`})) as unknown as Question[];
+    return MOCK_QUESTIONS_FALLBACK.map(q => ({
+      ...q, 
+      id: `fallback-${Math.random()}`,
+      type: QuestionType.MCQ
+    })) as unknown as Question[];
   }
 };
 
