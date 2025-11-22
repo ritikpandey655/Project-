@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExamType } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
 import { Button } from './Button';
@@ -8,11 +8,17 @@ interface PracticeConfigModalProps {
   examType: ExamType;
   onStart: (config: { subject: string; count: number; mode: 'finite' | 'endless' }) => void;
   onClose: () => void;
+  onExamChange: (exam: ExamType) => void;
 }
 
-export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examType, onStart, onClose }) => {
+export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examType, onStart, onClose, onExamChange }) => {
   const [subject, setSubject] = useState<string>('Mixed');
   const [mode, setMode] = useState<'short' | 'medium' | 'long' | 'endless'>('medium');
+
+  // Reset subject when exam changes
+  useEffect(() => {
+    setSubject('Mixed');
+  }, [examType]);
 
   const subjects = ['Mixed', ...EXAM_SUBJECTS[examType]];
 
@@ -38,7 +44,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examTy
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-white">Practice Configuration</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Customize your session for {examType}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Customize your session</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -47,7 +53,21 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examTy
           </button>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-5">
+          {/* Exam Selection */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Target Exam</label>
+            <select
+              value={examType}
+              onChange={(e) => onExamChange(e.target.value as ExamType)}
+              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors font-medium"
+            >
+              {Object.values(ExamType).map(e => (
+                <option key={e} value={e}>{e}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Subject Selection */}
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Subject</label>

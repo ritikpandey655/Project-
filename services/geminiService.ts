@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
@@ -7,7 +8,15 @@ import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 const apiKey = process.env.API_KEY;
 
 const cleanJson = (text: string) => {
-  return text.replace(/```json/g, '').replace(/```/g, '').trim();
+  // Remove Markdown code blocks
+  let clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
+  // Find the first curly brace and last curly brace to isolate the JSON object
+  const firstBrace = clean.indexOf('{');
+  const lastBrace = clean.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    clean = clean.substring(firstBrace, lastBrace + 1);
+  }
+  return clean;
 };
 
 export const generateExamQuestions = async (

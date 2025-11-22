@@ -210,9 +210,14 @@ const App: React.FC = () => {
   const handleExamSelect = (exam: ExamType) => {
     if (!state.user) return;
     saveUserPref(state.user.id, { selectedExam: exam });
-    navigateTo('tutorial');
+    // Don't navigate if called from modal, state update will reflect in props
     setState(prev => ({ ...prev, selectedExam: exam }));
   };
+
+  const handleExamSelectFromOnboarding = (exam: ExamType) => {
+    handleExamSelect(exam);
+    navigateTo('tutorial');
+  }
   
   const finishTutorial = () => {
     if (!state.user) return;
@@ -264,7 +269,6 @@ const App: React.FC = () => {
       }
 
       // 3. Generate AI questions (Initial batch)
-      // If endless, we start with 5. If finite, we try to get full count (up to 10 at a time to avoid timeout, simplified here to 5 + re-fetch)
       const batchSize = Math.min(config.count, 5); 
       const aiQuestions = await generateExamQuestions(state.selectedExam, subjectToGen, batchSize);
 
@@ -273,8 +277,6 @@ const App: React.FC = () => {
       setPracticeQueue(combined.sort(() => 0.5 - Math.random()));
       setCurrentQIndex(0);
       navigateTo('practice');
-      
-      // If finite and count > 5, we might need to fetch more immediately in background, but keeping logic simple for now.
       
     } catch (error) {
       console.error("Practice load failed", error);
@@ -319,10 +321,7 @@ const App: React.FC = () => {
     if (!isEnd) {
       setCurrentQIndex(prev => prev + 1);
     } else {
-      // If finite, end session. If endless, user explicitly quit or we wait for fetch (handled by UI button "Finish" vs "Next")
-      // For endless, we usually don't hit "End" unless fetch failed.
       if (practiceConfig.mode === 'endless' && isFetchingMore) {
-         // Show loading?
          alert("Fetching more questions... please wait a moment.");
       } else {
          navigateTo('dashboard');
@@ -392,7 +391,7 @@ const App: React.FC = () => {
             {Object.values(ExamType).map((exam) => (
               <button
                 key={exam}
-                onClick={() => handleExamSelect(exam)}
+                onClick={() => handleExamSelectFromOnboarding(exam)}
                 className="w-full p-4 text-left rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all font-medium text-slate-700 dark:text-slate-200 flex justify-between items-center group bg-white dark:bg-slate-800 shadow-sm hover:shadow-md"
               >
                 {exam}
@@ -503,6 +502,7 @@ const App: React.FC = () => {
             examType={state.selectedExam}
             onStart={startPracticeSession}
             onClose={() => setShowPracticeConfig(false)}
+            onExamChange={handleExamSelect}
           />
         )}
 
@@ -557,6 +557,7 @@ const App: React.FC = () => {
             examType={state.selectedExam!} 
             onGenerate={handlePaperGenerated}
             onBack={() => navigateTo('dashboard')}
+            onExamChange={handleExamSelect}
           />
         )}
 
