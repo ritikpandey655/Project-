@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ExamType, QuestionSource, Question } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
 import { Button } from './Button';
 import { saveUserQuestion } from '../services/storageService';
-import { generateSingleQuestion } from '../services/geminiService';
+import { generateSingleQuestion, generateQuestionFromImage } from '../services/geminiService';
 
 interface UploadFormProps {
   userId: string;
@@ -22,6 +22,8 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
   const [topic, setTopic] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleOptionChange = (index: number, val: string) => {
     const newOpts = [...options];
@@ -47,7 +49,6 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
         
         // Merge tags
         const newTags = aiQuestion.tags || [];
-        // Add the topic itself as a tag if not present
         if (!newTags.includes(topic)) newTags.unshift(topic);
         setTags(newTags.join(', '));
       } else {
@@ -58,6 +59,40 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
       alert("Error generating question.");
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsGenerating(true);
+    try {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+            const base64 = (reader.result as string).split(',')[1];
+            const aiQuestion = await generateQuestionFromImage(base64, examType, subject);
+            
+            if (aiQuestion) {
+                setText(aiQuestion.text || '');
+                if (aiQuestion.options && aiQuestion.options.length > 0) {
+                    const newOpts = [...aiQuestion.options];
+                    while(newOpts.length < 4) newOpts.push('');
+                    setOptions(newOpts.slice(0, 4));
+                }
+                setCorrectIndex(aiQuestion.correctIndex || 0);
+                setExplanation(aiQuestion.explanation || '');
+                setTags((aiQuestion.tags || []).join(', '));
+            } else {
+                alert("Could not analyze image. Please try again with a clearer image.");
+            }
+            setIsGenerating(false);
+        };
+    } catch (err) {
+        console.error(err);
+        alert("Error processing image.");
+        setIsGenerating(false);
     }
   };
 
@@ -79,7 +114,6 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
       createdAt: Date.now()
     };
 
-    // Simulate network delay for better UX feel
     setTimeout(() => {
       saveUserQuestion(userId, newQuestion);
       setIsSaving(false);
@@ -108,14 +142,16 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
       </div>
 
       {/* AI Helper Section */}
-      <div className="mb-8 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-        <label className="block text-xs font-bold text-indigo-800 uppercase mb-2 tracking-wide">
-          ✨ AI Auto-Fill (Optional)
+      <div className="mb-8 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3">
+        <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wide">
+          ✨ AI Tools
         </label>
-        <div className="flex gap-2">
+        
+        {/* Text Auto-Fill */}
+        <div className="flex flex-col sm:flex-row gap-2">
           <input 
             type="text" 
-            placeholder="Enter a topic (e.g. 'Battle of Plassey', 'Trigonometry')" 
+            placeholder="Enter a topic (e.g. 'Battle of Plassey')" 
             value={topic}
             onChange={e => setTopic(e.target.value)}
             className="flex-1 p-2.5 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
@@ -126,13 +162,46 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
             variant="secondary" 
             onClick={handleAutoGenerate} 
             isLoading={isGenerating}
-            className="whitespace-nowrap text-indigo-700 bg-white shadow-sm hover:bg-indigo-50 border-indigo-200"
+            className="whitespace-nowrap text-indigo-700 bg-white shadow-sm"
+            disabled={isGenerating}
           >
-             Auto-Fill with AI
+             Text Auto-Fill
           </Button>
         </div>
-        <p className="text-[10px] text-indigo-400 mt-1.5 ml-1">
-          Fetches a PYQ-style question from the internet/AI based on your topic.
+
+        {/* Image Upload */}
+        <div className="flex items-center gap-2">
+            <div className="h-px bg-indigo-200 flex-1"></div>
+            <span className="text-[10px] text-indigo-400 uppercase font-bold">OR</span>
+            <div className="h-px bg-indigo-200 flex-1"></div>
+        </div>
+
+        <div className="flex justify-center">
+            <input 
+                type="file" 
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+            />
+            <Button 
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                isLoading={isGenerating}
+                className="w-full border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+                disabled={isGenerating}
+            >
+                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Scan Question from Image
+            </Button>
+        </div>
+
+        <p className="text-[10px] text-indigo-400 text-center">
+          Use AI to generate questions from text topics or scan textbook photos.
         </p>
       </div>
 
