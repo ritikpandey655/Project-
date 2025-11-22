@@ -98,4 +98,5 @@ export interface AppState {
   user: User | null;
   showTimer: boolean;
   generatedPaper?: QuestionPaper | null;
+  darkMode: boolean;
 }

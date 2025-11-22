@@ -78,7 +78,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   // Initial Avatar Component
   const renderAvatar = () => {
     return (
-      <div className={`w-28 h-28 rounded-full border-4 border-white shadow-md flex items-center justify-center text-4xl font-bold text-indigo-600 bg-indigo-100`}>
+      <div className={`w-28 h-28 rounded-full border-4 border-white dark:border-slate-800 shadow-md flex items-center justify-center text-4xl font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900`}>
         {name.charAt(0).toUpperCase()}
       </div>
     );
@@ -90,7 +90,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       <div className="flex items-center justify-between mb-6">
         <button 
           onClick={onBack}
-          className="text-sm text-slate-500 hover:text-indigo-600 flex items-center gap-1 font-medium transition-colors"
+          className="text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 font-medium transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -100,7 +100,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         <div className="flex gap-3">
            {isEditing ? (
              <>
-                <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
+                <Button variant="ghost" onClick={handleCancel} className="dark:text-slate-300 dark:hover:text-white">Cancel</Button>
                 <Button onClick={handleSave} isLoading={isLoading}>Save Changes</Button>
              </>
            ) : (
@@ -112,7 +112,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: User Identity & Actions */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col items-center text-center relative overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col items-center text-center relative overflow-hidden transition-colors">
             <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
             
             {/* Avatar Container */}
@@ -121,10 +121,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </div>
 
             <div className="w-full relative z-10 flex flex-col items-center">
-              <h2 className="text-xl font-bold text-slate-800 mb-1">{name}</h2>
-              <p className="text-slate-500 text-sm mb-3">{email}</p>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{name}</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mb-3">{email}</p>
               
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
                  Target: {selectedExam}
               </span>
             </div>
@@ -133,7 +133,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           {/* Logout Button */}
           <button 
             onClick={onLogout}
-            className="w-full p-3 rounded-xl border border-red-100 text-red-600 hover:bg-red-50 transition-colors font-medium text-sm flex items-center justify-center gap-2 bg-white shadow-sm"
+            className="w-full p-3 rounded-xl border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium text-sm flex items-center justify-center gap-2 bg-white dark:bg-slate-800 shadow-sm"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -146,8 +146,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         <div className="lg:col-span-2 space-y-6">
            
            {/* Personal Details Section */}
-           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
                <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                </svg>
@@ -157,47 +157,47 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                {/* Name */}
                <div>
-                 <label className="block text-xs font-medium text-slate-500 uppercase mb-1">Full Name</label>
+                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase mb-1">Full Name</label>
                  {isEditing ? (
                    <input 
                      type="text" 
                      value={name} 
                      onChange={(e) => setName(e.target.value)}
-                     className="w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                     className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                    />
                  ) : (
-                   <p className="text-slate-800 font-medium border-b border-slate-100 pb-1">{name}</p>
+                   <p className="text-slate-800 dark:text-white font-medium border-b border-slate-100 dark:border-slate-700 pb-1">{name}</p>
                  )}
                </div>
 
                {/* Email */}
                <div>
-                 <label className="block text-xs font-medium text-slate-500 uppercase mb-1">Email</label>
+                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase mb-1">Email</label>
                  {isEditing ? (
                    <input 
                      type="email" 
                      value={email} 
                      onChange={(e) => setEmail(e.target.value)}
-                     className="w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                     className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                    />
                  ) : (
-                   <p className="text-slate-800 font-medium border-b border-slate-100 pb-1">{email}</p>
+                   <p className="text-slate-800 dark:text-white font-medium border-b border-slate-100 dark:border-slate-700 pb-1">{email}</p>
                  )}
                </div>
 
                {/* Mobile */}
                <div>
-                 <label className="block text-xs font-medium text-slate-500 uppercase mb-1">Mobile Number</label>
+                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase mb-1">Mobile Number</label>
                  {isEditing ? (
                    <input 
                      type="tel" 
                      value={mobile} 
                      onChange={(e) => setMobile(e.target.value)}
                      placeholder="+91 XXXXX XXXXX"
-                     className="w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                     className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                    />
                  ) : (
-                   <p className={`text-slate-800 font-medium border-b border-slate-100 pb-1 ${!mobile && 'text-slate-400 italic'}`}>
+                   <p className={`text-slate-800 dark:text-white font-medium border-b border-slate-100 dark:border-slate-700 pb-1 ${!mobile && 'text-slate-400 italic'}`}>
                      {mobile || 'Not added'}
                    </p>
                  )}
@@ -205,17 +205,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
                {/* Class */}
                <div>
-                 <label className="block text-xs font-medium text-slate-500 uppercase mb-1">Class / Grade</label>
+                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase mb-1">Class / Grade</label>
                  {isEditing ? (
                    <input 
                      type="text" 
                      value={currentClass} 
                      onChange={(e) => setCurrentClass(e.target.value)}
                      placeholder="e.g. 12th, Graduate"
-                     className="w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                     className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                    />
                  ) : (
-                   <p className={`text-slate-800 font-medium border-b border-slate-100 pb-1 ${!currentClass && 'text-slate-400 italic'}`}>
+                   <p className={`text-slate-800 dark:text-white font-medium border-b border-slate-100 dark:border-slate-700 pb-1 ${!currentClass && 'text-slate-400 italic'}`}>
                      {currentClass || 'Not added'}
                    </p>
                  )}
@@ -223,17 +223,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
                {/* Address */}
                <div className="md:col-span-2">
-                 <label className="block text-xs font-medium text-slate-500 uppercase mb-1">Address</label>
+                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase mb-1">Address</label>
                  {isEditing ? (
                    <input 
                      type="text" 
                      value={address} 
                      onChange={(e) => setAddress(e.target.value)}
                      placeholder="House No, Street, Locality"
-                     className="w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                     className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                    />
                  ) : (
-                   <p className={`text-slate-800 font-medium border-b border-slate-100 pb-1 ${!address && 'text-slate-400 italic'}`}>
+                   <p className={`text-slate-800 dark:text-white font-medium border-b border-slate-100 dark:border-slate-700 pb-1 ${!address && 'text-slate-400 italic'}`}>
                      {address || 'Not added'}
                    </p>
                  )}
@@ -241,17 +241,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
                {/* State */}
                <div>
-                 <label className="block text-xs font-medium text-slate-500 uppercase mb-1">State</label>
+                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase mb-1">State</label>
                  {isEditing ? (
                    <input 
                      type="text" 
                      value={userState} 
                      onChange={(e) => setUserState(e.target.value)}
                      placeholder="e.g. Maharashtra"
-                     className="w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                     className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                    />
                  ) : (
-                   <p className={`text-slate-800 font-medium border-b border-slate-100 pb-1 ${!userState && 'text-slate-400 italic'}`}>
+                   <p className={`text-slate-800 dark:text-white font-medium border-b border-slate-100 dark:border-slate-700 pb-1 ${!userState && 'text-slate-400 italic'}`}>
                      {userState || 'Not added'}
                    </p>
                  )}
@@ -259,17 +259,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
                {/* Pin Code */}
                <div>
-                 <label className="block text-xs font-medium text-slate-500 uppercase mb-1">Pin Code</label>
+                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase mb-1">Pin Code</label>
                  {isEditing ? (
                    <input 
                      type="text" 
                      value={pincode} 
                      onChange={(e) => setPincode(e.target.value)}
                      placeholder="XXXXXX"
-                     className="w-full p-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                     className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                    />
                  ) : (
-                   <p className={`text-slate-800 font-medium border-b border-slate-100 pb-1 ${!pincode && 'text-slate-400 italic'}`}>
+                   <p className={`text-slate-800 dark:text-white font-medium border-b border-slate-100 dark:border-slate-700 pb-1 ${!pincode && 'text-slate-400 italic'}`}>
                      {pincode || 'Not added'}
                    </p>
                  )}
@@ -280,34 +280,34 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
            {/* Stats Section */}
            <div>
-             <h3 className="text-lg font-bold text-slate-800 mb-4">Activity Summary</h3>
+             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Activity Summary</h3>
              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {/* Card 1 */}
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col items-center justify-center text-center transition-colors">
                    <div className="text-2xl mb-1">📝</div>
-                   <div className="text-xl font-bold text-slate-800">{notesCount}</div>
-                   <div className="text-[10px] text-slate-500 uppercase font-bold">Notes</div>
+                   <div className="text-xl font-bold text-slate-800 dark:text-white">{notesCount}</div>
+                   <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Notes</div>
                 </div>
 
                 {/* Card 2 */}
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col items-center justify-center text-center transition-colors">
                    <div className="text-2xl mb-1">✅</div>
-                   <div className="text-xl font-bold text-slate-800">{stats.totalAttempted}</div>
-                   <div className="text-[10px] text-slate-500 uppercase font-bold">Solved</div>
+                   <div className="text-xl font-bold text-slate-800 dark:text-white">{stats.totalAttempted}</div>
+                   <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Solved</div>
                 </div>
 
                 {/* Card 3 */}
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col items-center justify-center text-center transition-colors">
                    <div className="text-2xl mb-1">🎯</div>
-                   <div className="text-xl font-bold text-slate-800">{accuracy}%</div>
-                   <div className="text-[10px] text-slate-500 uppercase font-bold">Accuracy</div>
+                   <div className="text-xl font-bold text-slate-800 dark:text-white">{accuracy}%</div>
+                   <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Accuracy</div>
                 </div>
 
                 {/* Card 4 */}
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col items-center justify-center text-center transition-colors">
                    <div className="text-2xl mb-1">🔥</div>
-                   <div className="text-xl font-bold text-slate-800">{stats.streakCurrent}</div>
-                   <div className="text-[10px] text-slate-500 uppercase font-bold">Streak</div>
+                   <div className="text-xl font-bold text-slate-800 dark:text-white">{stats.streakCurrent}</div>
+                   <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Streak</div>
                 </div>
              </div>
            </div>

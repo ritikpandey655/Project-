@@ -46,15 +46,15 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, 
 
   if (showReport) {
     return (
-      <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 flex flex-col h-full max-h-[80vh] relative">
-        <div className="px-6 py-4 bg-red-50 border-b border-red-100 flex justify-between items-center">
-          <h3 className="text-red-700 font-bold flex items-center gap-2">
+      <div className="w-full max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700 flex flex-col h-full max-h-[80vh] relative transition-colors">
+        <div className="px-6 py-4 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/30 flex justify-between items-center">
+          <h3 className="text-red-700 dark:text-red-400 font-bold flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             Report Issue
           </h3>
-          <button onClick={() => setShowReport(false)} className="text-slate-400 hover:text-slate-600">
+          <button onClick={() => setShowReport(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -64,34 +64,34 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, 
         <div className="p-8 flex flex-col h-full justify-center items-center text-center">
           {reportSent ? (
             <div className="animate-fade-in">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-2">Report Received</h3>
-              <p className="text-slate-500">Thanks for helping us improve!</p>
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Report Received</h3>
+              <p className="text-slate-500 dark:text-slate-400">Thanks for helping us improve!</p>
             </div>
           ) : (
             <div className="w-full max-w-md space-y-4 text-left animate-fade-in">
-              <p className="text-slate-600 mb-4 text-sm">What is wrong with this question?</p>
+              <p className="text-slate-600 dark:text-slate-300 mb-4 text-sm">What is wrong with this question?</p>
               
               {['Factually Incorrect', 'Wrong Answer Key', 'Spelling/Grammar', 'Confusing Explanation', 'Other'].map((reason) => (
-                <label key={reason} className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                <label key={reason} className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                   <input 
                     type="radio" 
                     name="reportReason" 
                     value={reason} 
                     checked={reportReason === reason} 
                     onChange={(e) => setReportReason(e.target.value)}
-                    className="w-4 h-4 text-red-600 focus:ring-red-500"
+                    className="w-4 h-4 text-red-600 focus:ring-red-500 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500"
                   />
-                  <span className="text-slate-700 font-medium">{reason}</span>
+                  <span className="text-slate-700 dark:text-slate-200 font-medium">{reason}</span>
                 </label>
               ))}
               
               <div className="pt-4 flex gap-3">
-                <Button variant="ghost" onClick={() => setShowReport(false)} className="flex-1">Cancel</Button>
+                <Button variant="ghost" onClick={() => setShowReport(false)} className="flex-1 dark:text-slate-300 dark:hover:text-white">Cancel</Button>
                 <Button 
                   variant="danger" 
                   onClick={handleReportSubmit} 
@@ -109,16 +109,18 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, 
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 flex flex-col h-full max-h-[80vh]">
+    <div className="w-full max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700 flex flex-col h-full max-h-[80vh] transition-colors">
       {/* Header */}
-      <div className="px-6 py-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
+      <div className="px-6 py-4 bg-indigo-50 dark:bg-indigo-900/30 border-b border-indigo-100 dark:border-indigo-900/50 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <span className={`px-2 py-1 text-xs font-bold rounded-md uppercase tracking-wide ${
-            question.source === QuestionSource.USER ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
+            question.source === QuestionSource.USER 
+                ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300' 
+                : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'
           }`}>
             {question.source === QuestionSource.USER ? 'Your Note' : 'AI PYQ'}
           </span>
-          <span className="text-xs text-slate-500 font-medium">{question.subject || question.examType}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">{question.subject || question.examType}</span>
         </div>
         
         <div className="flex items-center gap-3">
@@ -140,24 +142,28 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, 
 
       {/* Content (Scrollable) */}
       <div className="p-6 overflow-y-auto flex-1 no-scrollbar" dir="auto">
-        <h3 className="text-xl font-semibold text-slate-800 mb-6 leading-relaxed text-start">
+        <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed text-start">
           {question.text}
         </h3>
 
         <div className="space-y-3">
           {question.options.map((option, index) => {
-            let optionStyle = "border-slate-200 hover:bg-slate-50 hover:border-indigo-300";
+            let optionStyle = "border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500";
+            let textStyle = "text-slate-800 dark:text-slate-200";
             
             if (isSubmitted) {
               if (index === question.correctIndex) {
-                optionStyle = "bg-green-50 border-green-500 text-green-800 ring-1 ring-green-500";
+                optionStyle = "bg-green-50 dark:bg-green-900/30 border-green-500 text-green-800 dark:text-green-300 ring-1 ring-green-500";
+                textStyle = "";
               } else if (index === selectedOption && index !== question.correctIndex) {
-                optionStyle = "bg-red-50 border-red-500 text-red-800";
+                optionStyle = "bg-red-50 dark:bg-red-900/30 border-red-500 text-red-800 dark:text-red-300";
+                textStyle = "";
               } else {
-                optionStyle = "opacity-50 border-slate-100";
+                optionStyle = "opacity-50 border-slate-100 dark:border-slate-700";
               }
             } else if (selectedOption === index) {
-              optionStyle = "bg-indigo-50 border-indigo-500 text-indigo-900 ring-1 ring-indigo-500";
+              optionStyle = "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 text-indigo-900 dark:text-indigo-200 ring-1 ring-indigo-500";
+              textStyle = "";
             }
 
             return (
@@ -165,18 +171,18 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, 
                 key={index}
                 onClick={() => !isSubmitted && setSelectedOption(index)}
                 disabled={isSubmitted}
-                className={`w-full text-start p-4 rounded-xl border-2 transition-all duration-200 group relative flex items-center ${optionStyle}`}
+                className={`w-full text-start p-4 rounded-xl border-2 transition-all duration-200 group relative flex items-center ${optionStyle} ${textStyle}`}
               >
                 <span className={`flex-shrink-0 inline-flex items-center justify-center w-6 h-6 mr-3 text-sm font-bold rounded-full 
-                  ${isSubmitted && index === question.correctIndex ? 'bg-green-200 text-green-800' : 
-                    (selectedOption === index ? 'bg-indigo-200 text-indigo-800' : 'bg-slate-100 text-slate-500')}
+                  ${isSubmitted && index === question.correctIndex ? 'bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-100' : 
+                    (selectedOption === index ? 'bg-indigo-200 text-indigo-800 dark:bg-indigo-700 dark:text-indigo-100' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400')}
                 `}>
                   {String.fromCharCode(65 + index)}
                 </span>
                 <span className="font-medium flex-1">{option}</span>
                 
                 {isSubmitted && index === question.correctIndex && (
-                  <svg className="absolute right-4 w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="absolute right-4 w-5 h-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
@@ -186,14 +192,14 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, 
         </div>
 
         {isSubmitted && question.explanation && (
-          <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-100 animate-fade-in text-start">
-            <h4 className="text-sm font-bold text-amber-800 mb-1 flex items-center gap-2">
+          <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/40 animate-fade-in text-start">
+            <h4 className="text-sm font-bold text-amber-800 dark:text-amber-400 mb-1 flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Explanation
             </h4>
-            <p className="text-sm text-amber-900 leading-relaxed opacity-90">
+            <p className="text-sm text-amber-900 dark:text-amber-200 leading-relaxed opacity-90">
               {question.explanation}
             </p>
           </div>
@@ -201,7 +207,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, 
       </div>
 
       {/* Footer - Sticky */}
-      <div className="p-4 border-t border-slate-100 bg-white flex justify-end z-10">
+      <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-end z-10 transition-colors">
         {!isSubmitted ? (
           <Button 
             onClick={handleSubmit} 

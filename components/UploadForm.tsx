@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { ExamType, QuestionSource, Question } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
@@ -128,22 +129,22 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
   };
 
   return (
-    <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200 max-w-3xl mx-auto">
+    <div className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 max-w-3xl mx-auto transition-colors">
       <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
             Add to Self-Revision
-            <span className="text-xs font-medium px-2 py-1 rounded-md bg-indigo-100 text-indigo-700 border border-indigo-200">
+            <span className="text-xs font-medium px-2 py-1 rounded-md bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
               {examType}
             </span>
           </h2>
-          <p className="text-slate-500 mt-1 text-sm">Digitize your notes. We'll quiz you on this later.</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Digitize your notes. We'll quiz you on this later.</p>
         </div>
       </div>
 
       {/* AI Helper Section */}
-      <div className="mb-8 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3">
-        <label className="block text-xs font-bold text-indigo-800 uppercase tracking-wide">
+      <div className="mb-8 bg-indigo-50/50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/50 space-y-3">
+        <label className="block text-xs font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wide">
           ✨ AI Tools
         </label>
         
@@ -154,7 +155,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
             placeholder="Enter a topic (e.g. 'Battle of Plassey')" 
             value={topic}
             onChange={e => setTopic(e.target.value)}
-            className="flex-1 p-2.5 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+            className="flex-1 p-2.5 rounded-lg border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAutoGenerate())}
           />
           <Button 
@@ -162,7 +163,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
             variant="secondary" 
             onClick={handleAutoGenerate} 
             isLoading={isGenerating}
-            className="whitespace-nowrap text-indigo-700 bg-white shadow-sm"
+            className="whitespace-nowrap text-indigo-700 bg-white dark:bg-slate-700 dark:text-indigo-300 shadow-sm"
             disabled={isGenerating}
           >
              Text Auto-Fill
@@ -171,9 +172,9 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
 
         {/* Image Upload */}
         <div className="flex items-center gap-2">
-            <div className="h-px bg-indigo-200 flex-1"></div>
+            <div className="h-px bg-indigo-200 dark:bg-indigo-800 flex-1"></div>
             <span className="text-[10px] text-indigo-400 uppercase font-bold">OR</span>
-            <div className="h-px bg-indigo-200 flex-1"></div>
+            <div className="h-px bg-indigo-200 dark:bg-indigo-800 flex-1"></div>
         </div>
 
         <div className="flex justify-center">
@@ -189,7 +190,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
                 isLoading={isGenerating}
-                className="w-full border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+                className="w-full border-dashed border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
                 disabled={isGenerating}
             >
                 <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -208,11 +209,11 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Subject</label>
             <select 
               value={subject} 
               onChange={e => setSubject(e.target.value)}
-              className="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+              className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             >
               {EXAM_SUBJECTS[examType]?.map(sub => (
                 <option key={sub} value={sub}>{sub}</option>
@@ -220,31 +221,31 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Tags</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tags</label>
             <input 
               type="text" 
               placeholder="e.g. hard, imp, history" 
               value={tags}
               onChange={e => setTags(e.target.value)}
-              className="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Question Text</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Question Text</label>
           <textarea 
             required
             value={text}
             onChange={e => setText(e.target.value)}
             rows={3}
-            className="w-full p-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
             placeholder="Type your question here..."
           />
         </div>
 
         <div className="space-y-3">
-          <label className="block text-sm font-medium text-slate-700">Options</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Options</label>
           {options.map((opt, idx) => (
             <div key={idx} className="flex items-center gap-3">
               <div className="flex-shrink-0 flex items-center justify-center w-8 h-8">
@@ -261,7 +262,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
                 required
                 value={opt}
                 onChange={e => handleOptionChange(idx, e.target.value)}
-                className={`flex-1 p-2 rounded-lg border outline-none focus:ring-2 focus:ring-indigo-500 ${correctIndex === idx ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300'}`}
+                className={`flex-1 p-2 rounded-lg border outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white ${correctIndex === idx ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-slate-300 dark:border-slate-600'}`}
                 placeholder={`Option ${String.fromCharCode(65 + idx)}`}
               />
             </div>
@@ -270,12 +271,12 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Explanation (Why is it correct?)</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Explanation (Why is it correct?)</label>
           <textarea 
             value={explanation}
             onChange={e => setExplanation(e.target.value)}
             rows={2}
-            className="w-full p-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
             placeholder="Add a note for your future self..."
           />
         </div>

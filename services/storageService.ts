@@ -133,12 +133,14 @@ interface UserPrefs {
   selectedExam: ExamType | null;
   showTimer: boolean;
   hasSeenTutorial: boolean;
+  darkMode: boolean;
 }
 
 const DEFAULT_PREFS: UserPrefs = {
   selectedExam: null,
   showTimer: true,
-  hasSeenTutorial: false
+  hasSeenTutorial: false,
+  darkMode: false
 };
 
 export const saveUserPref = (userId: string, newPrefs: Partial<UserPrefs>): void => {

@@ -33,7 +33,8 @@ const App: React.FC = () => {
     stats: INITIAL_STATS,
     user: null,
     showTimer: true,
-    generatedPaper: null
+    generatedPaper: null,
+    darkMode: false
   });
 
   const [practiceQueue, setPracticeQueue] = useState<Question[]>([]);
@@ -48,7 +49,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const user = getUser();
     if (user) {
-      const { selectedExam, showTimer, hasSeenTutorial } = getUserPref(user.id);
+      const { selectedExam, showTimer, hasSeenTutorial, darkMode } = getUserPref(user.id);
       const userStats = getStats(user.id);
       
       let nextView: ViewState = 'onboarding';
@@ -57,7 +58,15 @@ const App: React.FC = () => {
         nextView = hasSeenTutorial ? 'dashboard' : 'tutorial';
       }
 
-      setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: nextView, showTimer }));
+      setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: nextView, showTimer, darkMode }));
+      
+      // Apply dark mode
+      if (darkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+
     } else {
       setState(prev => ({ ...prev, view: 'login' }));
     }
@@ -103,7 +112,8 @@ const App: React.FC = () => {
 
   // Helper to navigate and push history
   const navigateTo = (view: ViewState) => {
-    window.history.pushState({ view }, '', `/${view === 'dashboard' ? '' : view}`);
+    // Pass null as URL to avoid SecurityError in sandboxed/blob environments
+    window.history.pushState({ view }, '', null);
     setState(prev => ({ ...prev, view }));
   };
 
@@ -122,9 +132,15 @@ const App: React.FC = () => {
 
   const handleLogin = (user: User) => {
     saveUser(user);
-    const { selectedExam, showTimer, hasSeenTutorial } = getUserPref(user.id);
+    const { selectedExam, showTimer, hasSeenTutorial, darkMode } = getUserPref(user.id);
     const userStats = getStats(user.id);
     
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
     let nextView: ViewState = 'onboarding';
     if (selectedExam) {
        nextView = hasSeenTutorial ? 'dashboard' : 'tutorial';
@@ -136,11 +152,12 @@ const App: React.FC = () => {
       selectedExam, 
       stats: userStats,
       view: nextView,
-      showTimer
+      showTimer,
+      darkMode
     }));
     
     // Push history for the new view
-    window.history.pushState({ view: nextView }, '', '/');
+    window.history.pushState({ view: nextView }, '', null);
   };
 
   const handleSignup = (user: User, exam: ExamType) => {
@@ -159,9 +176,10 @@ const App: React.FC = () => {
       selectedExam: exam,
       stats: userStats,
       view: nextView,
-      showTimer: true
+      showTimer: true,
+      darkMode: false
     }));
-    window.history.pushState({ view: nextView }, '', '/tutorial');
+    window.history.pushState({ view: nextView }, '', null);
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -171,14 +189,16 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     removeUser();
+    document.documentElement.classList.remove('dark');
     setState(prev => ({
       ...prev,
       user: null,
       view: 'login',
       selectedExam: null,
-      stats: INITIAL_STATS
+      stats: INITIAL_STATS,
+      darkMode: false
     }));
-    window.history.pushState({ view: 'login' }, '', '/login');
+    window.history.pushState({ view: 'login' }, '', null);
   };
 
   const handleExamSelect = (exam: ExamType) => {
@@ -199,6 +219,18 @@ const App: React.FC = () => {
     const newState = !state.showTimer;
     saveUserPref(state.user.id, { showTimer: newState });
     setState(prev => ({ ...prev, showTimer: newState }));
+  };
+
+  const toggleDarkMode = () => {
+    if (!state.user) return;
+    const newState = !state.darkMode;
+    saveUserPref(state.user.id, { darkMode: newState });
+    setState(prev => ({ ...prev, darkMode: newState }));
+    if (newState) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   };
 
   const startPractice = async () => {
@@ -288,16 +320,16 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
         <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-500 font-medium animate-pulse">Curating your revision set...</p>
+        <p className="text-slate-500 dark:text-slate-400 font-medium animate-pulse">Curating your revision set...</p>
       </div>
     );
   }
 
   if (state.view === 'onboarding' || !state.selectedExam) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6 relative">
+      <div className="min-h-screen bg-white dark:bg-slate-900 flex items-center justify-center p-6 relative transition-colors duration-200">
         <button 
           onClick={handleLogout}
           className="absolute top-6 right-6 text-sm text-slate-400 hover:text-red-500"
@@ -305,21 +337,21 @@ const App: React.FC = () => {
           Logout
         </button>
         <div className="max-w-md w-full text-center animate-fade-in">
-          <div className="w-20 h-20 bg-indigo-100 rounded-2xl mx-auto flex items-center justify-center mb-6 text-3xl shadow-sm">
+          <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl mx-auto flex items-center justify-center mb-6 text-3xl shadow-sm">
             🎓
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-3">Welcome, {state.user?.name?.split(' ')[0] || 'Student'}!</h1>
-          <p className="text-slate-500 mb-8">Select your target exam to personalize your AI tutor and revision bank.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Welcome, {state.user?.name?.split(' ')[0] || 'Student'}!</h1>
+          <p className="text-slate-500 dark:text-slate-400 mb-8">Select your target exam to personalize your AI tutor and revision bank.</p>
           
           <div className="grid gap-3">
             {Object.values(ExamType).map((exam) => (
               <button
                 key={exam}
                 onClick={() => handleExamSelect(exam)}
-                className="w-full p-4 text-left rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-slate-700 flex justify-between items-center group bg-white shadow-sm hover:shadow-md"
+                className="w-full p-4 text-left rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all font-medium text-slate-700 dark:text-slate-200 flex justify-between items-center group bg-white dark:bg-slate-800 shadow-sm hover:shadow-md"
               >
                 {exam}
-                <span className="opacity-0 group-hover:opacity-100 text-indigo-600 transition-opacity">→</span>
+                <span className="opacity-0 group-hover:opacity-100 text-indigo-600 dark:text-indigo-400 transition-opacity">→</span>
               </button>
             ))}
           </div>
@@ -329,16 +361,16 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200">
       {/* Navbar */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-30 safe-top">
+      <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 safe-top transition-colors duration-200">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div 
             className="flex items-center gap-2 cursor-pointer" 
             onClick={() => navigateTo('dashboard')}
           >
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-200">E</div>
-            <span className="font-bold text-slate-800 hidden sm:block">ExamMaster</span>
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-200 dark:shadow-none">E</div>
+            <span className="font-bold text-slate-800 dark:text-white hidden sm:block">ExamMaster</span>
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
@@ -355,40 +387,40 @@ const App: React.FC = () => {
               </button>
             )}
 
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
               <button 
                 onClick={() => navigateTo('dashboard')}
-                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'dashboard' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'dashboard' ? 'bg-white dark:bg-slate-600 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
               >
                 Dash
               </button>
               <button 
                 onClick={() => navigateTo('upload')}
-                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'upload' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'upload' ? 'bg-white dark:bg-slate-600 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
               >
                 Add Notes
               </button>
             </div>
 
-            <div className="h-6 w-px bg-slate-200"></div>
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-600"></div>
 
             <div className="flex items-center gap-3">
                <div className="hidden sm:block text-right">
-                  <p className="text-xs font-bold text-slate-700">{state.user?.name}</p>
-                  <p className="text-[10px] text-indigo-600 font-medium bg-indigo-50 px-1.5 rounded-md inline-block mt-0.5">{state.selectedExam}</p>
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{state.user?.name}</p>
+                  <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50 dark:bg-indigo-900/30 px-1.5 rounded-md inline-block mt-0.5">{state.selectedExam}</p>
                </div>
                
                {/* User Profile & Logout */}
                <div className="flex items-center gap-2">
                  <button 
                     onClick={() => navigateTo('profile')}
-                    className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden border-2 border-white shadow-sm hover:ring-2 hover:ring-indigo-400 transition-all" 
+                    className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm hover:ring-2 hover:ring-indigo-400 transition-all" 
                     title="View Profile"
                  >
                     {state.user?.photoURL ? (
                       <img src={state.user.photoURL} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-indigo-100 text-indigo-600 font-bold">
+                      <div className="w-full h-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 font-bold">
                         {state.user?.name?.[0] || 'U'}
                       </div>
                     )}
@@ -423,24 +455,24 @@ const App: React.FC = () => {
         {/* iOS Help Modal */}
         {showIOSHelp && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowIOSHelp(false)}>
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-slate-800">Install on iOS</h3>
-                <button onClick={() => setShowIOSHelp(false)} className="text-slate-400 hover:text-slate-600">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Install on iOS</h3>
+                <button onClick={() => setShowIOSHelp(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
-              <div className="space-y-4 text-sm text-slate-600">
+              <div className="space-y-4 text-sm text-slate-600 dark:text-slate-300">
                 <p>To install the app on your iPhone or iPad:</p>
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                  <span className="font-bold text-indigo-600">1.</span>
-                  <span>Tap the <strong className="text-slate-800">Share</strong> button <svg className="w-4 h-4 inline text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> in Safari.</span>
+                <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">1.</span>
+                  <span>Tap the <strong className="text-slate-800 dark:text-white">Share</strong> button <svg className="w-4 h-4 inline text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> in Safari.</span>
                 </div>
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                  <span className="font-bold text-indigo-600">2.</span>
-                  <span>Scroll down and tap <strong className="text-slate-800">Add to Home Screen</strong>.</span>
+                <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">2.</span>
+                  <span>Scroll down and tap <strong className="text-slate-800 dark:text-white">Add to Home Screen</strong>.</span>
                 </div>
               </div>
               <button 
@@ -457,9 +489,11 @@ const App: React.FC = () => {
           <Dashboard 
             stats={state.stats} 
             showTimer={state.showTimer}
+            darkMode={state.darkMode}
             onStartPractice={startPractice} 
             onUpload={() => navigateTo('upload')} 
             onToggleTimer={toggleTimer}
+            onToggleDarkMode={toggleDarkMode}
             onGeneratePaper={() => navigateTo('paperGenerator')}
           />
         )}
@@ -494,7 +528,7 @@ const App: React.FC = () => {
           <div className="max-w-3xl mx-auto animate-fade-in">
             <button 
               onClick={() => navigateTo('dashboard')}
-              className="mb-4 text-sm text-slate-500 hover:text-indigo-600 flex items-center gap-1"
+              className="mb-4 text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1"
             >
               ← Back to Dashboard
             </button>
@@ -511,7 +545,7 @@ const App: React.FC = () => {
 
         {state.view === 'practice' && practiceQueue.length > 0 && (
           <div className="h-full flex flex-col justify-center py-4 animate-fade-in">
-             <div className="mb-4 flex justify-between items-center text-sm text-slate-500 px-2">
+             <div className="mb-4 flex justify-between items-center text-sm text-slate-500 dark:text-slate-400 px-2">
                 <span>Question {currentQIndex + 1} of {practiceQueue.length}</span>
                 
                 {state.showTimer && <Timer />}

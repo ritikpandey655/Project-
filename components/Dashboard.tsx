@@ -7,13 +7,24 @@ import { Button } from './Button';
 interface DashboardProps {
   stats: UserStats;
   showTimer: boolean;
+  darkMode: boolean;
   onStartPractice: () => void;
   onUpload: () => void;
   onToggleTimer: () => void;
-  onGeneratePaper: () => void; // New Prop
+  onToggleDarkMode: () => void;
+  onGeneratePaper: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartPractice, onUpload, onToggleTimer, onGeneratePaper }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ 
+  stats, 
+  showTimer, 
+  darkMode,
+  onStartPractice, 
+  onUpload, 
+  onToggleTimer, 
+  onToggleDarkMode,
+  onGeneratePaper 
+}) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -58,7 +69,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
   return (
     <div className="space-y-8 pb-20">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-3xl p-8 text-white shadow-lg shadow-indigo-200 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-3xl p-8 text-white shadow-lg shadow-indigo-200 dark:shadow-none relative overflow-hidden">
         <div className="relative z-10">
           <h2 className="text-3xl font-bold mb-2">Ready to revise?</h2>
           <p className="text-indigo-100 mb-6 max-w-md">
@@ -97,7 +108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
           className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${
             activeFilter === 'All' 
               ? 'bg-indigo-600 text-white shadow-md' 
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
           }`}
         >
           All
@@ -109,7 +120,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
             className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${
               activeFilter === type 
                 ? 'bg-indigo-600 text-white shadow-md' 
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
             }`}
           >
             {type}
@@ -119,28 +130,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-          <p className="text-slate-500 text-xs font-medium uppercase">Current Streak</p>
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Current Streak</p>
           <p className="text-3xl font-bold text-orange-500 mt-1 flex items-center gap-1">
             {stats.streakCurrent} <span className="text-lg">🔥</span>
           </p>
           {activeFilter !== 'All' && <span className="text-[10px] text-slate-400">(Global)</span>}
         </div>
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-          <p className="text-slate-500 text-xs font-medium uppercase">Questions Solved</p>
-          <p className="text-3xl font-bold text-slate-800 mt-1">{displayedStats.attempted}</p>
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Questions Solved</p>
+          <p className="text-3xl font-bold text-slate-800 dark:text-white mt-1">{displayedStats.attempted}</p>
         </div>
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-          <p className="text-slate-500 text-xs font-medium uppercase">Accuracy</p>
-          <p className="text-3xl font-bold text-green-600 mt-1">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Accuracy</p>
+          <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">
             {displayedStats.attempted > 0 
               ? Math.round((displayedStats.correct / displayedStats.attempted) * 100) 
               : 0}%
           </p>
         </div>
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-          <p className="text-slate-500 text-xs font-medium uppercase">Best Streak</p>
-          <p className="text-3xl font-bold text-indigo-600 mt-1">{stats.streakMax}</p>
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Best Streak</p>
+          <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">{stats.streakMax}</p>
           {activeFilter !== 'All' && <span className="text-[10px] text-slate-400">(Global)</span>}
         </div>
       </div>
@@ -150,10 +161,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
         {/* Chart Column */}
         <div className="md:col-span-2">
           {chartData.length > 0 ? (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-full min-h-[300px]">
-              <h3 className="text-lg font-bold text-slate-800 mb-6 flex justify-between">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 h-full min-h-[300px] transition-colors">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex justify-between">
                 <span>Subject Performance (%)</span>
-                <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                <span className="text-sm font-normal text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
                   {activeFilter}
                 </span>
               </h3>
@@ -161,10 +172,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 20 }}>
                     <XAxis type="number" domain={[0, 100]} hide />
-                    <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 12}} axisLine={false} tickLine={false} />
+                    <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        width={100} 
+                        tick={{fontSize: 12, fill: darkMode ? '#cbd5e1' : '#334155'}} 
+                        axisLine={false} 
+                        tickLine={false} 
+                    />
                     <Tooltip 
                       cursor={{fill: 'transparent'}}
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      contentStyle={{ 
+                          borderRadius: '12px', 
+                          border: 'none', 
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          backgroundColor: darkMode ? '#1e293b' : '#fff',
+                          color: darkMode ? '#fff' : '#000'
+                      }}
                     />
                     <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={24}>
                       {chartData.map((entry, index) => (
@@ -176,9 +200,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
               </div>
             </div>
           ) : (
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 text-center h-full flex flex-col justify-center min-h-[300px]">
-              <p className="text-slate-400 mb-2">No performance data yet for {activeFilter}.</p>
-              <button onClick={onStartPractice} className="text-indigo-600 font-semibold text-sm hover:underline">
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 text-center h-full flex flex-col justify-center min-h-[300px] transition-colors">
+              <p className="text-slate-400 dark:text-slate-500 mb-2">No performance data yet for {activeFilter}.</p>
+              <button onClick={onStartPractice} className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm hover:underline">
                 Start practicing to see analytics
               </button>
             </div>
@@ -188,30 +212,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
         {/* Sidebar Column */}
         <div className="md:col-span-1 space-y-6">
            {/* Settings */}
-           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">Settings</h3>
+           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Settings</h3>
               
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <div>
-                  <p className="font-semibold text-slate-700">Practice Timer</p>
-                  <p className="text-xs text-slate-500">Show elapsed time during practice</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-100 dark:border-slate-600 transition-colors">
+                    <div>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">Practice Timer</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Show elapsed time during practice</p>
+                    </div>
+                    <button 
+                    onClick={onToggleTimer}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showTimer ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-600'}`}
+                    >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showTimer ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
                 </div>
-                <button 
-                  onClick={onToggleTimer}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showTimer ? 'bg-indigo-600' : 'bg-slate-200'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showTimer ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-100 dark:border-slate-600 transition-colors">
+                    <div>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">Dark Mode</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Switch to dark theme</p>
+                    </div>
+                    <button 
+                    onClick={onToggleDarkMode}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${darkMode ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-600'}`}
+                    >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
               </div>
            </div>
 
            {/* Feedback */}
-           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-             <h3 className="text-lg font-bold text-slate-800 mb-2">Feedback & Support</h3>
-             <p className="text-xs text-slate-500 mb-4">Found a bug or have a feature request? Let us know!</p>
+           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Feedback & Support</h3>
+             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Found a bug or have a feature request? Let us know!</p>
              
              {feedbackSent ? (
-               <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-100 text-center animate-fade-in">
+               <div className="bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-300 p-4 rounded-xl border border-green-100 dark:border-green-800 text-center animate-fade-in">
                  <span className="text-2xl block mb-1">🎉</span>
                  <p className="font-medium">Thank you!</p>
                  <p className="text-xs opacity-80">Your feedback has been sent.</p>
@@ -222,7 +261,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
                     value={feedbackText}
                     onChange={(e) => setFeedbackText(e.target.value)}
                     placeholder="Type your message here..."
-                    className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none h-24"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none h-24 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
                  />
                  <Button 
                    onClick={handleSendFeedback} 
