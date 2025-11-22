@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
@@ -93,10 +92,8 @@ export const generateExamQuestions = async (
     let jsonStr = response.text;
     if (!jsonStr) return [];
     
-    // If using search, we might need to clean markdown
-    if (useSearch) {
-        jsonStr = cleanJson(jsonStr);
-    }
+    // Clean markdown if present
+    jsonStr = cleanJson(jsonStr);
 
     const rawQuestions = JSON.parse(jsonStr);
     
@@ -150,7 +147,7 @@ export const generateSingleQuestion = async (
   `;
 
   try {
-    // Use gemini-2.5-flash-lite-latest for low latency
+    // Use gemini-flash-lite-latest for low latency
     const response = await ai.models.generateContent({
       model: 'gemini-flash-lite-latest',
       contents: prompt,
@@ -176,8 +173,9 @@ export const generateSingleQuestion = async (
       }
     });
 
-    const jsonStr = response.text;
+    let jsonStr = response.text;
     if (!jsonStr) return null;
+    jsonStr = cleanJson(jsonStr);
 
     return JSON.parse(jsonStr);
 
@@ -265,8 +263,11 @@ export const generateFullPaper = async (
       }
     });
 
-    const jsonStr = response.text;
+    let jsonStr = response.text;
     if (!jsonStr) return null;
+    
+    // Thinking models can sometimes output markdown blocks even with JSON schema
+    jsonStr = cleanJson(jsonStr);
 
     const rawPaper = JSON.parse(jsonStr);
 
@@ -304,13 +305,59 @@ export const generateFullPaper = async (
     return paper;
 
   } catch (error) {
-    console.error("Full paper generation failed:", error);
-    return null;
+    console.error("Full paper generation failed (retrying with Flash):", error);
+    // Fallback to Flash if Pro/Thinking fails
+    try {
+        const fallbackAi = new GoogleGenAI({ apiKey });
+        const response = await fallbackAi.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json" }
+        });
+        let jsonStr = cleanJson(response.text || '');
+        if (!jsonStr) return null;
+        const rawPaper = JSON.parse(jsonStr);
+        
+        // Same hydration logic...
+        return {
+            id: `paper-${Date.now()}`,
+            title: rawPaper.title || `${exam} Practice Paper`,
+            examType: exam as ExamType,
+            subject: subject,
+            difficulty: difficulty,
+            totalMarks: rawPaper.totalMarks || 100,
+            durationMinutes: rawPaper.durationMinutes || 60,
+            createdAt: Date.now(),
+            sections: (rawPaper.sections || []).map((sec: any, sIdx: number) => ({
+                id: `sec-${sIdx}`,
+                title: sec.title || 'Section',
+                instructions: sec.instructions || '',
+                marksPerQuestion: sec.marksPerQuestion || 1,
+                questions: (sec.questions || []).map((q: any, qIdx: number) => ({
+                    id: `q-${sIdx}-${qIdx}`,
+                    text: q.text,
+                    options: q.options || [],
+                    correctIndex: q.correctIndex ?? -1,
+                    explanation: q.answer,
+                    answer: q.answer,
+                    type: sec.questionType || QuestionType.SHORT_ANSWER,
+                    examType: exam as ExamType,
+                    source: QuestionSource.PYQ_AI,
+                    createdAt: Date.now(),
+                    marks: sec.marksPerQuestion || 1
+                }))
+            }))
+        };
+    } catch (fallbackError) {
+        console.error("Fallback generation failed:", fallbackError);
+        return null;
+    }
   }
 };
 
 export const generateQuestionFromImage = async (
   base64Image: string,
+  mimeType: string,
   examType: string,
   subject: string
 ): Promise<Partial<Question> | null> => {
@@ -326,7 +373,7 @@ export const generateQuestionFromImage = async (
         parts: [
             {
                 inlineData: {
-                    mimeType: 'image/jpeg', 
+                    mimeType: mimeType, 
                     data: base64Image
                 }
             },
@@ -354,8 +401,10 @@ export const generateQuestionFromImage = async (
       }
     });
 
-    const jsonStr = response.text;
+    let jsonStr = response.text;
     if (!jsonStr) return null;
+    
+    jsonStr = cleanJson(jsonStr);
     return JSON.parse(jsonStr);
 
   } catch (error) {

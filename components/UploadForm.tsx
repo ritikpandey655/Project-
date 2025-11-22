@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { ExamType, QuestionSource, Question } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
@@ -66,13 +65,14 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const mimeType = file.type || 'image/jpeg';
     setIsGenerating(true);
     try {
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = async () => {
             const base64 = (reader.result as string).split(',')[1];
-            const aiQuestion = await generateQuestionFromImage(base64, examType, subject);
+            const aiQuestion = await generateQuestionFromImage(base64, mimeType, examType, subject);
             
             if (aiQuestion) {
                 setText(aiQuestion.text || '');
