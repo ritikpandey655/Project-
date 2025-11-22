@@ -14,6 +14,14 @@ export enum QuestionSource {
   USER = 'USER'      // Uploaded by user for revision
 }
 
+export enum QuestionType {
+  MCQ = 'MCQ',
+  SHORT_ANSWER = 'SHORT_ANSWER',
+  LONG_ANSWER = 'LONG_ANSWER',
+  NUMERICAL = 'NUMERICAL',
+  VIVA = 'VIVA'
+}
+
 export interface Question {
   id: string;
   text: string;
@@ -25,6 +33,30 @@ export interface Question {
   subject?: string;
   createdAt: number;
   tags?: string[];
+  // New fields for Full Paper
+  type?: QuestionType;
+  marks?: number;
+  answer?: string; // Model answer for non-MCQ
+}
+
+export interface PaperSection {
+  id: string;
+  title: string;
+  instructions: string;
+  questions: Question[];
+  marksPerQuestion: number;
+}
+
+export interface QuestionPaper {
+  id: string;
+  title: string;
+  examType: ExamType;
+  subject: string;
+  difficulty: string;
+  totalMarks: number;
+  durationMinutes: number;
+  sections: PaperSection[];
+  createdAt: number;
 }
 
 export interface UserStats {
@@ -57,7 +89,7 @@ export interface User {
   pincode?: string;
 }
 
-export type ViewState = 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile';
+export type ViewState = 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile' | 'paperGenerator' | 'paperView';
 
 export interface AppState {
   view: ViewState;
@@ -65,4 +97,5 @@ export interface AppState {
   stats: UserStats;
   user: User | null;
   showTimer: boolean;
+  generatedPaper?: QuestionPaper | null;
 }

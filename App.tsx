@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppState, ExamType, Question, User, ViewState } from './types';
+import { AppState, ExamType, Question, User, ViewState, QuestionPaper } from './types';
 import { EXAM_SUBJECTS } from './constants';
 import { 
   getUserPref, 
@@ -23,6 +23,8 @@ import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
 import { Timer } from './components/Timer';
 import { Tutorial } from './components/Tutorial';
 import { ProfileScreen } from './components/ProfileScreen';
+import { PaperGenerator } from './components/PaperGenerator';
+import { PaperView } from './components/PaperView';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -30,7 +32,8 @@ const App: React.FC = () => {
     selectedExam: null,
     stats: INITIAL_STATS,
     user: null,
-    showTimer: true
+    showTimer: true,
+    generatedPaper: null
   });
 
   const [practiceQueue, setPracticeQueue] = useState<Question[]>([]);
@@ -250,6 +253,11 @@ const App: React.FC = () => {
     }
   };
 
+  const handlePaperGenerated = (paper: QuestionPaper) => {
+    setState(prev => ({ ...prev, generatedPaper: paper }));
+    navigateTo('paperView');
+  };
+
   // --- Views ---
 
   if (isAppInitializing) {
@@ -452,7 +460,23 @@ const App: React.FC = () => {
             onStartPractice={startPractice} 
             onUpload={() => navigateTo('upload')} 
             onToggleTimer={toggleTimer}
+            onGeneratePaper={() => navigateTo('paperGenerator')}
           />
+        )}
+
+        {state.view === 'paperGenerator' && state.user && (
+          <PaperGenerator 
+            examType={state.selectedExam!} 
+            onGenerate={handlePaperGenerated}
+            onBack={() => navigateTo('dashboard')}
+          />
+        )}
+
+        {state.view === 'paperView' && state.generatedPaper && (
+           <PaperView 
+             paper={state.generatedPaper}
+             onClose={() => navigateTo('dashboard')}
+           />
         )}
         
         {state.view === 'profile' && state.user && (

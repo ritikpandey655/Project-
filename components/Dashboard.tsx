@@ -10,9 +10,10 @@ interface DashboardProps {
   onStartPractice: () => void;
   onUpload: () => void;
   onToggleTimer: () => void;
+  onGeneratePaper: () => void; // New Prop
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartPractice, onUpload, onToggleTimer }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartPractice, onUpload, onToggleTimer, onGeneratePaper }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -75,6 +76,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, showTimer, onStartP
               className="bg-indigo-500/40 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-500/60 transition-colors"
             >
               Add Question
+            </button>
+            <button 
+              onClick={onGeneratePaper}
+              className="bg-purple-500/40 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-xl font-semibold hover:bg-purple-500/60 transition-colors flex items-center gap-2"
+            >
+              <span>📄</span> Generate Mock Paper
             </button>
           </div>
         </div>
