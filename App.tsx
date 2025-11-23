@@ -27,6 +27,7 @@ import { PaperGenerator } from './components/PaperGenerator';
 import { PaperView } from './components/PaperView';
 import { PracticeConfigModal } from './components/PracticeConfigModal';
 import { PaymentModal } from './components/PaymentModal';
+import { Sidebar } from './components/Sidebar';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -48,6 +49,7 @@ const App: React.FC = () => {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSHelp, setShowIOSHelp] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Practice Config State
   const [showPracticeConfig, setShowPracticeConfig] = useState(false);
@@ -136,6 +138,7 @@ const App: React.FC = () => {
   const navigateTo = (view: ViewState) => {
     window.history.pushState({ view }, '', '');
     setState(prev => ({ ...prev, view }));
+    setIsSidebarOpen(false);
   };
 
   const handleInstallClick = () => {
@@ -252,6 +255,7 @@ const App: React.FC = () => {
       language: 'en',
       theme: 'PYQverse Prime'
     }));
+    setIsSidebarOpen(false);
     window.history.pushState({ view: 'login' }, '', '');
   };
 
@@ -395,12 +399,7 @@ const App: React.FC = () => {
            subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
         }
         
-        // Handle Current Affairs refill if specific logic needed, otherwise falls back to general gen
-        // For now, general gen handles subject 'Current Affairs' by just generating regular MCQs unless updated logic passed.
-        // We will stick to exam generation logic:
-
         let batchSize = 5;
-        // If finite mode, don't over-fetch past the target count
         if (practiceConfig.mode === 'finite') {
             const needed = practiceConfig.count - practiceQueue.length;
             batchSize = Math.min(5, needed);
@@ -434,10 +433,8 @@ const App: React.FC = () => {
     } else {
       // If we are at the end...
       if (isFetchingMore || shouldFetchMore) {
-         // Wait for fetch. The UI will show loading state via `isLoadingNext` prop passed to QuestionCard
          return; 
       } else {
-         // Truly done
          navigateTo('dashboard');
       }
     }
@@ -560,30 +557,54 @@ const App: React.FC = () => {
           onSuccess={handlePaymentSuccess}
         />
       )}
+      
+      {/* Sidebar Component */}
+      <Sidebar 
+         isOpen={isSidebarOpen}
+         onClose={() => setIsSidebarOpen(false)}
+         user={state.user}
+         stats={state.stats}
+         darkMode={state.darkMode}
+         onToggleDarkMode={toggleDarkMode}
+         showTimer={state.showTimer}
+         onToggleTimer={toggleTimer}
+         language={state.language}
+         onToggleLanguage={toggleLanguage}
+         currentTheme={state.theme}
+         onThemeChange={handleThemeChange}
+         onNavigate={navigateTo}
+         onLogout={handleLogout}
+         onInstall={handleInstallClick}
+         canInstall={canInstall}
+         onEnableNotifications={enableNotifications}
+      />
 
       <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 safe-top transition-colors duration-200">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div 
-            className="flex items-center gap-2 sm:gap-3 cursor-pointer group" 
-            onClick={() => navigateTo('dashboard')}
-          >
+          <div className="flex items-center gap-2 sm:gap-3">
+             {/* Hamburger Menu */}
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+               <svg className="w-6 h-6 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+               </svg>
+            </button>
+
             {/* Nav Logo */}
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-purple to-brand-blue flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-              <span className="text-white font-display font-bold text-xs">PV</span>
+            <div 
+              className="flex items-center gap-2 cursor-pointer group" 
+              onClick={() => navigateTo('dashboard')}
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-purple to-brand-blue flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                <span className="text-white font-display font-bold text-xs">PV</span>
+              </div>
+              <span className="font-bold font-display text-slate-800 dark:text-white hidden sm:block tracking-tight group-hover:text-brand-purple transition-colors">PYQverse</span>
             </div>
-            <span className="font-bold font-display text-slate-800 dark:text-white hidden sm:block tracking-tight group-hover:text-brand-purple transition-colors">PYQverse</span>
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
-            {canInstall && (
-              <button
-                onClick={handleInstallClick}
-                className="hidden sm:flex items-center gap-1 bg-brand-purple text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-all active:scale-95 animate-pulse-glow"
-              >
-                Install
-              </button>
-            )}
-
             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
               <button 
                 onClick={() => navigateTo('dashboard')}
@@ -634,6 +655,7 @@ const App: React.FC = () => {
 
       {/* Main Content Area - Fully Responsive Wrapper */}
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 pb-24 safe-bottom animate-slide-up-fade">
+        {/* Mobile Install Banner */}
         {canInstall && (
           <div className="sm:hidden mb-4 bg-brand-purple text-white p-3 rounded-xl flex items-center justify-between shadow-lg animate-pop-in">
             <div className="flex items-center gap-3">

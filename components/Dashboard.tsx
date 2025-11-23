@@ -28,23 +28,13 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   stats, 
-  showTimer, 
-  darkMode,
   user,
   onStartPractice, 
   onUpload, 
-  onToggleTimer, 
-  onToggleDarkMode,
   onGeneratePaper,
   onStartCurrentAffairs,
-  onEnableNotifications,
-  language = 'en',
-  onToggleLanguage,
-  currentTheme = 'PYQverse Prime',
-  onThemeChange,
-  onUpgrade,
-  onInstall,
-  canInstall
+  darkMode,
+  onUpgrade
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
@@ -216,7 +206,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* Charts & Sidebar */}
+      {/* Charts & Feedback */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart Column */}
         <div className="lg:col-span-2 space-y-6">
@@ -296,106 +286,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           )}
         </div>
 
-        {/* Sidebar Column */}
+        {/* Feedback Column */}
         <div className="lg:col-span-1 space-y-6">
-           {/* Settings */}
-           <div className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors animate-slide-up" style={{animationDelay: '400ms'}}>
-              <h3 className="text-lg font-bold font-display text-slate-800 dark:text-white mb-4">Settings</h3>
-              
-              <div className="space-y-3">
-                {/* Theme Selector */}
-                {onThemeChange && (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-100 dark:border-slate-600 transition-colors">
-                      <div className="mb-3">
-                         <p className="font-semibold text-slate-700 dark:text-slate-200">App Theme</p>
-                         <p className="text-xs text-slate-500 dark:text-slate-400">Personalize your color</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.keys(THEME_PALETTES).map(theme => (
-                          <button
-                             key={theme}
-                             onClick={() => onThemeChange(theme)}
-                             title={theme}
-                             className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 focus:outline-none ${
-                               currentTheme === theme ? 'border-slate-600 dark:border-slate-300 ring-2 ring-brand-purple dark:ring-slate-500 scale-110' : 'border-transparent'
-                             }`}
-                             style={{ backgroundColor: THEME_PALETTES[theme][500] }}
-                          />
-                        ))}
-                      </div>
-                  </div>
-                )}
-                
-                {/* Language Toggle */}
-                {onToggleLanguage && (
-                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-100 dark:border-slate-600 transition-colors">
-                      <div>
-                      <p className="font-semibold text-slate-700 dark:text-slate-200">Language</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Preferred question language</p>
-                      </div>
-                      <button 
-                         onClick={onToggleLanguage}
-                         className="flex items-center gap-1 bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded-lg px-2 py-1 text-sm font-bold text-slate-700 dark:text-slate-200"
-                      >
-                         {language === 'en' ? 'English' : 'Hindi'}
-                      </button>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-100 dark:border-slate-600 transition-colors">
-                    <div>
-                    <p className="font-semibold text-slate-700 dark:text-slate-200">Practice Timer</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Show elapsed time</p>
-                    </div>
-                    <button 
-                    onClick={onToggleTimer}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-purple focus:ring-offset-2 ${showTimer ? 'bg-brand-purple' : 'bg-slate-200 dark:bg-slate-600'}`}
-                    >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showTimer ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-100 dark:border-slate-600 transition-colors">
-                    <div>
-                    <p className="font-semibold text-slate-700 dark:text-slate-200">Dark Mode</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Switch to dark theme</p>
-                    </div>
-                    <button 
-                    onClick={onToggleDarkMode}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-purple focus:ring-offset-2 ${darkMode ? 'bg-brand-purple' : 'bg-slate-200 dark:bg-slate-600'}`}
-                    >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                </div>
-
-                {/* Notifications Button */}
-                <button 
-                  onClick={onEnableNotifications}
-                  className="w-full flex items-center justify-between p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 transition-colors hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-left"
-                >
-                    <div>
-                       <p className="font-semibold text-brand-purple dark:text-indigo-300">Reminders</p>
-                       <p className="text-xs text-brand-purple/70 dark:text-indigo-400">Enable study notifications</p>
-                    </div>
-                    <span className="text-brand-purple dark:text-indigo-400">🔔</span>
-                </button>
-
-                {/* Install App Button */}
-                {canInstall && onInstall && (
-                  <button 
-                    onClick={onInstall}
-                    className="w-full flex items-center justify-between p-4 bg-brand-purple/10 dark:bg-brand-purple/20 rounded-xl border border-brand-purple/20 dark:border-brand-purple/30 transition-colors hover:bg-brand-purple/20 dark:hover:bg-brand-purple/30 text-left"
-                  >
-                      <div>
-                         <p className="font-semibold text-brand-purple dark:text-indigo-300">Install App</p>
-                         <p className="text-xs text-brand-purple/70 dark:text-indigo-400">Add to home screen</p>
-                      </div>
-                      <span className="text-brand-purple dark:text-indigo-400">📱</span>
-                  </button>
-                )}
-              </div>
-           </div>
-
            {/* Feedback */}
            <div className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors animate-slide-up" style={{animationDelay: '500ms'}}>
              <h3 className="text-lg font-bold font-display text-slate-800 dark:text-white mb-2">Feedback & Support</h3>
