@@ -53,24 +53,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onClick={onClose}
       />
 
-      {/* Sidebar Panel */}
+      {/* Sidebar Panel - Now on the RIGHT */}
       <div 
-        className={`fixed top-0 left-0 h-full w-[80%] sm:w-[320px] bg-white dark:bg-slate-900 z-50 shadow-2xl transform transition-transform duration-300 ease-out flex flex-col ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 right-0 h-full w-[85%] sm:w-[350px] bg-white dark:bg-slate-900 z-50 shadow-2xl transform transition-transform duration-300 ease-out flex flex-col ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Branding Header (Replaces User Profile) */}
-        <div className="p-6 bg-gradient-to-br from-indigo-600 to-purple-700 text-white relative overflow-hidden shrink-0 flex items-center gap-4">
+        {/* Profile Header (Restored on Right) */}
+        <div className="p-6 bg-gradient-to-br from-indigo-600 to-purple-700 text-white relative overflow-hidden shrink-0">
            {/* Decorative Background */}
-           <div className="absolute top-[-20%] right-[-20%] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
-           <div className="absolute bottom-[-10%] left-[-10%] w-24 h-24 bg-blue-500/20 rounded-full blur-xl pointer-events-none"></div>
+           <div className="absolute top-[-20%] left-[-20%] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+           <div className="absolute bottom-[-10%] right-[-10%] w-24 h-24 bg-blue-500/20 rounded-full blur-xl pointer-events-none"></div>
 
-           <div className="relative z-10 w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md shadow-inner border border-white/10">
-              <span className="font-display font-bold text-xl text-white">PV</span>
-           </div>
-           <div className="relative z-10">
-              <h2 className="font-display font-bold text-2xl tracking-tight leading-none">PYQverse</h2>
-              <p className="text-[10px] text-indigo-100 uppercase tracking-widest font-medium mt-1">Exam Universe</p>
+           <div className="relative z-10 flex flex-col items-center text-center">
+              <div className="w-20 h-20 rounded-full border-4 border-white/20 shadow-lg overflow-hidden mb-3 bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                 {user?.photoURL ? (
+                    <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                 ) : (
+                    <span className="text-3xl font-bold text-white">{user?.name?.[0]}</span>
+                 )}
+              </div>
+              <h2 className="font-display font-bold text-xl tracking-tight leading-none">{user?.name}</h2>
+              <p className="text-sm text-indigo-100 mt-1 opacity-90">{user?.email}</p>
+              
+              <button 
+                onClick={() => { onNavigate('profile'); onClose(); }}
+                className="mt-4 px-4 py-1.5 bg-white/20 hover:bg-white/30 text-xs font-bold uppercase tracking-wider rounded-full backdrop-blur-md transition-colors border border-white/20"
+              >
+                Edit Profile
+              </button>
            </div>
         </div>
 
@@ -83,7 +94,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                  <span className="text-xl">🏠</span>
                  <span className="font-medium">Dashboard</span>
               </button>
-              {/* Profile Link Removed */}
               <button onClick={() => { onNavigate('upload'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
                  <span className="text-xl">📚</span>
                  <span className="font-medium">My Notes</span>
@@ -98,14 +108,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               
               {/* Theme */}
               <div className="px-3 mb-4">
-                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">App Theme</p>
+                 <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Color Theme</p>
+                    <span className="text-xs text-slate-400">{currentTheme}</span>
+                 </div>
                  <div className="flex flex-wrap gap-2">
                     {Object.keys(THEME_PALETTES).map(theme => (
                       <button
                           key={theme}
                           onClick={() => onThemeChange(theme)}
-                          className={`w-6 h-6 rounded-full border-2 ${currentTheme === theme ? 'ring-2 ring-offset-2 ring-indigo-500 scale-110 border-white' : 'border-transparent'}`}
+                          className={`w-8 h-8 rounded-full border-2 transition-transform ${currentTheme === theme ? 'ring-2 ring-offset-2 ring-indigo-500 scale-110 border-white shadow-md' : 'border-transparent hover:scale-105'}`}
                           style={{ backgroundColor: THEME_PALETTES[theme][500] }}
+                          title={theme}
                       />
                     ))}
                  </div>
@@ -160,7 +174,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                        <span className="text-lg">🔔</span>
                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Notifications</span>
                     </div>
-                    <span className="text-xs text-indigo-500 font-bold">ENABLE</span>
+                    <span className="text-xs text-indigo-500 font-bold bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded">ENABLE</span>
                  </button>
               </div>
            </div>
@@ -175,13 +189,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
            )}
            <button 
              onClick={onLogout}
-             className="w-full py-2 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
+             className="w-full py-2 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors flex items-center justify-center gap-2"
            >
+             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+             </svg>
              Sign Out
            </button>
-           <div className="text-center">
-             <p className="text-[10px] text-slate-400">PYQverse v1.0.0</p>
-           </div>
         </div>
 
       </div>

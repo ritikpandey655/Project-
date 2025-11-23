@@ -558,7 +558,7 @@ const App: React.FC = () => {
         />
       )}
       
-      {/* Sidebar Component */}
+      {/* Sidebar Component (Right Side) */}
       <Sidebar 
          isOpen={isSidebarOpen}
          onClose={() => setIsSidebarOpen(false)}
@@ -582,17 +582,7 @@ const App: React.FC = () => {
       <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 safe-top transition-colors duration-200">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3">
-             {/* Hamburger Menu */}
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-            >
-               <svg className="w-6 h-6 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-               </svg>
-            </button>
-
-            {/* Nav Logo */}
+            {/* Logo - Clean Left Side */}
             <div 
               className="flex items-center gap-2 cursor-pointer group" 
               onClick={() => navigateTo('dashboard')}
@@ -633,11 +623,12 @@ const App: React.FC = () => {
                   </div>
                </div>
                
+               {/* Right Side - Profile Button toggles Sidebar */}
                <div className="flex items-center gap-2">
                  <button 
-                    onClick={() => navigateTo('profile')}
+                    onClick={() => setIsSidebarOpen(true)}
                     className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm hover:ring-2 hover:ring-brand-purple transition-all active:scale-95" 
-                    title="View Profile"
+                    title="Menu & Profile"
                  >
                     {state.user?.photoURL ? (
                       <img src={state.user.photoURL} alt="Profile" className="w-full h-full object-cover" />
