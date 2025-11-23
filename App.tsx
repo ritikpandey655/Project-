@@ -130,7 +130,7 @@ const App: React.FC = () => {
   }, [state.user]);
 
   const navigateTo = (view: ViewState) => {
-    window.history.pushState({ view }, '', null);
+    window.history.pushState({ view }, '', '');
     setState(prev => ({ ...prev, view }));
   };
 
@@ -205,7 +205,7 @@ const App: React.FC = () => {
       language,
       theme: theme || 'Ocean Blue'
     }));
-    window.history.pushState({ view: nextView }, '', null);
+    window.history.pushState({ view: nextView }, '', '');
   };
 
   const handleSignup = (user: User, exam: ExamType) => {
@@ -226,7 +226,7 @@ const App: React.FC = () => {
       theme: 'Ocean Blue'
     }));
     applyTheme('Ocean Blue');
-    window.history.pushState({ view: nextView }, '', null);
+    window.history.pushState({ view: nextView }, '', '');
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -248,7 +248,7 @@ const App: React.FC = () => {
       language: 'en',
       theme: 'Ocean Blue'
     }));
-    window.history.pushState({ view: 'login' }, '', null);
+    window.history.pushState({ view: 'login' }, '', '');
   };
 
   const handleExamSelect = (exam: ExamType) => {
