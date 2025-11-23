@@ -27,6 +27,8 @@ interface DashboardProps {
   qotd?: Question | null;
   onOpenQOTD?: () => void;
   onOpenBookmarks?: () => void;
+  onOpenAnalytics?: () => void; // New
+  onOpenLeaderboard?: () => void; // New
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -40,7 +42,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onUpgrade,
   qotd,
   onOpenQOTD,
-  onOpenBookmarks
+  onOpenBookmarks,
+  onOpenAnalytics,
+  onOpenLeaderboard
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
@@ -187,6 +191,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
       </div>
 
+      {/* Analytics & Leaderboard Buttons */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <button 
+             onClick={onOpenAnalytics}
+             className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-between hover:shadow-md transition-all"
+          >
+             <div className="text-left">
+                <span className="text-xl">📊</span>
+                <h3 className="font-bold text-slate-800 dark:text-white text-sm mt-1">Smart Analytics</h3>
+             </div>
+             <span className="text-slate-400">→</span>
+          </button>
+          
+          <button 
+             onClick={onOpenLeaderboard}
+             className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-between hover:shadow-md transition-all"
+          >
+             <div className="text-left">
+                <span className="text-xl">🏆</span>
+                <h3 className="font-bold text-slate-800 dark:text-white text-sm mt-1">Leaderboard</h3>
+             </div>
+             <span className="text-slate-400">→</span>
+          </button>
+      </div>
+
       {/* Filter Section */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar touch-pan-x -mx-4 px-4 sm:mx-0 sm:px-0">
         <button
@@ -292,32 +321,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <button onClick={onStartPractice} className="text-brand-purple dark:text-brand-purple/80 font-semibold text-sm hover:underline">
                 Start practicing to see analytics
               </button>
-            </div>
-          )}
-
-          {/* Upgrade Banner for Free Users */}
-          {!isPro && onUpgrade && (
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 sm:p-6 text-white relative overflow-hidden animate-slide-up shadow-xl">
-              <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 text-center sm:text-left">
-                 <div>
-                    <h3 className="text-lg sm:text-xl font-bold font-display mb-2 flex items-center justify-center sm:justify-start gap-2">
-                       <span className="text-brand-yellow text-2xl">👑</span> Unlock PYQverse Pro
-                    </h3>
-                    <ul className="text-slate-300 text-xs sm:text-sm space-y-1 mb-4 sm:mb-0 inline-block text-left">
-                       <li className="flex items-center gap-2">✓ Unlimited AI Questions</li>
-                       <li className="flex items-center gap-2">✓ Current Affairs & Mock Papers</li>
-                       <li className="flex items-center gap-2">✓ Detailed Analytics & No Ads</li>
-                    </ul>
-                 </div>
-                 <button 
-                   onClick={onUpgrade}
-                   className="bg-brand-yellow text-slate-900 font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-yellow-300 transition-colors active:scale-95 whitespace-nowrap w-full sm:w-auto"
-                 >
-                    Upgrade Now
-                 </button>
-              </div>
-              <div className="absolute -right-10 -bottom-20 w-48 h-48 bg-brand-purple/20 rounded-full blur-3xl"></div>
-              <div className="absolute -left-10 -top-10 w-32 h-32 bg-brand-yellow/10 rounded-full blur-3xl"></div>
             </div>
           )}
         </div>

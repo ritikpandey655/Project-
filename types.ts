@@ -130,7 +130,16 @@ export interface SubscriptionPlan {
   recommended?: boolean;
 }
 
-export type ViewState = 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile' | 'paperGenerator' | 'paperView' | 'bookmarks' | 'admin' | 'downloads';
+export interface LeaderboardEntry {
+  id: string;
+  rank: number;
+  name: string;
+  exam: string;
+  score: number; // XP or Total Correct
+  isCurrentUser: boolean;
+}
+
+export type ViewState = 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile' | 'paperGenerator' | 'paperView' | 'bookmarks' | 'admin' | 'downloads' | 'analytics' | 'leaderboard';
 
 export interface AppState {
   view: ViewState;

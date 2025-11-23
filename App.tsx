@@ -16,7 +16,8 @@ import {
   getBookmarks,
   getStoredQOTD,
   saveQOTD,
-  isQuestionBookmarked
+  isQuestionBookmarked,
+  getExamHistory
 } from './services/storageService';
 import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
@@ -35,6 +36,8 @@ import { PaymentModal } from './components/PaymentModal';
 import { Sidebar } from './components/Sidebar';
 import { AdminDashboard } from './components/AdminDashboard';
 import { OfflinePapersList } from './components/OfflinePapersList';
+import { SmartAnalytics } from './components/SmartAnalytics';
+import { Leaderboard } from './components/Leaderboard';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -61,7 +64,7 @@ const App: React.FC = () => {
   
   // Practice Config State
   const [showPracticeConfig, setShowPracticeConfig] = useState(false);
-  const [practiceConfig, setPracticeConfig] = useState<{ mode: 'finite' | 'endless'; subject: string; count: number }>({ 
+  const [practiceConfig, setPracticeConfig] = useState<{ mode: 'finite' | 'endless'; subject: string; count: number; topic?: string }>({ 
     mode: 'finite', 
     subject: 'Mixed',
     count: 10 
@@ -357,11 +360,11 @@ const App: React.FC = () => {
     setShowPracticeConfig(true);
   };
 
-  const startPracticeSession = async (config: { subject: string, count: number, mode: 'finite' | 'endless' }) => {
+  const startPracticeSession = async (config: { subject: string, count: number, mode: 'finite' | 'endless', topic?: string }) => {
     if (!state.selectedExam || !state.user) return;
     
     setShowPracticeConfig(false);
-    setPracticeConfig({ mode: config.mode, subject: config.subject, count: config.count });
+    setPracticeConfig({ mode: config.mode, subject: config.subject, count: config.count, topic: config.topic });
     setIsLoading(true);
     
     try {
@@ -376,7 +379,9 @@ const App: React.FC = () => {
 
       // Initial batch
       const batchSize = Math.min(config.count, 5); 
-      const aiQuestions = await generateExamQuestions(state.selectedExam, subjectToGen, batchSize);
+      // Use config.topic if provided (passed as array to topics param)
+      const topicsList = config.topic ? [config.topic] : [];
+      const aiQuestions = await generateExamQuestions(state.selectedExam, subjectToGen, batchSize, 'Medium', topicsList);
 
       // Check bookmark status for AI questions
       const finalAiQuestions = aiQuestions.map(q => ({
@@ -492,7 +497,8 @@ const App: React.FC = () => {
                    }
                 }).finally(() => setIsFetchingMore(false));
             } else {
-                generateExamQuestions(state.selectedExam!, subjectToGen, batchSize)
+                const topicsList = practiceConfig.topic ? [practiceConfig.topic] : [];
+                generateExamQuestions(state.selectedExam!, subjectToGen, batchSize, 'Medium', topicsList)
                 .then(newQs => {
                     if (newQs.length > 0) {
                       const mapped = newQs.map(q => ({...q, isBookmarked: isQuestionBookmarked(state.user!.id, q.id)}));
@@ -575,6 +581,26 @@ const App: React.FC = () => {
   if (state.view === 'admin' && state.user?.isAdmin) {
     return (
       <AdminDashboard onBack={() => navigateTo('dashboard')} />
+    );
+  }
+
+  if (state.view === 'analytics' && state.user) {
+    const history = getExamHistory(state.user.id);
+    return (
+      <SmartAnalytics 
+        stats={state.stats} 
+        history={history}
+        onBack={() => navigateTo('dashboard')} 
+      />
+    );
+  }
+
+  if (state.view === 'leaderboard' && state.user) {
+    return (
+      <Leaderboard 
+        user={state.user} 
+        onBack={() => navigateTo('dashboard')} 
+      />
     );
   }
 
@@ -795,6 +821,8 @@ const App: React.FC = () => {
             qotd={state.qotd}
             onOpenQOTD={handleOpenQOTD}
             onOpenBookmarks={handleOpenBookmarks}
+            onOpenAnalytics={() => navigateTo('analytics')}
+            onOpenLeaderboard={() => navigateTo('leaderboard')}
           />
         )}
 

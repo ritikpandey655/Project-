@@ -6,7 +6,7 @@ import { Button } from './Button';
 
 interface PracticeConfigModalProps {
   examType: ExamType;
-  onStart: (config: { subject: string; count: number; mode: 'finite' | 'endless' }) => void;
+  onStart: (config: { subject: string; count: number; mode: 'finite' | 'endless'; topic?: string }) => void;
   onClose: () => void;
   onExamChange: (exam: ExamType) => void;
   isPro?: boolean;
@@ -15,11 +15,13 @@ interface PracticeConfigModalProps {
 
 export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examType, onStart, onClose, onExamChange, isPro, onUpgrade }) => {
   const [subject, setSubject] = useState<string>('Mixed');
+  const [topic, setTopic] = useState('');
   const [mode, setMode] = useState<'short' | 'medium' | 'long' | 'endless'>('medium');
 
   // Reset subject when exam changes
   useEffect(() => {
     setSubject('Mixed');
+    setTopic('');
   }, [examType]);
 
   const subjects = ['Mixed', ...EXAM_SUBJECTS[examType]];
@@ -41,7 +43,8 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examTy
     onStart({
       subject,
       count: selectedMode.count,
-      mode: mode === 'endless' ? 'endless' : 'finite'
+      mode: mode === 'endless' ? 'endless' : 'finite',
+      topic: topic.trim() || undefined
     });
   };
 
@@ -56,7 +59,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examTy
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-6 border border-slate-200 dark:border-slate-700 transition-colors">
+      <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-6 border border-slate-200 dark:border-slate-700 transition-colors max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-xl font-bold text-slate-800 dark:text-white">Practice Configuration</h2>
@@ -97,6 +100,23 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examTy
               ))}
             </select>
           </div>
+
+          {/* Optional Topic - New Feature */}
+          {subject !== 'Mixed' && (
+             <div className="animate-fade-in">
+               <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">
+                 Chapter / Topic (Optional)
+               </label>
+               <input 
+                 type="text"
+                 value={topic}
+                 onChange={(e) => setTopic(e.target.value)}
+                 placeholder="e.g. Thermodynamics, Ancient History..."
+                 className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+               />
+               <p className="text-[10px] text-slate-400 mt-1">Leave blank for random questions from {subject}</p>
+             </div>
+          )}
 
           {/* Mode Selection */}
           <div>

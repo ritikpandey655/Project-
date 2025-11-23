@@ -1,5 +1,5 @@
 
-import { Question, UserStats, ExamType, User, ExamResult, QuestionSource, QuestionPaper } from '../types';
+import { Question, UserStats, ExamType, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry } from '../types';
 
 const QUESTIONS_KEY = 'exam_master_questions';
 const STATS_KEY = 'exam_master_stats';
@@ -106,6 +106,42 @@ export const getGlobalStats = () => {
   };
 };
 // --- ADMIN END ---
+
+// --- LEADERBOARD START ---
+export const getLeaderboardData = (currentUser: User): LeaderboardEntry[] => {
+  // Generate mock users mixed with current user
+  const mockNames = ['Aarav Sharma', 'Priya Patel', 'Rohan Verma', 'Sneha Gupta', 'Vikram Singh', 'Ananya Das', 'Rahul Kumar'];
+  const exams = Object.values(ExamType);
+  
+  const leaderboard: LeaderboardEntry[] = mockNames.map((name, i) => ({
+    id: `mock-${i}`,
+    rank: 0,
+    name,
+    exam: exams[i % exams.length],
+    score: Math.floor(Math.random() * 5000) + 1000,
+    isCurrentUser: false
+  }));
+
+  // Add current user
+  const userStats = getStats(currentUser.id);
+  const userXP = (userStats.totalCorrect * 10) + (userStats.totalAttempted * 2); // Simple XP formula
+  
+  leaderboard.push({
+    id: currentUser.id,
+    rank: 0,
+    name: currentUser.name,
+    exam: 'Your Exam',
+    score: userXP,
+    isCurrentUser: true
+  });
+
+  // Sort by score
+  leaderboard.sort((a, b) => b.score - a.score);
+
+  // Assign ranks
+  return leaderboard.map((entry, idx) => ({ ...entry, rank: idx + 1 }));
+};
+// --- LEADERBOARD END ---
 
 // --- BOOKMARKS START ---
 export const toggleBookmark = (userId: string, question: Question): boolean => {
