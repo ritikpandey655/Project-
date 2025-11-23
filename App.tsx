@@ -145,13 +145,21 @@ const App: React.FC = () => {
 
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
+      console.log('👋 PWA Install Prompt captured!');
       setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    const handleAppInstalled = () => {
+      console.log('✅ PWA was installed');
+      setInstallPrompt(null);
     };
     
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
@@ -185,6 +193,7 @@ const App: React.FC = () => {
     } else if (installPrompt) {
       installPrompt.prompt();
       installPrompt.userChoice.then((choiceResult) => {
+        console.log('User choice:', choiceResult.outcome);
         if (choiceResult.outcome === 'accepted') {
           setInstallPrompt(null);
         }

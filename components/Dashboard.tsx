@@ -44,7 +44,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenQOTD,
   onOpenBookmarks,
   onOpenAnalytics,
-  onOpenLeaderboard
+  onOpenLeaderboard,
+  onInstall,
+  canInstall
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
@@ -189,6 +191,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Review saved questions</p>
               </div>
           </div>
+
+          {/* Install App Card */}
+          {canInstall && (
+            <div onClick={onInstall} className="col-span-2 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-indigo-900 dark:to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-lg cursor-pointer transform transition-transform hover:scale-[1.01] active:scale-[0.99] relative overflow-hidden group flex items-center justify-between">
+                <div className="relative z-10">
+                    <h3 className="text-lg font-bold font-display flex items-center gap-2">
+                      <span>📲</span> Install App
+                    </h3>
+                    <p className="text-indigo-100 text-xs sm:text-sm mt-1">Get the full experience with offline mode.</p>
+                </div>
+                <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl font-bold text-sm group-hover:bg-white/30 transition-colors">
+                    Install
+                </div>
+            </div>
+          )}
       </div>
 
       {/* Analytics & Leaderboard Buttons */}
