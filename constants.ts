@@ -1,6 +1,6 @@
 
 
-import { ExamType } from './types';
+import { ExamType, SubscriptionPlan } from './types';
 
 export const EXAM_SUBJECTS: Record<ExamType, string[]> = {
   [ExamType.UPSC]: ['History', 'Polity', 'Geography', 'Economy', 'General Science', 'Current Affairs'],
@@ -34,6 +34,26 @@ export const THEME_PALETTES: Record<string, Record<number, string>> = {
     500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', 800: '#991b1b', 900: '#7f1d1d'
   }
 };
+
+export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
+  {
+    id: 'monthly',
+    name: 'Pro Monthly',
+    price: 199,
+    currency: '₹',
+    duration: 'Month',
+    features: ['Unlimited AI Questions', 'Detailed Analytics', 'Priority Support', 'Ad-free Experience']
+  },
+  {
+    id: 'yearly',
+    name: 'Pro Yearly',
+    price: 1499,
+    currency: '₹',
+    duration: 'Year',
+    features: ['All Monthly Features', 'Exclusive Mock Papers', 'Download Offline', 'Save 37%'],
+    recommended: true
+  }
+];
 
 export const MOCK_QUESTIONS_FALLBACK = [
   {

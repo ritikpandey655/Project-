@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { AppState, ExamType, Question, User, ViewState, QuestionPaper } from './types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from './constants';
@@ -26,6 +27,7 @@ import { ProfileScreen } from './components/ProfileScreen';
 import { PaperGenerator } from './components/PaperGenerator';
 import { PaperView } from './components/PaperView';
 import { PracticeConfigModal } from './components/PracticeConfigModal';
+import { PaymentModal } from './components/PaymentModal';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -56,6 +58,9 @@ const App: React.FC = () => {
     count: 10 
   });
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+
+  // Payment State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Helper to apply theme colors to root
   const applyTheme = (themeName: string) => {
@@ -414,6 +419,15 @@ const App: React.FC = () => {
     navigateTo('dashboard');
   };
 
+  const handlePaymentSuccess = () => {
+    if (state.user) {
+      const updatedUser: User = { ...state.user, isPro: true };
+      saveUser(updatedUser);
+      setState(prev => ({ ...prev, user: updatedUser }));
+      setShowPaymentModal(false);
+    }
+  };
+
   if (isAppInitializing) return null;
 
   if (state.view === 'login') {
@@ -504,6 +518,14 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200">
+      
+      {showPaymentModal && (
+        <PaymentModal 
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
+
       <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 safe-top transition-colors duration-200">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div 
@@ -544,7 +566,12 @@ const App: React.FC = () => {
             <div className="flex items-center gap-3">
                <div className="hidden sm:block text-right">
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{state.user?.name}</p>
-                  <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50 dark:bg-indigo-900/30 px-1.5 rounded-md inline-block mt-0.5">{state.selectedExam}</p>
+                  <div className="flex items-center justify-end gap-1">
+                     <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50 dark:bg-indigo-900/30 px-1.5 rounded-md inline-block">{state.selectedExam}</p>
+                     {state.user?.isPro && (
+                       <span className="text-[10px] bg-amber-100 text-amber-700 px-1 rounded font-bold">PRO</span>
+                     )}
+                  </div>
                </div>
                
                <div className="flex items-center gap-2">
@@ -632,6 +659,7 @@ const App: React.FC = () => {
             stats={state.stats} 
             showTimer={state.showTimer}
             darkMode={state.darkMode}
+            user={state.user}
             onStartPractice={handleStartPractice} 
             onUpload={() => navigateTo('upload')} 
             onToggleTimer={toggleTimer}
@@ -642,6 +670,7 @@ const App: React.FC = () => {
             onToggleLanguage={toggleLanguage}
             currentTheme={state.theme}
             onThemeChange={handleThemeChange}
+            onUpgrade={() => setShowPaymentModal(true)}
           />
         )}
 

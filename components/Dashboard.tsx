@@ -1,7 +1,7 @@
 
 
 import React, { useMemo, useState } from 'react';
-import { UserStats, ExamType } from '../types';
+import { UserStats, ExamType, User } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from './Button';
 import { THEME_PALETTES } from '../constants';
@@ -10,6 +10,7 @@ interface DashboardProps {
   stats: UserStats;
   showTimer: boolean;
   darkMode: boolean;
+  user?: User | null; // Added user prop to check pro status
   onStartPractice: () => void;
   onUpload: () => void;
   onToggleTimer: () => void;
@@ -20,12 +21,14 @@ interface DashboardProps {
   onToggleLanguage?: () => void;
   currentTheme?: string;
   onThemeChange?: (theme: string) => void;
+  onUpgrade?: () => void; // Added upgrade handler
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   stats, 
   showTimer, 
   darkMode,
+  user,
   onStartPractice, 
   onUpload, 
   onToggleTimer, 
@@ -35,7 +38,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   language = 'en',
   onToggleLanguage,
   currentTheme = 'Ocean Blue',
-  onThemeChange
+  onThemeChange,
+  onUpgrade
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
@@ -78,12 +82,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }, 3000);
   };
 
+  const isPro = user?.isPro;
+
   return (
     <div className="space-y-8 pb-20">
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-3xl p-8 text-white shadow-lg shadow-indigo-200 dark:shadow-none relative overflow-hidden animate-fade-in">
         <div className="relative z-10">
-          <h2 className="text-3xl font-bold mb-2">Ready to revise?</h2>
+          <div className="flex justify-between items-start mb-2">
+            <h2 className="text-3xl font-bold">Ready to revise?</h2>
+            {isPro ? (
+              <span className="bg-amber-400 text-amber-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm animate-pulse-glow">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                Pro Member
+              </span>
+            ) : (
+               <button onClick={onUpgrade} className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-colors border border-white/30">
+                 Upgrade Plan
+               </button>
+            )}
+          </div>
           <p className="text-indigo-100 mb-6 max-w-md">
             Keep your streak alive! Combine AI-generated PYQs with your personal notes for the ultimate revision session.
           </p>
@@ -172,10 +190,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Charts & Sidebar */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Chart Column */}
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 space-y-6">
            {/* ... (Existing chart code) ... */}
            {chartData.length > 0 ? (
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 h-full min-h-[300px] transition-colors animate-fade-in">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 h-[350px] transition-colors animate-fade-in">
               <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex justify-between">
                 <span>Subject Performance (%)</span>
                 <span className="text-sm font-normal text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
@@ -214,11 +232,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 text-center h-full flex flex-col justify-center min-h-[300px] transition-colors animate-fade-in">
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 text-center h-[350px] flex flex-col justify-center transition-colors animate-fade-in">
               <p className="text-slate-400 dark:text-slate-500 mb-2">No performance data yet for {activeFilter}.</p>
               <button onClick={onStartPractice} className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm hover:underline">
                 Start practicing to see analytics
               </button>
+            </div>
+          )}
+
+          {/* Upgrade Banner for Free Users */}
+          {!isPro && onUpgrade && (
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white relative overflow-hidden animate-slide-up shadow-xl">
+              <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+                 <div>
+                    <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+                       <span className="text-amber-400 text-2xl">👑</span> Unlock ExamMaster Pro
+                    </h3>
+                    <ul className="text-slate-300 text-sm space-y-1 mb-4 sm:mb-0">
+                       <li className="flex items-center gap-2">✓ Unlimited AI Questions</li>
+                       <li className="flex items-center gap-2">✓ Detailed Performance Analytics</li>
+                       <li className="flex items-center gap-2">✓ Offline Mode & No Ads</li>
+                    </ul>
+                 </div>
+                 <button 
+                   onClick={onUpgrade}
+                   className="bg-amber-400 text-slate-900 font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-amber-300 transition-colors active:scale-95 whitespace-nowrap"
+                 >
+                    Upgrade Now
+                 </button>
+              </div>
+              <div className="absolute -right-10 -bottom-20 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl"></div>
+              <div className="absolute -left-10 -top-10 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl"></div>
             </div>
           )}
         </div>

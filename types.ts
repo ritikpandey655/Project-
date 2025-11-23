@@ -105,6 +105,17 @@ export interface User {
   address?: string;
   state?: string;
   pincode?: string;
+  isPro?: boolean;
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  currency: string;
+  duration: string;
+  features: string[];
+  recommended?: boolean;
 }
 
 export type ViewState = 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile' | 'paperGenerator' | 'paperView';
