@@ -11,6 +11,8 @@ interface ProfileScreenProps {
   onUpdateUser: (updatedUser: User) => void;
   onBack: () => void;
   onLogout: () => void;
+  onInstall?: () => void;
+  canInstall?: boolean;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ 
@@ -19,7 +21,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   selectedExam, 
   onUpdateUser, 
   onBack, 
-  onLogout 
+  onLogout,
+  onInstall,
+  canInstall
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [notesCount, setNotesCount] = useState(0);
@@ -129,6 +133,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </span>
             </div>
           </div>
+
+          {canInstall && onInstall && (
+            <button 
+              onClick={onInstall}
+              className="w-full p-3 rounded-xl border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors font-medium text-sm flex items-center justify-center gap-2 bg-white dark:bg-slate-800 shadow-sm"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Install App
+            </button>
+          )}
 
           {/* Logout Button */}
           <button 

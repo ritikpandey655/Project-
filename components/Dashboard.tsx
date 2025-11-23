@@ -22,6 +22,8 @@ interface DashboardProps {
   currentTheme?: string;
   onThemeChange?: (theme: string) => void;
   onUpgrade?: () => void;
+  onInstall?: () => void;
+  canInstall?: boolean;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -40,7 +42,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onToggleLanguage,
   currentTheme = 'PYQverse Prime',
   onThemeChange,
-  onUpgrade
+  onUpgrade,
+  onInstall,
+  canInstall
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
@@ -101,7 +105,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-2">
             <div>
               <h2 className="text-2xl sm:text-3xl font-display font-bold leading-tight">PYQverse</h2>
-              <p className="text-[10px] sm:text-xs text-brand-yellow font-bold uppercase tracking-wide mt-1">All Exams Ka Pura Universe</p>
+              <p className="text-[10px] sm:text-xs text-brand-yellow font-bold uppercase tracking-wide mt-1">All exams ka pura universe</p>
             </div>
             {isPro ? (
               <span className="bg-brand-yellow text-slate-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm animate-pulse-glow self-start">
@@ -375,6 +379,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                     <span className="text-brand-purple dark:text-indigo-400">🔔</span>
                 </button>
+
+                {/* Install App Button */}
+                {canInstall && onInstall && (
+                  <button 
+                    onClick={onInstall}
+                    className="w-full flex items-center justify-between p-4 bg-brand-purple/10 dark:bg-brand-purple/20 rounded-xl border border-brand-purple/20 dark:border-brand-purple/30 transition-colors hover:bg-brand-purple/20 dark:hover:bg-brand-purple/30 text-left"
+                  >
+                      <div>
+                         <p className="font-semibold text-brand-purple dark:text-indigo-300">Install App</p>
+                         <p className="text-xs text-brand-purple/70 dark:text-indigo-400">Add to home screen</p>
+                      </div>
+                      <span className="text-brand-purple dark:text-indigo-400">📱</span>
+                  </button>
+                )}
               </div>
            </div>
 

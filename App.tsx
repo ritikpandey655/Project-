@@ -549,6 +549,8 @@ const App: React.FC = () => {
                          practiceQueue.length >= practiceConfig.count && 
                          currentQIndex === practiceQueue.length - 1;
 
+  const canInstall = !!installPrompt || isIOS;
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200">
       
@@ -573,7 +575,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
-            {(installPrompt || isIOS) && (
+            {canInstall && (
               <button
                 onClick={handleInstallClick}
                 className="hidden sm:flex items-center gap-1 bg-brand-purple text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-all active:scale-95 animate-pulse-glow"
@@ -632,7 +634,7 @@ const App: React.FC = () => {
 
       {/* Main Content Area - Fully Responsive Wrapper */}
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 pb-24 safe-bottom animate-slide-up-fade">
-        {(installPrompt || isIOS) && (
+        {canInstall && (
           <div className="sm:hidden mb-4 bg-brand-purple text-white p-3 rounded-xl flex items-center justify-between shadow-lg animate-pop-in">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl font-display font-bold">PV</div>
@@ -714,6 +716,8 @@ const App: React.FC = () => {
             currentTheme={state.theme}
             onThemeChange={handleThemeChange}
             onUpgrade={() => setShowPaymentModal(true)}
+            onInstall={handleInstallClick}
+            canInstall={canInstall}
           />
         )}
 
@@ -734,6 +738,8 @@ const App: React.FC = () => {
             onUpdateUser={handleUpdateUser}
             onBack={() => navigateTo('dashboard')}
             onLogout={handleLogout}
+            onInstall={handleInstallClick}
+            canInstall={canInstall}
           />
         )}
 
