@@ -52,34 +52,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
      * ------------------------------------------------------------------
      * 🔴 REAL PAYMENT INTEGRATION GUIDE (Razorpay Example)
      * ------------------------------------------------------------------
-     * 1. Install Razorpay SDK in index.html: <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-     * 2. Use the code below instead of the setTimeout:
-     * 
-     * const options = {
-     *   "key": "YOUR_RAZORPAY_KEY_ID", // Enter the Key ID generated from the Dashboard
-     *   "amount": selectedPlan.price * 100, // Amount is in currency subunits (paise)
-     *   "currency": "INR",
-     *   "name": "ExamMaster AI",
-     *   "description": selectedPlan.name + " Subscription",
-     *   "image": "https://api.dicebear.com/9.x/shapes/png?seed=ExamMaster",
-     *   "handler": function (response) {
-     *       // Payment Successful
-     *       // Verify signature on backend if needed
-     *       setIsProcessing(false);
-     *       setStep('success');
-     *   },
-     *   "prefill": {
-     *       "name": cardName, // or user.name from context
-     *       "contact": "9999999999" // user.mobile
-     *   },
-     *   "theme": { "color": "#4f46e5" }
-     * };
-     * const rzp1 = new window.Razorpay(options);
-     * rzp1.open();
-     * ------------------------------------------------------------------
+     * To go live, replace the setTimeout below with your Gateway logic.
      */
 
-    // --- SIMULATION (For Demo Purposes) ---
+    // --- SIMULATION (Active) ---
     setTimeout(() => {
       setIsProcessing(false);
       setStep('success');
@@ -304,6 +280,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
           </div>
 
           <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
+            <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-xs px-3 py-2 rounded-lg mb-4 flex items-center gap-2 border border-amber-100 dark:border-amber-800/30">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span><strong>Demo Mode Active:</strong> No real money will be deducted.</span>
+            </div>
+
             <div className="flex justify-between items-center mb-4">
                <span className="text-slate-500 dark:text-slate-400 font-medium">Total Payable</span>
                <span className="text-3xl font-bold text-slate-900 dark:text-white">{selectedPlan?.currency}{selectedPlan?.price}</span>

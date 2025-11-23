@@ -1,5 +1,6 @@
 
 
+
 import React, { useMemo, useState } from 'react';
 import { UserStats, ExamType, User } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -246,7 +247,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
                  <div>
                     <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
-                       <span className="text-amber-400 text-2xl">👑</span> Unlock ExamMaster Pro
+                       <span className="text-amber-400 text-2xl">👑</span> Unlock ExamPilot Pro
                     </h3>
                     <ul className="text-slate-300 text-sm space-y-1 mb-4 sm:mb-0">
                        <li className="flex items-center gap-2">✓ Unlimited AI Questions</li>

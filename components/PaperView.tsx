@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { QuestionPaper, QuestionType, ExamResult } from '../types';
 import { Button } from './Button';
@@ -263,7 +265,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
     };
   }, []);
 
-  const watermarks = Array(20).fill("ExamMaster Secure Mode");
+  const watermarks = Array(20).fill("ExamPilot Secure Mode");
   const radius = 50;
   const stroke = 8;
   const normalizedRadius = radius - stroke * 2;

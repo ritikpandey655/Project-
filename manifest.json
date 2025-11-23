@@ -1,6 +1,6 @@
 {
-  "name": "ExamMaster AI",
-  "short_name": "ExamMaster",
+  "name": "ExamPilot AI",
+  "short_name": "ExamPilot",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,13 +9,13 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "https://api.dicebear.com/9.x/shapes/png?seed=ExamMaster",
+      "src": "https://api.dicebear.com/9.x/shapes/png?seed=ExamPilot",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://api.dicebear.com/9.x/shapes/png?seed=ExamMaster",
+      "src": "https://api.dicebear.com/9.x/shapes/png?seed=ExamPilot",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

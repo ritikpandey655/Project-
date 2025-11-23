@@ -1,4 +1,5 @@
-const CACHE_NAME = 'exam-master-v2';
+
+const CACHE_NAME = 'exampilot-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -65,8 +66,8 @@ self.addEventListener('message', (event) => {
      setTimeout(() => {
         self.registration.showNotification("Time to Study! 📚", {
           body: "Keep your streak alive. Do a quick 5-min session now.",
-          icon: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamMaster',
-          badge: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamMaster'
+          icon: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamPilot',
+          badge: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamPilot'
         });
      }, event.data.delay);
   }

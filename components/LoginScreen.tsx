@@ -111,7 +111,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
           </div>
           
           <h1 className="animate-title-enter text-5xl sm:text-6xl font-extrabold text-white tracking-tight mb-4 drop-shadow-lg">
-            ExamMaster <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-300">AI</span>
+            ExamPilot <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-300">AI</span>
           </h1>
           
           <p className="animate-subtitle-enter text-indigo-200 text-lg leading-relaxed max-w-xs mx-auto opacity-90 font-medium">

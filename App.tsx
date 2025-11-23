@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { AppState, ExamType, Question, User, ViewState, QuestionPaper } from './types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from './constants';
@@ -161,9 +159,9 @@ const App: React.FC = () => {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        new Notification("ExamMaster Enabled!", { 
+        new Notification("ExamPilot Enabled!", { 
           body: "We'll remind you to keep your learning streak alive!",
-          icon: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamMaster',
+          icon: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamPilot',
         });
         
         // Schedule a local simulation of a push notification if supported by SW
@@ -533,7 +531,7 @@ const App: React.FC = () => {
             onClick={() => navigateTo('dashboard')}
           >
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-200 dark:shadow-none transition-transform active:scale-95 animate-bounce-slight">E</div>
-            <span className="font-bold text-slate-800 dark:text-white hidden sm:block">ExamMaster</span>
+            <span className="font-bold text-slate-800 dark:text-white hidden sm:block">ExamPilot</span>
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
@@ -600,7 +598,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl">🎓</div>
               <div>
-                <p className="font-bold text-sm">Install ExamMaster</p>
+                <p className="font-bold text-sm">Install ExamPilot</p>
                 <p className="text-xs text-indigo-200">Practice offline & better experience</p>
               </div>
             </div>
