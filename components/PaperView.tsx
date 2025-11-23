@@ -5,8 +5,7 @@ import { Button } from './Button';
 import { saveExamResult, getExamHistory, getUser } from '../services/storageService';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, 
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  LineChart, Line, CartesianGrid
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
 
 interface PaperViewProps {
@@ -205,16 +204,6 @@ export const PaperView: React.FC<PaperViewProps> = ({
     }
   }, [isSubmitted, resultStats]);
 
-  // Prepare Topic Chart Data
-  const topicChartData = useMemo(() => {
-     if (!resultStats) return [];
-     return Object.keys(resultStats.topicPerformance).map(topic => ({
-        topic: topic.length > 12 ? topic.substring(0,10) + '..' : topic,
-        fullTopic: topic,
-        accuracy: Math.round((resultStats.topicPerformance[topic].correct / resultStats.topicPerformance[topic].total) * 100)
-     })).sort((a, b) => b.accuracy - a.accuracy);
-  }, [resultStats]);
-
   // Comparison Data (Simulated Average)
   const comparisonData = useMemo(() => {
     if (!resultStats) return [];
@@ -293,8 +282,6 @@ export const PaperView: React.FC<PaperViewProps> = ({
             </div>
             <Button onClick={onClose} variant="outline">Back to Dashboard</Button>
           </div>
-
-          {/* ... (Analytics Code remains similar, no language changes needed for stats) ... */}
           
            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
              <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-8">
@@ -422,7 +409,6 @@ export const PaperView: React.FC<PaperViewProps> = ({
       {showSubmitConfirm && !isSubmitted && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4 animate-fade-in">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-200 dark:border-slate-700 relative">
-             {/* ... (Existing modal content) ... */}
             <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600 dark:text-indigo-400">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -500,7 +486,6 @@ export const PaperView: React.FC<PaperViewProps> = ({
                         {q.type === QuestionType.MCQ ? (
                           <div className="grid grid-cols-1 gap-3">
                             {displayOptions.map((opt, oIdx) => {
-                              // We use English value for radio input tracking, but display localized text
                               const isSelected = answers[q.id] === q.options[oIdx];
                               let containerClass = "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700";
                               if (isSelected) {

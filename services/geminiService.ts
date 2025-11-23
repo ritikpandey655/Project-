@@ -12,10 +12,12 @@ if (typeof window !== 'undefined' && !apiKey) {
 }
 
 const cleanJson = (text: string) => {
+  // First, try to match a JSON block
   const match = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
   if (match) {
       return match[0];
   }
+  // Fallback cleanup
   return text.replace(/```json/g, '').replace(/```/g, '').trim();
 };
 
@@ -48,6 +50,7 @@ export const generateExamQuestions = async (
     
     TASK: Generate ${count} high-quality multiple-choice questions.
     REQUIREMENT: Provide content in BOTH English and Hindi (Devanagari script).
+    IMPORTANT: Return raw JSON only. Do not use Markdown formatting.
     
     Output a JSON array of objects with keys: 
     text (English), text_hi (Hindi), 
@@ -208,6 +211,7 @@ export const generateFullPaper = async (
     Seed Data: ${seedData}
     
     REQUIREMENT: Provide questions in English and Hindi (Devanagari).
+    IMPORTANT: Return raw JSON only.
 
     OUTPUT JSON with keys: meta (exam, subject, total_marks, time_mins), non_mcq_questions array.
   `;

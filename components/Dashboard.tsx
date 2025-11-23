@@ -1,8 +1,10 @@
 
+
 import React, { useMemo, useState } from 'react';
 import { UserStats, ExamType } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from './Button';
+import { THEME_PALETTES } from '../constants';
 
 interface DashboardProps {
   stats: UserStats;
@@ -16,6 +18,8 @@ interface DashboardProps {
   onEnableNotifications: () => void;
   language?: 'en' | 'hi';
   onToggleLanguage?: () => void;
+  currentTheme?: string;
+  onThemeChange?: (theme: string) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -29,7 +33,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onGeneratePaper,
   onEnableNotifications,
   language = 'en',
-  onToggleLanguage
+  onToggleLanguage,
+  currentTheme = 'Ocean Blue',
+  onThemeChange
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
@@ -224,6 +230,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Settings</h3>
               
               <div className="space-y-3">
+
+                {/* Theme Selector */}
+                {onThemeChange && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-100 dark:border-slate-600 transition-colors">
+                      <div className="mb-3">
+                         <p className="font-semibold text-slate-700 dark:text-slate-200">App Theme</p>
+                         <p className="text-xs text-slate-500 dark:text-slate-400">Personalize your color</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.keys(THEME_PALETTES).map(theme => (
+                          <button
+                             key={theme}
+                             onClick={() => onThemeChange(theme)}
+                             title={theme}
+                             className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 focus:outline-none ${
+                               currentTheme === theme ? 'border-slate-600 dark:border-slate-300 ring-2 ring-indigo-300 dark:ring-slate-500 scale-110' : 'border-transparent'
+                             }`}
+                             style={{ backgroundColor: THEME_PALETTES[theme][500] }}
+                          />
+                        ))}
+                      </div>
+                  </div>
+                )}
                 
                 {/* Language Toggle */}
                 {onToggleLanguage && (

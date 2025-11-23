@@ -1,4 +1,5 @@
 
+
 export enum ExamType {
   UPSC = 'UPSC',
   SSC_CGL = 'SSC CGL',
@@ -117,4 +118,5 @@ export interface AppState {
   generatedPaper?: QuestionPaper | null;
   darkMode: boolean;
   language: 'en' | 'hi';
+  theme: string;
 }

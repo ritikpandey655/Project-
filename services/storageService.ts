@@ -1,4 +1,5 @@
 
+
 import { Question, UserStats, ExamType, User, ExamResult } from '../types';
 
 const QUESTIONS_KEY = 'exam_master_questions';
@@ -190,6 +191,7 @@ interface UserPrefs {
   hasSeenTutorial: boolean;
   darkMode: boolean;
   language: 'en' | 'hi';
+  theme: string;
 }
 
 const DEFAULT_PREFS: UserPrefs = {
@@ -197,7 +199,8 @@ const DEFAULT_PREFS: UserPrefs = {
   showTimer: true,
   hasSeenTutorial: false,
   darkMode: false,
-  language: 'en'
+  language: 'en',
+  theme: 'Ocean Blue'
 };
 
 export const saveUserPref = (userId: string, newPrefs: Partial<UserPrefs>): void => {

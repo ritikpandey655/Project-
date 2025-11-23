@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AppState, ExamType, Question, User, ViewState, QuestionPaper } from './types';
-import { EXAM_SUBJECTS } from './constants';
+import { EXAM_SUBJECTS, THEME_PALETTES } from './constants';
 import { 
   getUserPref, 
   getStats, 
@@ -36,7 +36,8 @@ const App: React.FC = () => {
     showTimer: true,
     generatedPaper: null,
     darkMode: false,
-    language: 'en'
+    language: 'en',
+    theme: 'Ocean Blue'
   });
 
   const [practiceQueue, setPracticeQueue] = useState<Question[]>([]);
@@ -56,11 +57,22 @@ const App: React.FC = () => {
   });
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
+  // Helper to apply theme colors to root
+  const applyTheme = (themeName: string) => {
+    const palette = THEME_PALETTES[themeName] || THEME_PALETTES['Ocean Blue'];
+    const root = document.documentElement;
+    
+    Object.keys(palette).forEach(key => {
+      // @ts-ignore
+      root.style.setProperty(`--primary-${key}`, palette[key]);
+    });
+  };
+
   // Initialize App & PWA Install Prompt
   useEffect(() => {
     const user = getUser();
     if (user) {
-      const { selectedExam, showTimer, hasSeenTutorial, darkMode, language } = getUserPref(user.id);
+      const { selectedExam, showTimer, hasSeenTutorial, darkMode, language, theme } = getUserPref(user.id);
       const userStats = getStats(user.id);
       
       let nextView: ViewState = 'onboarding';
@@ -68,7 +80,7 @@ const App: React.FC = () => {
         nextView = hasSeenTutorial ? 'dashboard' : 'tutorial';
       }
 
-      setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: nextView, showTimer, darkMode, language }));
+      setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: nextView, showTimer, darkMode, language, theme: theme || 'Ocean Blue' }));
       
       if (darkMode) {
         document.documentElement.classList.add('dark');
@@ -76,8 +88,11 @@ const App: React.FC = () => {
         document.documentElement.classList.remove('dark');
       }
 
+      applyTheme(theme || 'Ocean Blue');
+
     } else {
       setState(prev => ({ ...prev, view: 'login' }));
+      applyTheme('Ocean Blue');
     }
     setIsAppInitializing(false);
 
@@ -163,7 +178,7 @@ const App: React.FC = () => {
 
   const handleLogin = (user: User) => {
     saveUser(user);
-    const { selectedExam, showTimer, hasSeenTutorial, darkMode, language } = getUserPref(user.id);
+    const { selectedExam, showTimer, hasSeenTutorial, darkMode, language, theme } = getUserPref(user.id);
     const userStats = getStats(user.id);
     
     if (darkMode) {
@@ -171,6 +186,8 @@ const App: React.FC = () => {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    
+    applyTheme(theme || 'Ocean Blue');
 
     let nextView: ViewState = 'onboarding';
     if (selectedExam) {
@@ -185,7 +202,8 @@ const App: React.FC = () => {
       view: nextView,
       showTimer,
       darkMode,
-      language
+      language,
+      theme: theme || 'Ocean Blue'
     }));
     window.history.pushState({ view: nextView }, '', null);
   };
@@ -204,8 +222,10 @@ const App: React.FC = () => {
       view: nextView,
       showTimer: true,
       darkMode: false,
-      language: 'en'
+      language: 'en',
+      theme: 'Ocean Blue'
     }));
+    applyTheme('Ocean Blue');
     window.history.pushState({ view: nextView }, '', null);
   };
 
@@ -217,6 +237,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     removeUser();
     document.documentElement.classList.remove('dark');
+    applyTheme('Ocean Blue');
     setState(prev => ({
       ...prev,
       user: null,
@@ -224,7 +245,8 @@ const App: React.FC = () => {
       selectedExam: null,
       stats: INITIAL_STATS,
       darkMode: false,
-      language: 'en'
+      language: 'en',
+      theme: 'Ocean Blue'
     }));
     window.history.pushState({ view: 'login' }, '', null);
   };
@@ -270,6 +292,13 @@ const App: React.FC = () => {
     const newLang = state.language === 'en' ? 'hi' : 'en';
     saveUserPref(state.user.id, { language: newLang });
     setState(prev => ({ ...prev, language: newLang }));
+  };
+
+  const handleThemeChange = (newTheme: string) => {
+    if (!state.user) return;
+    saveUserPref(state.user.id, { theme: newTheme });
+    setState(prev => ({ ...prev, theme: newTheme }));
+    applyTheme(newTheme);
   };
 
   const handleStartPractice = () => {
@@ -611,6 +640,8 @@ const App: React.FC = () => {
             onEnableNotifications={enableNotifications}
             language={state.language}
             onToggleLanguage={toggleLanguage}
+            currentTheme={state.theme}
+            onThemeChange={handleThemeChange}
           />
         )}
 
@@ -653,38 +684,54 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {state.view === 'practice' && practiceQueue.length > 0 && (
-          <div className="h-full flex flex-col justify-center py-4 animate-fade-in">
-             <div className="mb-4 flex justify-between items-center text-sm text-slate-500 dark:text-slate-400 px-2">
-                <div className="flex items-center gap-2">
-                  <span>Question {currentQIndex + 1}</span>
-                  {practiceConfig.mode === 'endless' && (
-                     <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded text-xs font-bold">∞</span>
-                  )}
-                  {practiceConfig.mode !== 'endless' && (
-                     <span>of {Math.max(practiceConfig.count, practiceQueue.length)}</span>
-                  )}
-                </div>
-                
-                {state.showTimer && <Timer />}
+        {state.view === 'practice' && (
+          practiceQueue.length > 0 ? (
+            <div className="h-full flex flex-col justify-center py-4 animate-fade-in">
+               <div className="mb-4 flex justify-between items-center text-sm text-slate-500 dark:text-slate-400 px-2">
+                  <div className="flex items-center gap-2">
+                    <span>Question {currentQIndex + 1}</span>
+                    {practiceConfig.mode === 'endless' && (
+                       <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded text-xs font-bold">∞</span>
+                    )}
+                    {practiceConfig.mode !== 'endless' && (
+                       <span>of {Math.max(practiceConfig.count, practiceQueue.length)}</span>
+                    )}
+                  </div>
+                  
+                  {state.showTimer && <Timer />}
 
+                  <button 
+                    onClick={() => navigateTo('dashboard')}
+                    className="hover:text-red-500 font-medium transition-colors hover:scale-105 active:scale-95"
+                  >
+                    {practiceConfig.mode === 'endless' ? 'Finish' : 'Quit'}
+                  </button>
+               </div>
+              <QuestionCard 
+                question={practiceQueue[currentQIndex]} 
+                onAnswer={handleAnswer}
+                onNext={nextQuestion}
+                isLast={isLastQuestion}
+                isLoadingNext={isWaitingForMore}
+                language={state.language}
+                onToggleLanguage={toggleLanguage}
+              />
+            </div>
+          ) : (
+             <div className="h-full flex flex-col items-center justify-center animate-fade-in">
+                <div className="text-4xl mb-4">😕</div>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">No questions available</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-6 text-center max-w-xs">
+                   We couldn't generate questions right now. Please check your connection or try a different subject.
+                </p>
                 <button 
                   onClick={() => navigateTo('dashboard')}
-                  className="hover:text-red-500 font-medium transition-colors hover:scale-105 active:scale-95"
+                  className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
                 >
-                  {practiceConfig.mode === 'endless' ? 'Finish' : 'Quit'}
+                   Return to Dashboard
                 </button>
              </div>
-            <QuestionCard 
-              question={practiceQueue[currentQIndex]} 
-              onAnswer={handleAnswer}
-              onNext={nextQuestion}
-              isLast={isLastQuestion}
-              isLoadingNext={isWaitingForMore}
-              language={state.language}
-              onToggleLanguage={toggleLanguage}
-            />
-          </div>
+          )
         )}
       </main>
     </div>
