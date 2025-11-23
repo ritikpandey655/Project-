@@ -8,16 +8,26 @@ interface QuestionCardProps {
   onAnswer: (isCorrect: boolean) => void;
   onNext: () => void;
   isLast: boolean;
+  isLoadingNext?: boolean;
+  language?: 'en' | 'hi';
+  onToggleLanguage?: () => void;
 }
 
-export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, onNext, isLast }) => {
+export const QuestionCard: React.FC<QuestionCardProps> = ({ 
+  question, 
+  onAnswer, 
+  onNext, 
+  isLast, 
+  isLoadingNext = false,
+  language = 'en',
+  onToggleLanguage
+}) => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportSent, setReportSent] = useState(false);
 
-  // Reset state when question changes
   useEffect(() => {
     setSelectedOption(null);
     setIsSubmitted(false);
@@ -33,7 +43,6 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, 
   };
 
   const handleReportSubmit = () => {
-    // Simulate API call
     setTimeout(() => {
       setReportSent(true);
       setTimeout(() => {
@@ -44,9 +53,19 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, 
     }, 500);
   };
 
+  // Content Selection Logic
+  const displayHindi = language === 'hi' && question.textHindi;
+  const displayText = displayHindi ? question.textHindi : question.text;
+  const displayOptions = (displayHindi && question.optionsHindi && question.optionsHindi.length === question.options.length) 
+    ? question.optionsHindi 
+    : question.options;
+  const displayExplanation = (displayHindi && question.explanationHindi) 
+    ? question.explanationHindi 
+    : question.explanation;
+
   if (showReport) {
     return (
-      <div className="w-full max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700 flex flex-col h-full max-h-[80vh] relative transition-colors">
+      <div className="w-full max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700 flex flex-col h-full max-h-[80vh] relative transition-colors animate-pop-in">
         <div className="px-6 py-4 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/30 flex justify-between items-center">
           <h3 className="text-red-700 dark:text-red-400 font-bold flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -60,165 +79,179 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onAnswer, 
             </svg>
           </button>
         </div>
-
-        <div className="p-8 flex flex-col h-full justify-center items-center text-center">
-          {reportSent ? (
-            <div className="animate-fade-in">
-              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Report Received</h3>
-              <p className="text-slate-500 dark:text-slate-400">Thanks for helping us improve!</p>
-            </div>
-          ) : (
-            <div className="w-full max-w-md space-y-4 text-left animate-fade-in">
-              <p className="text-slate-600 dark:text-slate-300 mb-4 text-sm">What is wrong with this question?</p>
-              
-              {['Factually Incorrect', 'Wrong Answer Key', 'Spelling/Grammar', 'Confusing Explanation', 'Other'].map((reason) => (
-                <label key={reason} className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+        
+        {reportSent ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+             <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
+               <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+               </svg>
+             </div>
+             <p className="text-lg font-bold text-slate-800 dark:text-white">Report Submitted</p>
+             <p className="text-slate-500 dark:text-slate-400 text-sm">Thank you for helping us improve!</p>
+          </div>
+        ) : (
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-slate-600 dark:text-slate-300">What's wrong with this question?</p>
+            <div className="space-y-2">
+              {['Incorrect Answer', 'Typos / Grammar', 'Irrelevant to Exam', 'Other'].map((reason) => (
+                <label key={reason} className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                   <input 
                     type="radio" 
                     name="reportReason" 
                     value={reason} 
-                    checked={reportReason === reason} 
+                    checked={reportReason === reason}
                     onChange={(e) => setReportReason(e.target.value)}
-                    className="w-4 h-4 text-red-600 focus:ring-red-500 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500"
+                    className="text-red-600 focus:ring-red-500" 
                   />
-                  <span className="text-slate-700 dark:text-slate-200 font-medium">{reason}</span>
+                  <span className="text-slate-700 dark:text-slate-200">{reason}</span>
                 </label>
               ))}
-              
-              <div className="pt-4 flex gap-3">
-                <Button variant="ghost" onClick={() => setShowReport(false)} className="flex-1 dark:text-slate-300 dark:hover:text-white">Cancel</Button>
-                <Button 
-                  variant="danger" 
-                  onClick={handleReportSubmit} 
-                  disabled={!reportReason}
-                  className="flex-1"
-                >
-                  Submit Report
-                </Button>
-              </div>
             </div>
-          )}
-        </div>
+            <Button onClick={handleReportSubmit} disabled={!reportReason} variant="danger" className="w-full mt-2">
+              Submit Report
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700 flex flex-col h-full max-h-[80vh] transition-colors">
-      {/* Header */}
-      <div className="px-6 py-4 bg-indigo-50 dark:bg-indigo-900/30 border-b border-indigo-100 dark:border-indigo-900/50 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <span className={`px-2 py-1 text-xs font-bold rounded-md uppercase tracking-wide ${
-            question.source === QuestionSource.USER 
-                ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300' 
-                : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'
-          }`}>
-            {question.source === QuestionSource.USER ? 'Your Note' : 'AI PYQ'}
-          </span>
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">{question.subject || question.examType}</span>
-        </div>
+    <div className="w-full max-w-2xl mx-auto flex flex-col h-full justify-between animate-slide-in-right">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700 transition-colors">
         
-        <div className="flex items-center gap-3">
-          {question.tags && question.tags.length > 0 && (
-             <span className="text-xs text-slate-400 hidden sm:inline">#{question.tags[0]}</span>
-          )}
-          <button 
-            onClick={() => setShowReport(true)}
-            className="text-slate-300 hover:text-red-500 transition-colors"
-            title="Report issue with this question"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 21v-8a2 2 0 01-2-2H5a2 2 0 012 2v8m0 0v2a2 2 0 012 2h2a2 2 0 012-2v-2m0 0h2a2 2 0 012 2v2a2 2 0 012-2h2a2 2 0 012 2v-2m0 0h2a2 2 0 012 2v2a2 2 0 012-2h2a2 2 0 012 2v-2m-6 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1 .008-6C14.988 7.18 12.941 7.576 11.26 7.835a19.026 19.026 0 0 1-5.973-.634L3 6.75v6.75Z" />
-            </svg>
-          </button>
+        {/* Header / Meta */}
+        <div className="px-6 pt-6 pb-2 flex justify-between items-start">
+          <div className="flex flex-col gap-2">
+             <div className="flex flex-wrap gap-2">
+                <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                question.source === QuestionSource.USER 
+                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' 
+                : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                }`}>
+                {question.source === QuestionSource.USER ? 'Your Notes' : 'AI Generated'}
+                </span>
+                <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                {question.subject || 'General'}
+                </span>
+             </div>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            {onToggleLanguage && (
+              <button
+                onClick={onToggleLanguage}
+                className="mr-2 px-3 py-1 rounded-full text-xs font-bold border transition-colors flex items-center gap-1
+                  bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-indigo-50 dark:hover:bg-slate-600"
+              >
+                <span>{language === 'en' ? 'EN' : 'हि'}</span>
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </button>
+            )}
+            <button 
+                onClick={() => setShowReport(true)}
+                className="text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400 transition-colors p-1"
+                title="Report Issue"
+            >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Content (Scrollable) */}
-      <div className="p-6 overflow-y-auto flex-1 no-scrollbar" dir="auto">
-        <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-6 leading-relaxed text-start">
-          {question.text}
-        </h3>
+        {/* Question Text */}
+        <div className="px-6 py-2 mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white leading-relaxed">
+            {displayText}
+          </h2>
+          {!displayHindi && language === 'hi' && (
+             <p className="text-xs text-slate-400 italic mt-1">Hindi translation unavailable for this question.</p>
+          )}
+        </div>
 
-        <div className="space-y-3">
-          {question.options.map((option, index) => {
-            let optionStyle = "border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500";
-            let textStyle = "text-slate-800 dark:text-slate-200";
+        {/* Options */}
+        <div className="px-6 pb-8 space-y-3">
+          {displayOptions.map((option, idx) => {
+            let stateClass = "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-indigo-200 dark:hover:border-slate-600";
             
             if (isSubmitted) {
-              if (index === question.correctIndex) {
-                optionStyle = "bg-green-50 dark:bg-green-900/30 border-green-500 text-green-800 dark:text-green-300 ring-1 ring-green-500";
-                textStyle = "";
-              } else if (index === selectedOption && index !== question.correctIndex) {
-                optionStyle = "bg-red-50 dark:bg-red-900/30 border-red-500 text-red-800 dark:text-red-300";
-                textStyle = "";
+              if (idx === question.correctIndex) {
+                stateClass = "bg-green-50 dark:bg-green-900/20 border-green-500 dark:border-green-500/50 text-green-800 dark:text-green-200 shadow-[0_0_0_1px_rgba(34,197,94,0.4)]";
+              } else if (idx === selectedOption) {
+                stateClass = "bg-red-50 dark:bg-red-900/20 border-red-500 dark:border-red-500/50 text-red-800 dark:text-red-200";
               } else {
-                optionStyle = "opacity-50 border-slate-100 dark:border-slate-700";
+                stateClass = "opacity-50 border-slate-200 dark:border-slate-700";
               }
-            } else if (selectedOption === index) {
-              optionStyle = "bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 text-indigo-900 dark:text-indigo-200 ring-1 ring-indigo-500";
-              textStyle = "";
+            } else if (selectedOption === idx) {
+              stateClass = "bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 dark:border-indigo-400 shadow-[0_0_0_1px_rgba(99,102,241,0.4)] transform scale-[1.01]";
             }
 
             return (
               <button
-                key={index}
-                onClick={() => !isSubmitted && setSelectedOption(index)}
+                key={idx}
                 disabled={isSubmitted}
-                className={`w-full text-start p-4 rounded-xl border-2 transition-all duration-200 group relative flex items-center ${optionStyle} ${textStyle}`}
+                onClick={() => setSelectedOption(idx)}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 flex items-center gap-4 group active:scale-[0.99] animate-slide-up-fade ${stateClass}`}
+                style={{ animationDelay: `${idx * 100}ms` }}
               >
-                <span className={`flex-shrink-0 inline-flex items-center justify-center w-6 h-6 mr-3 text-sm font-bold rounded-full 
-                  ${isSubmitted && index === question.correctIndex ? 'bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-100' : 
-                    (selectedOption === index ? 'bg-indigo-200 text-indigo-800 dark:bg-indigo-700 dark:text-indigo-100' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400')}
-                `}>
-                  {String.fromCharCode(65 + index)}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors flex-shrink-0
+                  ${isSubmitted && idx === question.correctIndex ? 'bg-green-500 border-green-500 text-white' : 
+                    isSubmitted && idx === selectedOption ? 'bg-red-500 border-red-500 text-white' :
+                    selectedOption === idx ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500'}`}>
+                  {String.fromCharCode(65 + idx)}
+                </div>
+                <span className={`text-base font-medium ${isSubmitted && idx === question.correctIndex ? 'font-bold' : ''} text-slate-700 dark:text-slate-200`}>
+                  {option}
                 </span>
-                <span className="font-medium flex-1">{option}</span>
-                
-                {isSubmitted && index === question.correctIndex && (
-                  <svg className="absolute right-4 w-5 h-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {isSubmitted && idx === question.correctIndex && (
+                  <svg className="w-6 h-6 text-green-600 dark:text-green-400 ml-auto animate-bounce-slight" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
+                )}
+                {isSubmitted && idx === selectedOption && idx !== question.correctIndex && (
+                   <svg className="w-6 h-6 text-red-600 dark:text-red-400 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                   </svg>
                 )}
               </button>
             );
           })}
         </div>
 
-        {isSubmitted && question.explanation && (
-          <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/40 animate-fade-in text-start">
-            <h4 className="text-sm font-bold text-amber-800 dark:text-amber-400 mb-1 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Explanation
-            </h4>
-            <p className="text-sm text-amber-900 dark:text-amber-200 leading-relaxed opacity-90">
-              {question.explanation}
+        {/* Footer / Explanation */}
+        {isSubmitted && (
+          <div className="bg-slate-50 dark:bg-slate-900/50 p-6 border-t border-slate-100 dark:border-slate-700 animate-slide-up">
+            <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Explanation</h3>
+            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+              {displayExplanation || "No explanation provided."}
             </p>
           </div>
         )}
       </div>
 
-      {/* Footer - Sticky */}
-      <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-end z-10 transition-colors">
+      {/* Action Button */}
+      <div className="mt-6">
         {!isSubmitted ? (
           <Button 
             onClick={handleSubmit} 
-            disabled={selectedOption === null}
-            className="w-full sm:w-auto"
+            disabled={selectedOption === null} 
+            className="w-full py-4 text-lg font-bold shadow-xl shadow-indigo-200 dark:shadow-none transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
             Check Answer
           </Button>
         ) : (
-          <Button onClick={onNext} variant="primary" className="w-full sm:w-auto">
-            {isLast ? "Finish Practice" : "Next Question"}
+          <Button 
+            onClick={onNext} 
+            isLoading={isLoadingNext}
+            className={`w-full py-4 text-lg font-bold shadow-xl transition-transform hover:scale-[1.02] active:scale-[0.98] ${
+                isLast && !isLoadingNext ? 'bg-slate-800 dark:bg-white text-white dark:text-slate-900' : ''
+            }`}
+          >
+            {isLoadingNext ? 'Fetching More...' : isLast ? 'Finish Session' : 'Next Question →'}
           </Button>
         )}
       </div>

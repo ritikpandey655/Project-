@@ -35,7 +35,8 @@ const App: React.FC = () => {
     user: null,
     showTimer: true,
     generatedPaper: null,
-    darkMode: false
+    darkMode: false,
+    language: 'en'
   });
 
   const [practiceQueue, setPracticeQueue] = useState<Question[]>([]);
@@ -48,25 +49,27 @@ const App: React.FC = () => {
   
   // Practice Config State
   const [showPracticeConfig, setShowPracticeConfig] = useState(false);
-  const [practiceConfig, setPracticeConfig] = useState<{ mode: 'finite' | 'endless'; subject: string }>({ mode: 'finite', subject: 'Mixed' });
+  const [practiceConfig, setPracticeConfig] = useState<{ mode: 'finite' | 'endless'; subject: string; count: number }>({ 
+    mode: 'finite', 
+    subject: 'Mixed',
+    count: 10 
+  });
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   // Initialize App & PWA Install Prompt
   useEffect(() => {
     const user = getUser();
     if (user) {
-      const { selectedExam, showTimer, hasSeenTutorial, darkMode } = getUserPref(user.id);
+      const { selectedExam, showTimer, hasSeenTutorial, darkMode, language } = getUserPref(user.id);
       const userStats = getStats(user.id);
       
       let nextView: ViewState = 'onboarding';
       if (selectedExam) {
-        // If exam selected, check if they need to see tutorial
         nextView = hasSeenTutorial ? 'dashboard' : 'tutorial';
       }
 
-      setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: nextView, showTimer, darkMode }));
+      setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: nextView, showTimer, darkMode, language }));
       
-      // Apply dark mode
       if (darkMode) {
         document.documentElement.classList.add('dark');
       } else {
@@ -78,15 +81,12 @@ const App: React.FC = () => {
     }
     setIsAppInitializing(false);
 
-    // Check for iOS
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
-    // Listen for install prompt
     const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
       setInstallPrompt(e);
-      console.log("Install prompt captured");
     };
     
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -102,8 +102,6 @@ const App: React.FC = () => {
       if (event.state && event.state.view) {
         setState(prev => ({ ...prev, view: event.state.view }));
       } else {
-        // Default fallback if no state (e.g. initial load)
-        // If user is logged in, go to dashboard, else login
         if (state.user) {
           setState(prev => ({ ...prev, view: 'dashboard' }));
         } else {
@@ -116,9 +114,7 @@ const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [state.user]);
 
-  // Helper to navigate and push history
   const navigateTo = (view: ViewState) => {
-    // Pass null as URL to avoid SecurityError in sandboxed/blob environments
     window.history.pushState({ view }, '', null);
     setState(prev => ({ ...prev, view }));
   };
@@ -136,9 +132,38 @@ const App: React.FC = () => {
     }
   };
 
+  // Notification Logic
+  const enableNotifications = async () => {
+    if (!('Notification' in window)) {
+      alert("This browser does not support notifications.");
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        new Notification("ExamMaster Enabled!", { 
+          body: "We'll remind you to keep your learning streak alive!",
+          icon: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamMaster',
+        });
+        
+        // Schedule a local simulation of a push notification if supported by SW
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+           navigator.serviceWorker.controller.postMessage({
+             type: 'SCHEDULE_REMINDER',
+             delay: 24 * 60 * 60 * 1000 // 24 hours
+           });
+        }
+      } else {
+        alert("Permission denied. Please enable notifications in your browser settings.");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleLogin = (user: User) => {
     saveUser(user);
-    const { selectedExam, showTimer, hasSeenTutorial, darkMode } = getUserPref(user.id);
+    const { selectedExam, showTimer, hasSeenTutorial, darkMode, language } = getUserPref(user.id);
     const userStats = getStats(user.id);
     
     if (darkMode) {
@@ -159,22 +184,17 @@ const App: React.FC = () => {
       stats: userStats,
       view: nextView,
       showTimer,
-      darkMode
+      darkMode,
+      language
     }));
-    
-    // Push history for the new view
     window.history.pushState({ view: nextView }, '', null);
   };
 
   const handleSignup = (user: User, exam: ExamType) => {
     saveUser(user);
-    // Save the selected exam immediately
     saveUserPref(user.id, { selectedExam: exam });
-    
-    // Initialize stats (implicitly handled by storage service getter, but good to have)
     const userStats = getStats(user.id);
 
-    // Go to tutorial since it's a fresh user
     const nextView = 'tutorial';
     setState(prev => ({ 
       ...prev, 
@@ -183,7 +203,8 @@ const App: React.FC = () => {
       stats: userStats,
       view: nextView,
       showTimer: true,
-      darkMode: false
+      darkMode: false,
+      language: 'en'
     }));
     window.history.pushState({ view: nextView }, '', null);
   };
@@ -202,7 +223,8 @@ const App: React.FC = () => {
       view: 'login',
       selectedExam: null,
       stats: INITIAL_STATS,
-      darkMode: false
+      darkMode: false,
+      language: 'en'
     }));
     window.history.pushState({ view: 'login' }, '', null);
   };
@@ -210,7 +232,6 @@ const App: React.FC = () => {
   const handleExamSelect = (exam: ExamType) => {
     if (!state.user) return;
     saveUserPref(state.user.id, { selectedExam: exam });
-    // Don't navigate if called from modal, state update will reflect in props
     setState(prev => ({ ...prev, selectedExam: exam }));
   };
 
@@ -244,7 +265,13 @@ const App: React.FC = () => {
     }
   };
 
-  // Opens the config modal
+  const toggleLanguage = () => {
+    if (!state.user) return;
+    const newLang = state.language === 'en' ? 'hi' : 'en';
+    saveUserPref(state.user.id, { language: newLang });
+    setState(prev => ({ ...prev, language: newLang }));
+  };
+
   const handleStartPractice = () => {
     setShowPracticeConfig(true);
   };
@@ -253,26 +280,23 @@ const App: React.FC = () => {
     if (!state.selectedExam || !state.user) return;
     
     setShowPracticeConfig(false);
-    setPracticeConfig({ mode: config.mode, subject: config.subject });
+    setPracticeConfig({ mode: config.mode, subject: config.subject, count: config.count });
     setIsLoading(true);
     
     try {
-      // 1. Fetch user questions (Revision)
       const userQuestions = getUserQuestions(state.user.id).filter(q => q.examType === state.selectedExam);
       const shuffledUserQ = userQuestions.sort(() => 0.5 - Math.random()).slice(0, 3);
 
-      // 2. Determine Subject to generate
       let subjectToGen = config.subject;
       if (config.subject === 'Mixed') {
         const subjects = EXAM_SUBJECTS[state.selectedExam];
         subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
       }
 
-      // 3. Generate AI questions (Initial batch)
+      // Initial batch
       const batchSize = Math.min(config.count, 5); 
       const aiQuestions = await generateExamQuestions(state.selectedExam, subjectToGen, batchSize);
 
-      // 4. Merge
       const combined = [...shuffledUserQ, ...aiQuestions];
       setPracticeQueue(combined.sort(() => 0.5 - Math.random()));
       setCurrentQIndex(0);
@@ -294,36 +318,59 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, stats: getStats(state.user!.id) }));
   };
 
+  // Enhanced "Next" logic for Endless/Marathon modes
   const nextQuestion = async () => {
     const isEnd = currentQIndex >= practiceQueue.length - 1;
+    
+    // Check if we need more questions
+    const shouldFetchMore = 
+        (practiceConfig.mode === 'endless') || 
+        (practiceConfig.mode === 'finite' && practiceQueue.length < practiceConfig.count);
 
-    // Endless Mode: Check if we need to fetch more
-    if (practiceConfig.mode === 'endless' && !isFetchingMore) {
+    if (shouldFetchMore && !isFetchingMore) {
       const remaining = practiceQueue.length - (currentQIndex + 1);
+      
+      // If running low on questions (less than 3 remaining)
       if (remaining < 3) {
         setIsFetchingMore(true);
         
-        // Determine subject
         let subjectToGen = practiceConfig.subject;
         if (practiceConfig.subject === 'Mixed') {
            const subjects = EXAM_SUBJECTS[state.selectedExam!];
            subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
         }
 
-        generateExamQuestions(state.selectedExam!, subjectToGen, 5)
-          .then(newQs => {
-             setPracticeQueue(prev => [...prev, ...newQs]);
-          })
-          .finally(() => setIsFetchingMore(false));
+        let batchSize = 5;
+        // If finite mode, don't over-fetch past the target count
+        if (practiceConfig.mode === 'finite') {
+            const needed = practiceConfig.count - practiceQueue.length;
+            batchSize = Math.min(5, needed);
+        }
+
+        if (batchSize > 0) {
+            generateExamQuestions(state.selectedExam!, subjectToGen, batchSize)
+            .then(newQs => {
+                if (newQs.length > 0) {
+                  setPracticeQueue(prev => [...prev, ...newQs]);
+                }
+            })
+            .catch(err => console.error("Background fetch failed", err))
+            .finally(() => setIsFetchingMore(false));
+        } else {
+            setIsFetchingMore(false);
+        }
       }
     }
 
     if (!isEnd) {
       setCurrentQIndex(prev => prev + 1);
     } else {
-      if (practiceConfig.mode === 'endless' && isFetchingMore) {
-         alert("Fetching more questions... please wait a moment.");
+      // If we are at the end...
+      if (isFetchingMore || shouldFetchMore) {
+         // Wait for fetch. The UI will show loading state via `isLoadingNext` prop passed to QuestionCard
+         return; 
       } else {
+         // Truly done
          navigateTo('dashboard');
       }
     }
@@ -335,16 +382,10 @@ const App: React.FC = () => {
   };
   
   const handlePaperExit = () => {
-    // Here we could clear the generated paper if we wanted to force regeneration
-    // or keep it for review. For security, navigating back to dashboard is sufficient.
     navigateTo('dashboard');
   };
 
-  // --- Views ---
-
-  if (isAppInitializing) {
-    return null; 
-  }
+  if (isAppInitializing) return null;
 
   if (state.view === 'login') {
     return (
@@ -387,7 +428,7 @@ const App: React.FC = () => {
           Logout
         </button>
         <div className="max-w-md w-full text-center animate-fade-in">
-          <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl mx-auto flex items-center justify-center mb-6 text-3xl shadow-sm">
+          <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl mx-auto flex items-center justify-center mb-6 text-3xl shadow-sm animate-float">
             🎓
           </div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Welcome, {state.user?.name?.split(' ')[0] || 'Student'}!</h1>
@@ -398,7 +439,7 @@ const App: React.FC = () => {
               <button
                 key={exam}
                 onClick={() => handleExamSelectFromOnboarding(exam)}
-                className="w-full p-4 text-left rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all font-medium text-slate-700 dark:text-slate-200 flex justify-between items-center group bg-white dark:bg-slate-800 shadow-sm hover:shadow-md"
+                className="w-full p-4 text-left rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all font-medium text-slate-700 dark:text-slate-200 flex justify-between items-center group bg-white dark:bg-slate-800 shadow-sm hover:shadow-md hover:scale-[1.02]"
               >
                 {exam}
                 <span className="opacity-0 group-hover:opacity-100 text-indigo-600 dark:text-indigo-400 transition-opacity">→</span>
@@ -410,39 +451,46 @@ const App: React.FC = () => {
     );
   }
   
-  // Paper View Mode (Fullscreen, no standard layout)
   if (state.view === 'paperView' && state.generatedPaper) {
      return (
        <PaperView 
          paper={state.generatedPaper}
          onClose={handlePaperExit}
+         language={state.language}
+         onToggleLanguage={toggleLanguage}
        />
      );
   }
 
+  // Check if we are at the end of the queue AND waiting for more questions
+  const isWaitingForMore = (currentQIndex >= practiceQueue.length - 1) && 
+                           (isFetchingMore || 
+                            (practiceConfig.mode === 'endless') || 
+                            (practiceConfig.mode === 'finite' && practiceQueue.length < practiceConfig.count));
+
+  // Is this truly the last question? (Finite mode reached count, or queue ended and no more fetch)
+  const isLastQuestion = practiceConfig.mode === 'finite' && 
+                         practiceQueue.length >= practiceConfig.count && 
+                         currentQIndex === practiceQueue.length - 1;
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200">
-      {/* Navbar */}
       <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 safe-top transition-colors duration-200">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div 
             className="flex items-center gap-2 cursor-pointer" 
             onClick={() => navigateTo('dashboard')}
           >
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-200 dark:shadow-none">E</div>
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-200 dark:shadow-none transition-transform active:scale-95 animate-bounce-slight">E</div>
             <span className="font-bold text-slate-800 dark:text-white hidden sm:block">ExamMaster</span>
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
-            {/* Install App Button Logic */}
             {(installPrompt || isIOS) && (
               <button
                 onClick={handleInstallClick}
-                className="hidden sm:flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-colors"
+                className="hidden sm:flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-all active:scale-95 animate-pulse-glow"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
                 Install App
               </button>
             )}
@@ -450,13 +498,13 @@ const App: React.FC = () => {
             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
               <button 
                 onClick={() => navigateTo('dashboard')}
-                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'dashboard' ? 'bg-white dark:bg-slate-600 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'dashboard' ? 'bg-white dark:bg-slate-600 text-indigo-700 dark:text-indigo-300 shadow-sm scale-105' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
               >
                 Dash
               </button>
               <button 
                 onClick={() => navigateTo('upload')}
-                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'upload' ? 'bg-white dark:bg-slate-600 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'upload' ? 'bg-white dark:bg-slate-600 text-indigo-700 dark:text-indigo-300 shadow-sm scale-105' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
               >
                 Add Notes
               </button>
@@ -470,11 +518,10 @@ const App: React.FC = () => {
                   <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50 dark:bg-indigo-900/30 px-1.5 rounded-md inline-block mt-0.5">{state.selectedExam}</p>
                </div>
                
-               {/* User Profile & Logout */}
                <div className="flex items-center gap-2">
                  <button 
                     onClick={() => navigateTo('profile')}
-                    className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm hover:ring-2 hover:ring-indigo-400 transition-all" 
+                    className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm hover:ring-2 hover:ring-indigo-400 transition-all active:scale-95" 
                     title="View Profile"
                  >
                     {state.user?.photoURL ? (
@@ -491,11 +538,9 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 pb-24 safe-bottom">
-        {/* Mobile Install Banner */}
+      <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 pb-24 safe-bottom animate-slide-up-fade">
         {(installPrompt || isIOS) && (
-          <div className="sm:hidden mb-4 bg-indigo-600 text-white p-3 rounded-xl flex items-center justify-between shadow-lg">
+          <div className="sm:hidden mb-4 bg-indigo-600 text-white p-3 rounded-xl flex items-center justify-between shadow-lg animate-pop-in">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl">🎓</div>
               <div>
@@ -505,14 +550,13 @@ const App: React.FC = () => {
             </div>
             <button 
               onClick={handleInstallClick}
-              className="bg-white text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold"
+              className="bg-white text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold active:scale-95 transition-transform"
             >
               Install
             </button>
           </div>
         )}
 
-        {/* Practice Config Modal */}
         {showPracticeConfig && state.selectedExam && (
           <PracticeConfigModal 
             examType={state.selectedExam}
@@ -522,7 +566,6 @@ const App: React.FC = () => {
           />
         )}
 
-        {/* iOS Help Modal */}
         {showIOSHelp && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowIOSHelp(false)}>
             <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
@@ -547,7 +590,7 @@ const App: React.FC = () => {
               </div>
               <button 
                 onClick={() => setShowIOSHelp(false)}
-                className="w-full mt-6 bg-indigo-600 text-white font-bold py-3 rounded-xl"
+                className="w-full mt-6 bg-indigo-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform"
               >
                 Got it
               </button>
@@ -565,6 +608,9 @@ const App: React.FC = () => {
             onToggleTimer={toggleTimer}
             onToggleDarkMode={toggleDarkMode}
             onGeneratePaper={() => navigateTo('paperGenerator')}
+            onEnableNotifications={enableNotifications}
+            language={state.language}
+            onToggleLanguage={toggleLanguage}
           />
         )}
 
@@ -592,7 +638,7 @@ const App: React.FC = () => {
           <div className="max-w-3xl mx-auto animate-fade-in">
             <button 
               onClick={() => navigateTo('dashboard')}
-              className="mb-4 text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1"
+              className="mb-4 text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 transition-colors"
             >
               ← Back to Dashboard
             </button>
@@ -616,7 +662,7 @@ const App: React.FC = () => {
                      <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded text-xs font-bold">∞</span>
                   )}
                   {practiceConfig.mode !== 'endless' && (
-                     <span>of {practiceQueue.length}</span>
+                     <span>of {Math.max(practiceConfig.count, practiceQueue.length)}</span>
                   )}
                 </div>
                 
@@ -624,7 +670,7 @@ const App: React.FC = () => {
 
                 <button 
                   onClick={() => navigateTo('dashboard')}
-                  className="hover:text-red-500 font-medium transition-colors"
+                  className="hover:text-red-500 font-medium transition-colors hover:scale-105 active:scale-95"
                 >
                   {practiceConfig.mode === 'endless' ? 'Finish' : 'Quit'}
                 </button>
@@ -633,7 +679,10 @@ const App: React.FC = () => {
               question={practiceQueue[currentQIndex]} 
               onAnswer={handleAnswer}
               onNext={nextQuestion}
-              isLast={practiceConfig.mode !== 'endless' && currentQIndex === practiceQueue.length - 1}
+              isLast={isLastQuestion}
+              isLoadingNext={isWaitingForMore}
+              language={state.language}
+              onToggleLanguage={toggleLanguage}
             />
           </div>
         )}

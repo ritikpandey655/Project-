@@ -32,7 +32,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // 1. Navigation Requests (HTML pages) - Network First, fallback to index.html (SPA)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -43,8 +42,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Static Assets - Stale While Revalidate
-  // Use cache first, but update from network in background
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
@@ -55,11 +52,40 @@ self.addEventListener('fetch', (event) => {
             });
         }
         return networkResponse;
-      }).catch(() => {
-        // Network failed, nothing to do
-      });
+      }).catch(() => {});
 
       return cachedResponse || fetchPromise;
+    })
+  );
+});
+
+// Handle local messages for scheduled notifications
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SCHEDULE_REMINDER') {
+     setTimeout(() => {
+        self.registration.showNotification("Time to Study! 📚", {
+          body: "Keep your streak alive. Do a quick 5-min session now.",
+          icon: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamMaster',
+          badge: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamMaster'
+        });
+     }, event.data.delay);
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      if (clientList.length > 0) {
+        let client = clientList[0];
+        for (let i = 0; i < clientList.length; i++) {
+          if (clientList[i].focused) {
+            client = clientList[i];
+          }
+        }
+        return client.focus();
+      }
+      return clients.openWindow('/');
     })
   );
 });

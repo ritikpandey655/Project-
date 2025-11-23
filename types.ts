@@ -25,9 +25,12 @@ export enum QuestionType {
 export interface Question {
   id: string;
   text: string;
+  textHindi?: string; // Added for bilingual support
   options: string[];
+  optionsHindi?: string[]; // Added for bilingual support
   correctIndex: number;
   explanation?: string;
+  explanationHindi?: string; // Added for bilingual support
   source: QuestionSource;
   examType: ExamType; // e.g., 'SSC CGL'
   subject?: string;
@@ -37,6 +40,7 @@ export interface Question {
   type?: QuestionType;
   marks?: number;
   answer?: string; // Model answer for non-MCQ
+  answerHindi?: string; // Added for bilingual support
   userAnswer?: string; // Student's answer during mock test
 }
 
@@ -112,4 +116,5 @@ export interface AppState {
   showTimer: boolean;
   generatedPaper?: QuestionPaper | null;
   darkMode: boolean;
+  language: 'en' | 'hi';
 }

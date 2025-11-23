@@ -1,26 +1,26 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 
 // Initialize the client with the environment variable.
-// Vite replaces 'process.env.API_KEY' with the actual string during build.
 const apiKey = process.env.API_KEY;
 
 // Helper to warn in production if key is missing
 if (typeof window !== 'undefined' && !apiKey) {
-  console.error("⚠️ API_KEY is missing! The app cannot contact Gemini. Please check your Replit Environment Variables.");
+  console.error("⚠️ API_KEY is missing! The app cannot contact Gemini.");
 }
 
 const cleanJson = (text: string) => {
-  // Use Regex to find the first JSON object or array
-  // This handles markdown wrappers (```json ... ```) and conversational intros
   const match = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
   if (match) {
       return match[0];
   }
-  // Fallback cleanup
   return text.replace(/```json/g, '').replace(/```/g, '').trim();
 };
+
+// Helper for unique IDs - Added random suffix to strictly prevent collisions
+const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 export const generateExamQuestions = async (
   exam: string,
@@ -29,13 +29,12 @@ export const generateExamQuestions = async (
   difficulty: string = 'Medium',
   topics: string[] = []
 ): Promise<Question[]> => {
-  // strict check for key existence
   if (!apiKey || apiKey.trim() === '') {
     console.warn("No API Key found, using mock data.");
     return MOCK_QUESTIONS_FALLBACK.map(q => ({
       ...q, 
-      id: `mock-${Math.random()}`,
-      type: QuestionType.MCQ // Explicitly add type to mock data
+      id: generateId('mock'),
+      type: QuestionType.MCQ
     })) as unknown as Question[];
   }
 
@@ -48,12 +47,17 @@ export const generateExamQuestions = async (
     ${topics.length > 0 ? `CRITICAL: STRICTLY generate questions ONLY related to these specific topics: "${topics.join(', ')}".` : ''}
     
     TASK: Generate ${count} high-quality multiple-choice questions.
+    REQUIREMENT: Provide content in BOTH English and Hindi (Devanagari script).
     
-    Output a JSON array of objects with keys: text, options, correctIndex, explanation, tags.
+    Output a JSON array of objects with keys: 
+    text (English), text_hi (Hindi), 
+    options (English Array), options_hi (Hindi Array), 
+    correctIndex, 
+    explanation (English), explanation_hi (Hindi), 
+    tags.
   `;
 
   try {
-    // Use gemini-flash-lite-latest for speed
     const response = await ai.models.generateContent({
       model: 'gemini-flash-lite-latest',
       contents: prompt,
@@ -65,9 +69,12 @@ export const generateExamQuestions = async (
             type: Type.OBJECT,
             properties: {
               text: { type: Type.STRING },
+              text_hi: { type: Type.STRING },
               options: { type: Type.ARRAY, items: { type: Type.STRING } },
+              options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
               correctIndex: { type: Type.INTEGER },
               explanation: { type: Type.STRING },
+              explanation_hi: { type: Type.STRING },
               tags: { type: Type.ARRAY, items: { type: Type.STRING } }
             },
             required: ['text', 'options', 'correctIndex', 'explanation']
@@ -80,15 +87,17 @@ export const generateExamQuestions = async (
     if (!jsonStr) return [];
     
     jsonStr = cleanJson(jsonStr);
-
     const rawQuestions = JSON.parse(jsonStr);
     
     return rawQuestions.map((q: any, index: number) => ({
-      id: `ai-${Date.now()}-${index}`,
+      id: generateId(`ai-q${index}`),
       text: q.text,
+      textHindi: q.text_hi,
       options: q.options,
+      optionsHindi: q.options_hi,
       correctIndex: q.correctIndex,
       explanation: q.explanation, 
+      explanationHindi: q.explanation_hi,
       source: QuestionSource.PYQ_AI,
       examType: exam as ExamType,
       subject: subject,
@@ -101,7 +110,7 @@ export const generateExamQuestions = async (
     console.error("Gemini generation failed:", error);
     return MOCK_QUESTIONS_FALLBACK.map(q => ({
       ...q, 
-      id: `fallback-${Math.random()}`,
+      id: generateId('fallback'),
       type: QuestionType.MCQ
     })) as unknown as Question[];
   }
@@ -115,16 +124,9 @@ export const generateSingleQuestion = async (
   if (!apiKey || apiKey.trim() === '') return null;
   
   const ai = new GoogleGenAI({ apiKey });
-
-  const prompt = `
-    Generate 1 high-quality multiple-choice question for the exam: "${exam}".
-    Subject: "${subject}".
-    Topic/Keyword: "${topic}".
-    Output JSON.
-  `;
+  const prompt = `Generate 1 high-quality multiple-choice question for ${exam}, Subject: ${subject}, Topic: ${topic}. Provide English and Hindi. Output JSON.`;
 
   try {
-    // Use gemini-flash-lite-latest for low latency
     const response = await ai.models.generateContent({
       model: 'gemini-flash-lite-latest',
       contents: prompt,
@@ -134,9 +136,12 @@ export const generateSingleQuestion = async (
           type: Type.OBJECT,
           properties: {
             text: { type: Type.STRING },
+            text_hi: { type: Type.STRING },
             options: { type: Type.ARRAY, items: { type: Type.STRING } },
+            options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
             correctIndex: { type: Type.INTEGER },
             explanation: { type: Type.STRING },
+            explanation_hi: { type: Type.STRING },
             tags: { type: Type.ARRAY, items: { type: Type.STRING } }
           },
           required: ['text', 'options', 'correctIndex', 'explanation']
@@ -144,11 +149,20 @@ export const generateSingleQuestion = async (
       }
     });
 
-    let jsonStr = response.text;
-    if (!jsonStr) return null;
-    jsonStr = cleanJson(jsonStr);
-
-    return JSON.parse(jsonStr);
+    const jsonStr = cleanJson(response.text || "{}");
+    const q = JSON.parse(jsonStr);
+    
+    // Normalize keys
+    return {
+        text: q.text,
+        textHindi: q.text_hi,
+        options: q.options,
+        optionsHindi: q.options_hi,
+        correctIndex: q.correctIndex,
+        explanation: q.explanation,
+        explanationHindi: q.explanation_hi,
+        tags: q.tags
+    };
 
   } catch (error) {
     console.error("Single question generation failed:", error);
@@ -170,13 +184,12 @@ export const generateFullPaper = async (
   }
 ): Promise<QuestionPaper | null> => {
   if (!apiKey || apiKey.trim() === '') {
-    alert("API Key is missing. Please configure your Replit environment variables.");
+    alert("API Key is missing in production.");
     return null;
   }
 
   const ai = new GoogleGenAI({ apiKey });
 
-  // 1. Construct the structure for Non-MCQ sections
   const nonMcqStructure = [];
   if (config.includeShort) nonMcqStructure.push({type:"ShortAnswer", count: 5, marks: 3});
   if (config.includeLong) nonMcqStructure.push({type:"LongAnswer", count: 3, marks: 10});
@@ -193,13 +206,13 @@ export const generateFullPaper = async (
     Non-MCQ Structure: ${JSON.stringify(nonMcqStructure)}
     Difficulty: ${difficulty}
     Seed Data: ${seedData}
+    
+    REQUIREMENT: Provide questions in English and Hindi (Devanagari).
 
     OUTPUT JSON with keys: meta (exam, subject, total_marks, time_mins), non_mcq_questions array.
   `;
 
   try {
-    // Step A: Generate Skeleton (Meta + Non-MCQs)
-    // Using 2.5-flash for structure intelligence
     const skeletonResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: initialPrompt,
@@ -225,7 +238,9 @@ export const generateFullPaper = async (
                             q_no: { type: Type.INTEGER },
                             type: { type: Type.STRING },
                             q_text: { type: Type.STRING },
+                            q_text_hi: { type: Type.STRING },
                             answer: { type: Type.STRING },
+                            answer_hi: { type: Type.STRING },
                             marks: { type: Type.INTEGER }
                         }
                     }
@@ -238,7 +253,6 @@ export const generateFullPaper = async (
     const skeletonJson = cleanJson(skeletonResponse.text || "{}");
     const skeletonData = JSON.parse(skeletonJson);
 
-    // Step B: Generate MCQs in Batches (Parallel) using Flash Lite
     let allMcqs: any[] = [];
     if (mcqTotal > 0) {
       const batchPromises = [];
@@ -251,11 +265,12 @@ export const generateFullPaper = async (
            Batch: ${i + 1}/${mcqBatches}.
            Context: ${seedData}.
            Start Q#: ${startNum}.
+           REQUIREMENT: English and Hindi.
         `;
 
         batchPromises.push(
             ai.models.generateContent({
-                model: 'gemini-flash-lite-latest', // Faster & cheaper for batches
+                model: 'gemini-flash-lite-latest',
                 contents: batchPrompt,
                 config: { 
                     responseMimeType: "application/json",
@@ -265,9 +280,12 @@ export const generateFullPaper = async (
                             type: Type.OBJECT,
                             properties: {
                                 q_text: { type: Type.STRING },
+                                q_text_hi: { type: Type.STRING },
                                 options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
                                 answer: { type: Type.STRING },
-                                explanation: { type: Type.STRING }
+                                explanation: { type: Type.STRING },
+                                explanation_hi: { type: Type.STRING }
                             },
                             required: ['q_text', 'options', 'answer', 'explanation']
                         }
@@ -287,7 +305,6 @@ export const generateFullPaper = async (
       batchResults.forEach(batch => allMcqs = [...allMcqs, ...batch]);
     }
 
-    // Step C: Merge
     const sectionsMap: Record<string, any> = {};
 
     if (allMcqs.length > 0) {
@@ -295,12 +312,15 @@ export const generateFullPaper = async (
             id: 'sec-mcq',
             title: 'Section A: Multiple Choice',
             questions: allMcqs.map((q: any, idx: number) => ({
-                id: `q-mcq-${idx}`,
+                id: generateId(`q-mcq-${idx}`),
                 text: q.q_text,
+                textHindi: q.q_text_hi,
                 options: q.options || [],
+                optionsHindi: q.options_hi || [],
                 correctIndex: q.options ? q.options.findIndex((o: string) => o === q.answer || o.startsWith(q.answer)) : -1,
                 answer: q.answer,
                 explanation: q.explanation,
+                explanationHindi: q.explanation_hi,
                 type: QuestionType.MCQ,
                 examType: exam as ExamType,
                 source: QuestionSource.PYQ_AI,
@@ -312,7 +332,7 @@ export const generateFullPaper = async (
     }
 
     if (skeletonData.non_mcq_questions && Array.isArray(skeletonData.non_mcq_questions)) {
-        skeletonData.non_mcq_questions.forEach((q: any) => {
+        skeletonData.non_mcq_questions.forEach((q: any, idx: number) => {
             if (!sectionsMap[q.type]) {
                 sectionsMap[q.type] = {
                     id: `sec-${q.type}`,
@@ -322,11 +342,13 @@ export const generateFullPaper = async (
                 };
             }
             sectionsMap[q.type].questions.push({
-                id: `q-${q.q_no}`,
+                id: generateId(`q-${q.type}-${idx}`),
                 text: q.q_text,
+                textHindi: q.q_text_hi,
                 options: [],
                 correctIndex: -1,
                 answer: q.answer,
+                answerHindi: q.answer_hi,
                 type: q.type === 'ShortAnswer' ? QuestionType.SHORT_ANSWER : 
                       q.type === 'LongAnswer' ? QuestionType.LONG_ANSWER : QuestionType.VIVA,
                 examType: exam as ExamType,
@@ -338,14 +360,13 @@ export const generateFullPaper = async (
     }
 
     const sections = Object.values(sectionsMap);
-    // Recalculate totals
     const totalMarks = sections.reduce((sum, sec) => sum + (sec.questions.length * sec.marksPerQuestion), 0);
     const totalTime = (allMcqs.length * 1) + 
                       (sectionsMap['ShortAnswer']?.questions.length || 0) * 5 + 
                       (sectionsMap['LongAnswer']?.questions.length || 0) * 15;
 
     const paper: QuestionPaper = {
-      id: `paper-${Date.now()}`,
+      id: generateId('paper'),
       title: `${exam} Mock Paper (${subject})`,
       examType: exam as ExamType,
       subject: subject,
@@ -380,7 +401,7 @@ export const generateQuestionFromImage = async (
       contents: {
         parts: [
             { inlineData: { mimeType: mimeType, data: base64Image } },
-            { text: `Extract question from image for ${examType} (${subject}).` }
+            { text: `Extract question from image for ${examType} (${subject}). Include Hindi translation if possible.` }
         ]
       },
       config: { 
@@ -389,9 +410,12 @@ export const generateQuestionFromImage = async (
             type: Type.OBJECT,
             properties: {
                 text: { type: Type.STRING },
+                text_hi: { type: Type.STRING },
                 options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
                 correctIndex: { type: Type.INTEGER },
                 explanation: { type: Type.STRING },
+                explanation_hi: { type: Type.STRING },
                 tags: { type: Type.ARRAY, items: { type: Type.STRING } }
             },
             required: ['text', 'options', 'correctIndex', 'explanation']
@@ -399,10 +423,19 @@ export const generateQuestionFromImage = async (
       }
     });
 
-    let jsonStr = response.text;
-    if (!jsonStr) return null;
-    jsonStr = cleanJson(jsonStr);
-    return JSON.parse(jsonStr);
+    const jsonStr = cleanJson(response.text || "{}");
+    const q = JSON.parse(jsonStr);
+    
+    return {
+        text: q.text,
+        textHindi: q.text_hi,
+        options: q.options,
+        optionsHindi: q.options_hi,
+        correctIndex: q.correctIndex,
+        explanation: q.explanation,
+        explanationHindi: q.explanation_hi,
+        tags: q.tags
+    };
 
   } catch (error) {
     console.error("Image analysis failed:", error);

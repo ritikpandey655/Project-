@@ -13,6 +13,9 @@ interface DashboardProps {
   onToggleTimer: () => void;
   onToggleDarkMode: () => void;
   onGeneratePaper: () => void;
+  onEnableNotifications: () => void;
+  language?: 'en' | 'hi';
+  onToggleLanguage?: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -23,7 +26,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onUpload, 
   onToggleTimer, 
   onToggleDarkMode,
-  onGeneratePaper 
+  onGeneratePaper,
+  onEnableNotifications,
+  language = 'en',
+  onToggleLanguage
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
@@ -69,7 +75,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-8 pb-20">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-3xl p-8 text-white shadow-lg shadow-indigo-200 dark:shadow-none relative overflow-hidden">
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-3xl p-8 text-white shadow-lg shadow-indigo-200 dark:shadow-none relative overflow-hidden animate-fade-in">
         <div className="relative z-10">
           <h2 className="text-3xl font-bold mb-2">Ready to revise?</h2>
           <p className="text-indigo-100 mb-6 max-w-md">
@@ -78,34 +84,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex flex-wrap gap-3">
             <button 
               onClick={onStartPractice}
-              className="bg-white text-indigo-700 px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-50 transition-colors"
+              className="bg-white text-indigo-700 px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-50 transition-colors active:scale-95"
             >
               Start Practice
             </button>
             <button 
               onClick={onUpload}
-              className="bg-indigo-500/40 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-500/60 transition-colors"
+              className="bg-indigo-500/40 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-500/60 transition-colors active:scale-95"
             >
               Add Question
             </button>
             <button 
               onClick={onGeneratePaper}
-              className="bg-purple-500/40 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-xl font-semibold hover:bg-purple-500/60 transition-colors flex items-center gap-2"
+              className="bg-purple-500/40 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-xl font-semibold hover:bg-purple-500/60 transition-colors flex items-center gap-2 active:scale-95"
             >
-              <span>📄</span> Generate Mock Paper
+              <span>📄</span> Mock Paper
             </button>
           </div>
         </div>
         {/* Decorative circles */}
-        <div className="absolute -right-10 -top-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-500/20 rounded-full blur-2xl"></div>
+        <div className="absolute -right-10 -top-10 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-pulse-glow"></div>
+        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-500/20 rounded-full blur-2xl animate-float"></div>
       </div>
 
       {/* Filter Section */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar touch-pan-x">
         <button
           onClick={() => setActiveFilter('All')}
-          className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${
+          className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all active:scale-95 ${
             activeFilter === 'All' 
               ? 'bg-indigo-600 text-white shadow-md' 
               : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
@@ -117,7 +123,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <button
             key={type}
             onClick={() => setActiveFilter(type)}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all ${
+            className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all active:scale-95 ${
               activeFilter === type 
                 ? 'bg-indigo-600 text-white shadow-md' 
                 : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
@@ -130,18 +136,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+        {/* ... (Existing stats code) ... */}
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '0ms'}}>
           <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Current Streak</p>
           <p className="text-3xl font-bold text-orange-500 mt-1 flex items-center gap-1">
-            {stats.streakCurrent} <span className="text-lg">🔥</span>
+            {stats.streakCurrent} <span className="text-lg animate-bounce-slight">🔥</span>
           </p>
           {activeFilter !== 'All' && <span className="text-[10px] text-slate-400">(Global)</span>}
         </div>
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '100ms'}}>
           <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Questions Solved</p>
           <p className="text-3xl font-bold text-slate-800 dark:text-white mt-1">{displayedStats.attempted}</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '200ms'}}>
           <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Accuracy</p>
           <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">
             {displayedStats.attempted > 0 
@@ -149,7 +156,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               : 0}%
           </p>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '300ms'}}>
           <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Best Streak</p>
           <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">{stats.streakMax}</p>
           {activeFilter !== 'All' && <span className="text-[10px] text-slate-400">(Global)</span>}
@@ -160,8 +167,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Chart Column */}
         <div className="md:col-span-2">
-          {chartData.length > 0 ? (
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 h-full min-h-[300px] transition-colors">
+           {/* ... (Existing chart code) ... */}
+           {chartData.length > 0 ? (
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 h-full min-h-[300px] transition-colors animate-fade-in">
               <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex justify-between">
                 <span>Subject Performance (%)</span>
                 <span className="text-sm font-normal text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
@@ -200,7 +208,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 text-center h-full flex flex-col justify-center min-h-[300px] transition-colors">
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 text-center h-full flex flex-col justify-center min-h-[300px] transition-colors animate-fade-in">
               <p className="text-slate-400 dark:text-slate-500 mb-2">No performance data yet for {activeFilter}.</p>
               <button onClick={onStartPractice} className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm hover:underline">
                 Start practicing to see analytics
@@ -212,14 +220,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* Sidebar Column */}
         <div className="md:col-span-1 space-y-6">
            {/* Settings */}
-           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors animate-slide-up" style={{animationDelay: '400ms'}}>
               <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Settings</h3>
               
               <div className="space-y-3">
+                
+                {/* Language Toggle */}
+                {onToggleLanguage && (
+                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-100 dark:border-slate-600 transition-colors">
+                      <div>
+                      <p className="font-semibold text-slate-700 dark:text-slate-200">Language</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Preferred question language</p>
+                      </div>
+                      <button 
+                         onClick={onToggleLanguage}
+                         className="flex items-center gap-1 bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 rounded-lg px-2 py-1 text-sm font-bold text-slate-700 dark:text-slate-200"
+                      >
+                         {language === 'en' ? 'English' : 'Hindi'}
+                      </button>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-100 dark:border-slate-600 transition-colors">
                     <div>
                     <p className="font-semibold text-slate-700 dark:text-slate-200">Practice Timer</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Show elapsed time during practice</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Show elapsed time</p>
                     </div>
                     <button 
                     onClick={onToggleTimer}
@@ -241,11 +266,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                 </div>
+
+                {/* Notifications Button */}
+                <button 
+                  onClick={onEnableNotifications}
+                  className="w-full flex items-center justify-between p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 transition-colors hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-left"
+                >
+                    <div>
+                       <p className="font-semibold text-indigo-700 dark:text-indigo-300">Reminders</p>
+                       <p className="text-xs text-indigo-500 dark:text-indigo-400">Enable study notifications</p>
+                    </div>
+                    <span className="text-indigo-600 dark:text-indigo-400">🔔</span>
+                </button>
               </div>
            </div>
 
            {/* Feedback */}
-           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
+           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors animate-slide-up" style={{animationDelay: '500ms'}}>
              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Feedback & Support</h3>
              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Found a bug or have a feature request? Let us know!</p>
              

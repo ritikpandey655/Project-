@@ -189,13 +189,15 @@ interface UserPrefs {
   showTimer: boolean;
   hasSeenTutorial: boolean;
   darkMode: boolean;
+  language: 'en' | 'hi';
 }
 
 const DEFAULT_PREFS: UserPrefs = {
   selectedExam: null,
   showTimer: true,
   hasSeenTutorial: false,
-  darkMode: false
+  darkMode: false,
+  language: 'en'
 };
 
 export const saveUserPref = (userId: string, newPrefs: Partial<UserPrefs>): void => {
