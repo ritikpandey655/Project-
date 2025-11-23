@@ -194,7 +194,6 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
   // Comparison Data (Simulated Average)
   const comparisonData = useMemo(() => {
     if (!resultStats) return [];
-    // Simulate an average student score (usually around 60-70% for mocks)
     const avgScore = 65; 
     const avgAccuracy = 55;
     return [
@@ -252,10 +251,7 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
     };
   }, []);
 
-  // Generate Watermark Content
   const watermarks = Array(20).fill("ExamMaster Secure Mode");
-
-  // Score Gauge Circle
   const radius = 50;
   const stroke = 8;
   const normalizedRadius = radius - stroke * 2;
@@ -274,34 +270,13 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
             <Button onClick={onClose} variant="outline">Back to Dashboard</Button>
           </div>
 
-          {/* Main Score Card */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Left: Score & Stats */}
             <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-8">
               <div className="flex flex-col items-center">
                 <div className="relative w-40 h-40 flex items-center justify-center">
                   <svg height={radius * 2} width={radius * 2} className="transform -rotate-90">
-                    <circle
-                      stroke="currentColor"
-                      strokeWidth={stroke}
-                      fill="transparent"
-                      r={normalizedRadius}
-                      cx={radius}
-                      cy={radius}
-                      className="text-slate-100 dark:text-slate-700"
-                    />
-                    <circle
-                      stroke="currentColor"
-                      strokeWidth={stroke}
-                      strokeDasharray={circumference + ' ' + circumference}
-                      style={{ strokeDashoffset, transition: 'stroke-dashoffset 1s ease-in-out' }}
-                      strokeLinecap="round"
-                      fill="transparent"
-                      r={normalizedRadius}
-                      cx={radius}
-                      cy={radius}
-                      className={`${resultStats.percentage >= 60 ? 'text-green-500' : resultStats.percentage >= 40 ? 'text-amber-500' : 'text-red-500'}`}
-                    />
+                    <circle stroke="currentColor" strokeWidth={stroke} fill="transparent" r={normalizedRadius} cx={radius} cy={radius} className="text-slate-100 dark:text-slate-700" />
+                    <circle stroke="currentColor" strokeWidth={stroke} strokeDasharray={circumference + ' ' + circumference} style={{ strokeDashoffset, transition: 'stroke-dashoffset 1s ease-in-out' }} strokeLinecap="round" fill="transparent" r={normalizedRadius} cx={radius} cy={radius} className={`${resultStats.percentage >= 60 ? 'text-green-500' : resultStats.percentage >= 40 ? 'text-amber-500' : 'text-red-500'}`} />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-3xl font-bold text-slate-800 dark:text-white">{resultStats.percentage}%</span>
@@ -324,24 +299,14 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
                 </div>
                 <div className="text-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl col-span-2">
                    <div className="flex justify-around">
-                      <div>
-                        <span className="block text-lg font-bold text-green-600 dark:text-green-400">{resultStats.correctCount}</span>
-                        <span className="text-[10px] text-slate-400 uppercase">Correct</span>
-                      </div>
-                      <div>
-                        <span className="block text-lg font-bold text-red-600 dark:text-red-400">{resultStats.incorrectCount}</span>
-                        <span className="text-[10px] text-slate-400 uppercase">Wrong</span>
-                      </div>
-                      <div>
-                        <span className="block text-lg font-bold text-slate-600 dark:text-slate-400">{resultStats.skippedCount}</span>
-                        <span className="text-[10px] text-slate-400 uppercase">Skip</span>
-                      </div>
+                      <div><span className="block text-lg font-bold text-green-600 dark:text-green-400">{resultStats.correctCount}</span><span className="text-[10px] text-slate-400 uppercase">Correct</span></div>
+                      <div><span className="block text-lg font-bold text-red-600 dark:text-red-400">{resultStats.incorrectCount}</span><span className="text-[10px] text-slate-400 uppercase">Wrong</span></div>
+                      <div><span className="block text-lg font-bold text-slate-600 dark:text-slate-400">{resultStats.skippedCount}</span><span className="text-[10px] text-slate-400 uppercase">Skip</span></div>
                    </div>
                 </div>
               </div>
             </div>
 
-            {/* Right: Comparative Analysis */}
             <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-xl border border-slate-200 dark:border-slate-700">
               <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Performance vs Average</h3>
               <div className="h-56 w-full">
@@ -352,76 +317,47 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
                       <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                       <Radar name="You" dataKey="You" stroke="#6366f1" fill="#6366f1" fillOpacity={0.5} />
                       <Radar name="Avg" dataKey="Average" stroke="#cbd5e1" fill="#cbd5e1" fillOpacity={0.3} />
-                      <Tooltip 
-                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                    </RadarChart>
                 </ResponsiveContainer>
               </div>
-              <p className="text-center text-xs text-slate-400 mt-2">Comparison based on typical exam averages.</p>
             </div>
           </div>
 
-          {/* Advanced Analytics Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-             
-             {/* Topic Strength Analysis */}
              <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Topic Strength</h3>
                 <div className="h-64">
-                   {topicChartData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={topicChartData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                            <XAxis type="number" domain={[0, 100]} hide />
-                            <YAxis 
-                               dataKey="topic" 
-                               type="category" 
-                               width={80} 
-                               tick={{fontSize: 11, fill: '#64748b'}} 
-                               axisLine={false} 
-                               tickLine={false} 
-                            />
-                            <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '8px'}} />
-                            <Bar dataKey="accuracy" name="Accuracy %" radius={[0, 4, 4, 0]} barSize={15}>
-                               {topicChartData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.accuracy > 75 ? '#4ade80' : entry.accuracy > 40 ? '#facc15' : '#f87171'} />
-                               ))}
-                            </Bar>
-                         </BarChart>
-                      </ResponsiveContainer>
-                   ) : (
-                      <p className="text-center text-slate-400 py-10">Not enough data for topic analysis.</p>
-                   )}
+                   <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={topicChartData} layout="vertical" margin={{ left: 20, right: 20 }}>
+                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                         <XAxis type="number" domain={[0, 100]} hide />
+                         <YAxis dataKey="topic" type="category" width={80} tick={{fontSize: 11, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                         <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '8px'}} />
+                         <Bar dataKey="accuracy" name="Accuracy %" radius={[0, 4, 4, 0]} barSize={15}>
+                            {topicChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.accuracy > 75 ? '#4ade80' : entry.accuracy > 40 ? '#facc15' : '#f87171'} />)}
+                         </Bar>
+                      </BarChart>
+                   </ResponsiveContainer>
                 </div>
              </div>
-
-             {/* Historical Trend */}
              <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Progress Trend</h3>
                 <div className="h-64">
-                  {historicalTrend.length > 1 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                       <LineChart data={historicalTrend}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                          <XAxis dataKey="name" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
-                          <YAxis domain={[0, 100]} tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
-                          <Tooltip contentStyle={{borderRadius: '8px'}} />
-                          <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={2} dot={{r: 4}} activeDot={{r: 6}} name="Score %" />
-                          <Line type="monotone" dataKey="accuracy" stroke="#10b981" strokeWidth={2} dot={false} name="Accuracy %" strokeDasharray="5 5" />
-                       </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                       <span className="text-3xl mb-2">📉</span>
-                       <p>Complete more exams to see your trend.</p>
-                    </div>
-                  )}
+                  <ResponsiveContainer width="100%" height="100%">
+                     <LineChart data={historicalTrend}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis dataKey="name" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
+                        <YAxis domain={[0, 100]} tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{borderRadius: '8px'}} />
+                        <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={2} dot={{r: 4}} activeDot={{r: 6}} />
+                        <Line type="monotone" dataKey="accuracy" stroke="#10b981" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+                     </LineChart>
+                  </ResponsiveContainer>
                 </div>
              </div>
           </div>
 
-          {/* Section Analysis Table */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
              <div className="p-6 border-b border-slate-100 dark:border-slate-700">
                 <h3 className="font-bold text-lg text-slate-800 dark:text-white">Section-wise Breakdown</h3>
@@ -444,10 +380,7 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
                             <td className="px-6 py-4">{sec.obtainedMarks} / {sec.totalMarks}</td>
                             <td className="px-6 py-4">
                                <div className="w-full max-w-[100px] h-2 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-indigo-500" 
-                                    style={{ width: `${sec.totalMarks > 0 ? (sec.obtainedMarks / sec.totalMarks) * 100 : 0}%` }}
-                                  ></div>
+                                  <div className="h-full bg-indigo-500" style={{ width: `${sec.totalMarks > 0 ? (sec.obtainedMarks / sec.totalMarks) * 100 : 0}%` }}></div>
                                </div>
                             </td>
                          </tr>
@@ -469,32 +402,17 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
                                 <span className="font-bold text-slate-500 dark:text-slate-400">{idx + 1}.</span>
                                 <p className="font-medium text-slate-900 dark:text-white">{q.text}</p>
                              </div>
-                             
                              <div className="ml-6 sm:ml-8 space-y-3">
                                 <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
                                    <p className="text-xs text-slate-500 uppercase font-bold mb-1">Your Answer</p>
-                                   <p className={`text-sm ${
-                                      q.type === QuestionType.MCQ 
-                                        ? (answers[q.id] === q.options[q.correctIndex] ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-600 dark:text-red-400')
-                                        : 'text-slate-700 dark:text-slate-300'
-                                   }`}>
+                                   <p className={`text-sm ${q.type === QuestionType.MCQ ? (answers[q.id] === q.options[q.correctIndex] ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-600 dark:text-red-400') : 'text-slate-700 dark:text-slate-300'}`}>
                                       {answers[q.id] || 'Not attempted'}
                                    </p>
                                 </div>
-
                                 <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-800">
-                                   <p className="text-xs text-green-600 dark:text-green-400 uppercase font-bold mb-1">Correct Answer / Model Solution</p>
-                                   <p className="text-sm text-slate-800 dark:text-slate-200">
-                                      {q.type === QuestionType.MCQ ? q.options[q.correctIndex] : q.answer}
-                                   </p>
+                                   <p className="text-xs text-green-600 dark:text-green-400 uppercase font-bold mb-1">Correct Answer</p>
+                                   <p className="text-sm text-slate-800 dark:text-slate-200">{q.type === QuestionType.MCQ ? q.options[q.correctIndex] : q.answer}</p>
                                 </div>
-                                
-                                {q.explanation && (
-                                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-800">
-                                    <p className="text-xs text-amber-600 dark:text-amber-400 uppercase font-bold mb-1">Explanation</p>
-                                    <p className="text-sm text-slate-800 dark:text-slate-200">{q.explanation}</p>
-                                  </div>
-                                )}
                              </div>
                           </div>
                        ))}
@@ -533,7 +451,7 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
         </div>
       )}
 
-      {/* Submit Confirmation Modal */}
+      {/* Submit Confirmation Modal - WITH HIGH Z-INDEX */}
       {showSubmitConfirm && !isSubmitted && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4 animate-fade-in">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-200 dark:border-slate-700 relative">
@@ -593,36 +511,21 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
                        </span>
                     </div>
 
-                    {/* Question Input Area */}
                     <div className="ml-0 sm:ml-8">
                       {q.type === QuestionType.MCQ ? (
                         <div className="grid grid-cols-1 gap-3">
                           {q.options.map((opt, oIdx) => {
                             const isSelected = answers[q.id] === opt;
-                            
                             let containerClass = "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700";
                             if (isSelected) {
                                 containerClass = "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 ring-1 ring-indigo-500";
                             }
-
                             return (
-                              <label 
-                                key={oIdx}
-                                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${containerClass}`}
-                              >
-                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                                  isSelected ? 'border-indigo-600' : 'border-slate-400'
-                                }`}>
+                              <label key={oIdx} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${containerClass}`}>
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-indigo-600' : 'border-slate-400'}`}>
                                   {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
                                 </div>
-                                <input 
-                                  type="radio" 
-                                  name={q.id} 
-                                  value={opt}
-                                  checked={isSelected}
-                                  onChange={() => handleAnswerChange(q.id, opt)}
-                                  className="hidden"
-                                />
+                                <input type="radio" name={q.id} value={opt} checked={isSelected} onChange={() => handleAnswerChange(q.id, opt)} className="hidden" />
                                 <span className="text-slate-800 dark:text-slate-200">{opt}</span>
                               </label>
                             );
@@ -645,7 +548,7 @@ export const PaperView: React.FC<PaperViewProps> = ({ paper, onClose }) => {
             </div>
           ))}
 
-          {/* Finish Exam Button (Bottom) */}
+           {/* Finish Exam Button (Bottom) */}
            <div className="flex justify-center pt-8">
              <Button 
                 size="lg" 
