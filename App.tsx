@@ -61,6 +61,7 @@ const App: React.FC = () => {
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSHelp, setShowIOSHelp] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   // Practice Config State
   const [showPracticeConfig, setShowPracticeConfig] = useState(false);
@@ -91,6 +92,7 @@ const App: React.FC = () => {
     if (stored) {
       setState(prev => ({ ...prev, qotd: stored }));
     } else {
+      if (!isOnline) return; // Cannot generate QOTD offline
       // Generate new QOTD
       const subjects = EXAM_SUBJECTS[examType];
       const subject = subjects[Math.floor(Math.random() * subjects.length)];
@@ -153,13 +155,21 @@ const App: React.FC = () => {
       console.log('✅ PWA was installed');
       setInstallPrompt(null);
     };
+
+    // Online/Offline Listeners
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
     
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
@@ -366,11 +376,21 @@ const App: React.FC = () => {
   };
 
   const handleStartPractice = () => {
+    if (!isOnline) {
+       // If offline, redirect to downloads immediately
+       navigateTo('downloads');
+       return;
+    }
     setShowPracticeConfig(true);
   };
 
   const startPracticeSession = async (config: { subject: string, count: number, mode: 'finite' | 'endless', topic?: string }) => {
     if (!state.selectedExam || !state.user) return;
+    if (!isOnline) {
+      alert("Internet connection required for new practice sessions. Please check downloads.");
+      navigateTo('downloads');
+      return;
+    }
     
     setShowPracticeConfig(false);
     setPracticeConfig({ mode: config.mode, subject: config.subject, count: config.count, topic: config.topic });
@@ -413,6 +433,10 @@ const App: React.FC = () => {
 
   const startCurrentAffairsSession = async () => {
     if (!state.selectedExam || !state.user) return;
+    if (!isOnline) {
+      alert("Internet connection required for Current Affairs.");
+      return;
+    }
     if (!state.user.isPro) {
       setShowPaymentModal(true);
       return;
@@ -451,6 +475,10 @@ const App: React.FC = () => {
   };
 
   const handleOpenQOTD = () => {
+    if (!isOnline && !state.qotd) {
+       alert("Connect to internet to fetch Question of the Day.");
+       return;
+    }
     if (state.qotd) {
        setPracticeQueue([{...state.qotd, isBookmarked: state.user ? isQuestionBookmarked(state.user.id, state.qotd.id) : false}]);
        setPracticeConfig({ mode: 'finite', subject: 'QOTD', count: 1 });
@@ -477,49 +505,59 @@ const App: React.FC = () => {
         (practiceConfig.mode === 'finite' && practiceQueue.length < practiceConfig.count);
 
     if (shouldFetchMore && !isFetchingMore) {
-      const remaining = practiceQueue.length - (currentQIndex + 1);
-      
-      // If running low on questions (less than 3 remaining)
-      if (remaining < 3) {
-        setIsFetchingMore(true);
-        
-        let subjectToGen = practiceConfig.subject;
-        if (practiceConfig.subject === 'Mixed') {
-           const subjects = EXAM_SUBJECTS[state.selectedExam!];
-           subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
-        }
-        
-        let batchSize = 5;
-        if (practiceConfig.mode === 'finite') {
-            const needed = practiceConfig.count - practiceQueue.length;
-            batchSize = Math.min(5, needed);
-        }
-
-        if (batchSize > 0) {
-            // Check if we are in CA mode to use correct generator
-            if (practiceConfig.subject === 'Current Affairs') {
-                generateCurrentAffairs(state.selectedExam!, batchSize)
-                .then(newQs => {
-                   if (newQs.length > 0) {
-                       const mapped = newQs.map(q => ({...q, isBookmarked: isQuestionBookmarked(state.user!.id, q.id)}));
-                       setPracticeQueue(prev => [...prev, ...mapped]);
-                   }
-                }).finally(() => setIsFetchingMore(false));
-            } else {
-                const topicsList = practiceConfig.topic ? [practiceConfig.topic] : [];
-                generateExamQuestions(state.selectedExam!, subjectToGen, batchSize, 'Medium', topicsList)
-                .then(newQs => {
-                    if (newQs.length > 0) {
-                      const mapped = newQs.map(q => ({...q, isBookmarked: isQuestionBookmarked(state.user!.id, q.id)}));
-                      setPracticeQueue(prev => [...prev, ...mapped]);
-                    }
-                })
-                .catch(err => console.error("Background fetch failed", err))
-                .finally(() => setIsFetchingMore(false));
+      // If offline, we can't fetch more
+      if (!isOnline) {
+          if (isEnd) {
+             alert("You are offline. Cannot fetch more questions.");
+             navigateTo('dashboard');
+             return;
+          }
+          // Continue with existing queue
+      } else {
+          const remaining = practiceQueue.length - (currentQIndex + 1);
+          
+          // If running low on questions (less than 3 remaining)
+          if (remaining < 3) {
+            setIsFetchingMore(true);
+            
+            let subjectToGen = practiceConfig.subject;
+            if (practiceConfig.subject === 'Mixed') {
+               const subjects = EXAM_SUBJECTS[state.selectedExam!];
+               subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
             }
-        } else {
-            setIsFetchingMore(false);
-        }
+            
+            let batchSize = 5;
+            if (practiceConfig.mode === 'finite') {
+                const needed = practiceConfig.count - practiceQueue.length;
+                batchSize = Math.min(5, needed);
+            }
+
+            if (batchSize > 0) {
+                // Check if we are in CA mode to use correct generator
+                if (practiceConfig.subject === 'Current Affairs') {
+                    generateCurrentAffairs(state.selectedExam!, batchSize)
+                    .then(newQs => {
+                       if (newQs.length > 0) {
+                           const mapped = newQs.map(q => ({...q, isBookmarked: isQuestionBookmarked(state.user!.id, q.id)}));
+                           setPracticeQueue(prev => [...prev, ...mapped]);
+                       }
+                    }).finally(() => setIsFetchingMore(false));
+                } else {
+                    const topicsList = practiceConfig.topic ? [practiceConfig.topic] : [];
+                    generateExamQuestions(state.selectedExam!, subjectToGen, batchSize, 'Medium', topicsList)
+                    .then(newQs => {
+                        if (newQs.length > 0) {
+                          const mapped = newQs.map(q => ({...q, isBookmarked: isQuestionBookmarked(state.user!.id, q.id)}));
+                          setPracticeQueue(prev => [...prev, ...mapped]);
+                        }
+                    })
+                    .catch(err => console.error("Background fetch failed", err))
+                    .finally(() => setIsFetchingMore(false));
+                }
+            } else {
+                setIsFetchingMore(false);
+            }
+          }
       }
     }
 
@@ -527,7 +565,7 @@ const App: React.FC = () => {
       setCurrentQIndex(prev => prev + 1);
     } else {
       // If we are at the end...
-      if (isFetchingMore || shouldFetchMore) {
+      if (isFetchingMore || (shouldFetchMore && isOnline)) {
          return; 
       } else {
          navigateTo('dashboard');
@@ -561,6 +599,7 @@ const App: React.FC = () => {
         onLogin={handleLogin} 
         onNavigateToSignup={() => navigateTo('signup')} 
         onForgotPassword={() => navigateTo('forgotPassword')}
+        isOnline={isOnline}
       />
     );
   }
@@ -832,6 +871,7 @@ const App: React.FC = () => {
             onOpenBookmarks={handleOpenBookmarks}
             onOpenAnalytics={() => navigateTo('analytics')}
             onOpenLeaderboard={() => navigateTo('leaderboard')}
+            isOnline={isOnline}
           />
         )}
 

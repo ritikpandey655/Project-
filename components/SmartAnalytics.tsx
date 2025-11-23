@@ -20,7 +20,8 @@ export const SmartAnalytics: React.FC<SmartAnalyticsProps> = ({ stats, history, 
   const topicAnalysis = useMemo(() => {
     const topics: { subject: string, accuracy: number, total: number, status: 'Weak' | 'Average' | 'Strong' }[] = [];
     
-    Object.entries(stats.subjectPerformance).forEach(([subject, data]) => {
+    Object.entries(stats.subjectPerformance).forEach(([subject, rawData]) => {
+       const data = rawData as { correct: number; total: number };
        if (data.total < 3) return; // Ignore if not enough data
        const accuracy = Math.round((data.correct / data.total) * 100);
        let status: 'Weak' | 'Average' | 'Strong' = 'Average';

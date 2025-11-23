@@ -6,13 +6,22 @@ interface LoginScreenProps {
   onLogin: (user: User) => void;
   onNavigateToSignup: () => void;
   onForgotPassword: () => void;
+  isOnline?: boolean;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToSignup, onForgotPassword }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToSignup, onForgotPassword, isOnline = true }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showLoginOptions, setShowLoginOptions] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const handleStartPrep = () => {
+    if (!isOnline) {
+      alert("Please connect to the internet to access PYQverse.");
+      return;
+    }
+    setShowLoginOptions(true);
+  };
 
   const handleGoogleLogin = () => {
     setIsLoading(true);
@@ -162,10 +171,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         <div className="w-full mt-auto pt-4 mb-4 sm:mb-8">
           {!showLoginOptions ? (
             <button
-              onClick={() => setShowLoginOptions(true)}
-              className="animate-fade-in w-full group relative flex items-center justify-center gap-3 bg-white text-brand-dark font-display font-bold text-lg py-4 rounded-2xl shadow-[0_0_20px_rgba(91,46,255,0.3)] hover:scale-[1.02] transition-all duration-300 overflow-hidden"
+              onClick={handleStartPrep}
+              className={`animate-fade-in w-full group relative flex items-center justify-center gap-3 bg-white text-brand-dark font-display font-bold text-lg py-4 rounded-2xl shadow-[0_0_20px_rgba(91,46,255,0.3)] hover:scale-[1.02] transition-all duration-300 overflow-hidden ${!isOnline ? 'opacity-75 cursor-not-allowed' : ''}`}
             >
-              <span className="relative z-10">Start Your Prep</span>
+              <span className="relative z-10">{isOnline ? 'Start Your Prep' : 'Connect to Internet'}</span>
               <svg className="w-5 h-5 text-brand-purple group-hover:translate-x-1 transition-transform relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>

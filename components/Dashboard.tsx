@@ -27,8 +27,9 @@ interface DashboardProps {
   qotd?: Question | null;
   onOpenQOTD?: () => void;
   onOpenBookmarks?: () => void;
-  onOpenAnalytics?: () => void; // New
-  onOpenLeaderboard?: () => void; // New
+  onOpenAnalytics?: () => void;
+  onOpenLeaderboard?: () => void;
+  isOnline?: boolean;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -46,7 +47,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenAnalytics,
   onOpenLeaderboard,
   onInstall,
-  canInstall
+  canInstall,
+  isOnline = true
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
@@ -101,6 +103,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-20">
+      {/* Offline Indicator */}
+      {!isOnline && (
+        <div className="bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md flex items-center justify-between animate-fade-in">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+            </svg>
+            <span>You are offline</span>
+          </div>
+          <span className="text-xs bg-black/10 px-2 py-1 rounded">Mock mode active</span>
+        </div>
+      )}
+
       {/* Hero Section - Rebranded */}
       <div className="bg-gradient-to-r from-brand-purple to-brand-blue rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-brand-purple/20 dark:shadow-none relative overflow-hidden animate-fade-in">
         <div className="relative z-10">
@@ -128,7 +143,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onClick={onStartPractice}
               className="col-span-2 sm:flex-none bg-white text-brand-purple px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold font-display shadow-lg hover:bg-indigo-50 transition-colors active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base whitespace-nowrap"
             >
-              <span>⚡</span> Start
+              <span>{isOnline ? '⚡' : '📥'}</span> {isOnline ? 'Start' : 'Offline Mode'}
             </button>
             <button 
               onClick={onUpload}
