@@ -59,29 +59,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Header */}
-        <div className="p-6 bg-gradient-to-br from-indigo-600 to-purple-700 text-white relative overflow-hidden shrink-0">
-           <div className="absolute top-0 right-0 p-4 opacity-20">
-              <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+        {/* Branding Header (Replaces User Profile) */}
+        <div className="p-6 bg-gradient-to-br from-indigo-600 to-purple-700 text-white relative overflow-hidden shrink-0 flex items-center gap-4">
+           {/* Decorative Background */}
+           <div className="absolute top-[-20%] right-[-20%] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+           <div className="absolute bottom-[-10%] left-[-10%] w-24 h-24 bg-blue-500/20 rounded-full blur-xl pointer-events-none"></div>
+
+           <div className="relative z-10 w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md shadow-inner border border-white/10">
+              <span className="font-display font-bold text-xl text-white">PV</span>
            </div>
-           
-           <div className="relative z-10 flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full border-2 border-white/50 overflow-hidden bg-white/10">
-                 {user?.photoURL ? (
-                   <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
-                 ) : (
-                   <div className="w-full h-full flex items-center justify-center font-bold text-xl">
-                     {user?.name?.[0] || 'U'}
-                   </div>
-                 )}
-              </div>
-              <div>
-                <h2 className="font-bold text-lg truncate max-w-[150px]">{user?.name}</h2>
-                <p className="text-xs text-indigo-100">{user?.email}</p>
-                {user?.isPro && (
-                  <span className="mt-1 inline-block bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded">PRO Member</span>
-                )}
-              </div>
+           <div className="relative z-10">
+              <h2 className="font-display font-bold text-2xl tracking-tight leading-none">PYQverse</h2>
+              <p className="text-[10px] text-indigo-100 uppercase tracking-widest font-medium mt-1">Exam Universe</p>
            </div>
         </div>
 
@@ -94,10 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                  <span className="text-xl">🏠</span>
                  <span className="font-medium">Dashboard</span>
               </button>
-              <button onClick={() => { onNavigate('profile'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
-                 <span className="text-xl">👤</span>
-                 <span className="font-medium">My Profile</span>
-              </button>
+              {/* Profile Link Removed */}
               <button onClick={() => { onNavigate('upload'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
                  <span className="text-xl">📚</span>
                  <span className="font-medium">My Notes</span>
