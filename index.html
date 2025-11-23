@@ -1,22 +1,43 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#4f46e5" />
+    <meta name="theme-color" content="#5B2EFF" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="ExamPilot" />
+    <meta name="apple-mobile-web-app-title" content="PYQverse" />
+    <meta name="description" content="PYQverse: All exams ka pura universe. AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep." />
     <link rel="manifest" href="/manifest.json" />
-    <title>ExamPilot AI</title>
+    <title>PYQverse | All exams ka pura universe</title>
+    
+    <!-- Fonts: Poppins (Display) & Inter (Body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
         theme: {
           extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Poppins', 'sans-serif'],
+            },
             colors: {
-              // Map 'primary' and 'indigo' (commonly used in code) to CSS variables for theming
+              // Brand Colors
+              brand: {
+                purple: '#5B2EFF', // Deep Purple
+                blue: '#3B82F6',   // Trust Blue
+                green: '#10B981',  // Mint Green
+                yellow: '#FACC15', // Highlight Yellow
+                dark: '#111827',   // Dark Text
+                light: '#F3F4F6',  // Light BG
+              },
+              // Map 'primary' and 'indigo' to CSS variables for dynamic theming
               primary: {
                 50: 'var(--primary-50)',
                 100: 'var(--primary-100)',
@@ -29,7 +50,7 @@
                 800: 'var(--primary-800)',
                 900: 'var(--primary-900)',
               },
-              // Override indigo to use our themed variables so we don't have to rewrite every component
+              // Override indigo to use brand purple range
               indigo: {
                 50: 'var(--primary-50)',
                 100: 'var(--primary-100)',
@@ -53,6 +74,7 @@
               'shimmer': 'shimmer 2s linear infinite',
               'bounce-slight': 'bounceSlight 2s infinite',
               'pulse-glow': 'pulseGlow 2s infinite',
+              'spin-slow': 'spin 8s linear infinite',
             },
             keyframes: {
               fadeIn: {
@@ -98,17 +120,25 @@
     </script>
     <style>
       :root {
-        /* Default Theme: Ocean Blue */
-        --primary-50: #eef2ff;
-        --primary-100: #e0e7ff;
-        --primary-200: #c7d2fe;
-        --primary-300: #a5b4fc;
-        --primary-400: #818cf8;
-        --primary-500: #6366f1;
-        --primary-600: #4f46e5;
-        --primary-700: #4338ca;
-        --primary-800: #3730a3;
-        --primary-900: #312e81;
+        /* Default Theme: PYQverse Purple (#5B2EFF Base) */
+        --primary-50: #efebff;
+        --primary-100: #dcd0ff;
+        --primary-200: #bfa6ff;
+        --primary-300: #9e75ff;
+        --primary-400: #7d4bff;
+        --primary-500: #5B2EFF; /* Brand Base */
+        --primary-600: #491ecb;
+        --primary-700: #38159b;
+        --primary-800: #291070;
+        --primary-900: #1d0b4d;
+      }
+
+      /* Base typography settings */
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      h1, h2, h3, h4, h5, h6, button, .font-display {
+        font-family: 'Poppins', sans-serif;
       }
 
       /* Hide scrollbar for cleaner UI in cards */
@@ -172,7 +202,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 h-full w-full overflow-y-auto overflow-x-hidden select-none transition-colors duration-200">
+  <body class="bg-[#F3F4F6] dark:bg-[#111827] text-slate-900 dark:text-slate-100 h-full w-full overflow-y-auto overflow-x-hidden select-none transition-colors duration-200">
     <div id="root" class="h-full w-full"></div>
     <script type="module" src="/index.tsx"></script>
     <script>

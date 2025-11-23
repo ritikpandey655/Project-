@@ -1,5 +1,3 @@
-
-
 import { ExamType, SubscriptionPlan } from './types';
 
 export const EXAM_SUBJECTS: Record<ExamType, string[]> = {
@@ -13,6 +11,10 @@ export const EXAM_SUBJECTS: Record<ExamType, string[]> = {
 };
 
 export const THEME_PALETTES: Record<string, Record<number, string>> = {
+  'PYQverse Prime': {
+    50: '#efebff', 100: '#dcd0ff', 200: '#bfa6ff', 300: '#9e75ff', 400: '#7d4bff', 
+    500: '#5B2EFF', 600: '#491ecb', 700: '#38159b', 800: '#291070', 900: '#1d0b4d'
+  },
   'Ocean Blue': {
     50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 
     500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81'
@@ -25,13 +27,9 @@ export const THEME_PALETTES: Record<string, Record<number, string>> = {
     50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 300: '#fdba74', 400: '#fb923c', 
     500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12'
   },
-  'Royal Purple': {
-    50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 
-    500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95'
-  },
-  'Crimson Red': {
-    50: '#fef2f2', 100: '#fee2e2', 200: '#fecaca', 300: '#fca5a5', 400: '#f87171', 
-    500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', 800: '#991b1b', 900: '#7f1d1d'
+  'Tech Cyan': {
+    50: '#ecfeff', 100: '#cffafe', 200: '#a5f3fc', 300: '#67e8f9', 400: '#22d3ee', 
+    500: '#06b6d4', 600: '#0891b2', 700: '#0e7490', 800: '#155e75', 900: '#164e63'
   }
 };
 

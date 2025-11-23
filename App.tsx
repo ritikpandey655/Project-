@@ -37,7 +37,7 @@ const App: React.FC = () => {
     generatedPaper: null,
     darkMode: false,
     language: 'en',
-    theme: 'Ocean Blue'
+    theme: 'PYQverse Prime'
   });
 
   const [practiceQueue, setPracticeQueue] = useState<Question[]>([]);
@@ -62,7 +62,7 @@ const App: React.FC = () => {
 
   // Helper to apply theme colors to root
   const applyTheme = (themeName: string) => {
-    const palette = THEME_PALETTES[themeName] || THEME_PALETTES['Ocean Blue'];
+    const palette = THEME_PALETTES[themeName] || THEME_PALETTES['PYQverse Prime'];
     const root = document.documentElement;
     
     Object.keys(palette).forEach(key => {
@@ -83,7 +83,7 @@ const App: React.FC = () => {
         nextView = hasSeenTutorial ? 'dashboard' : 'tutorial';
       }
 
-      setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: nextView, showTimer, darkMode, language, theme: theme || 'Ocean Blue' }));
+      setState(prev => ({ ...prev, user, selectedExam, stats: userStats, view: nextView, showTimer, darkMode, language, theme: theme || 'PYQverse Prime' }));
       
       if (darkMode) {
         document.documentElement.classList.add('dark');
@@ -91,11 +91,11 @@ const App: React.FC = () => {
         document.documentElement.classList.remove('dark');
       }
 
-      applyTheme(theme || 'Ocean Blue');
+      applyTheme(theme || 'PYQverse Prime');
 
     } else {
       setState(prev => ({ ...prev, view: 'login' }));
-      applyTheme('Ocean Blue');
+      applyTheme('PYQverse Prime');
     }
     setIsAppInitializing(false);
 
@@ -159,9 +159,9 @@ const App: React.FC = () => {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        new Notification("ExamPilot Enabled!", { 
+        new Notification("PYQverse Enabled!", { 
           body: "We'll remind you to keep your learning streak alive!",
-          icon: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamPilot',
+          icon: 'https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF',
         });
         
         // Schedule a local simulation of a push notification if supported by SW
@@ -190,7 +190,7 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
     
-    applyTheme(theme || 'Ocean Blue');
+    applyTheme(theme || 'PYQverse Prime');
 
     let nextView: ViewState = 'onboarding';
     if (selectedExam) {
@@ -206,7 +206,7 @@ const App: React.FC = () => {
       showTimer,
       darkMode,
       language,
-      theme: theme || 'Ocean Blue'
+      theme: theme || 'PYQverse Prime'
     }));
     window.history.pushState({ view: nextView }, '', '');
   };
@@ -226,9 +226,9 @@ const App: React.FC = () => {
       showTimer: true,
       darkMode: false,
       language: 'en',
-      theme: 'Ocean Blue'
+      theme: 'PYQverse Prime'
     }));
-    applyTheme('Ocean Blue');
+    applyTheme('PYQverse Prime');
     window.history.pushState({ view: nextView }, '', '');
   };
 
@@ -240,7 +240,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     removeUser();
     document.documentElement.classList.remove('dark');
-    applyTheme('Ocean Blue');
+    applyTheme('PYQverse Prime');
     setState(prev => ({
       ...prev,
       user: null,
@@ -249,7 +249,7 @@ const App: React.FC = () => {
       stats: INITIAL_STATS,
       darkMode: false,
       language: 'en',
-      theme: 'Ocean Blue'
+      theme: 'PYQverse Prime'
     }));
     window.history.pushState({ view: 'login' }, '', '');
   };
@@ -453,7 +453,7 @@ const App: React.FC = () => {
   if (isLoading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
-        <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <div className="w-16 h-16 border-4 border-brand-purple/30 border-t-brand-purple rounded-full animate-spin mb-4"></div>
         <p className="text-slate-500 dark:text-slate-400 font-medium animate-pulse">Curating your revision set...</p>
       </div>
     );
@@ -469,21 +469,21 @@ const App: React.FC = () => {
           Logout
         </button>
         <div className="max-w-md w-full text-center animate-fade-in">
-          <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl mx-auto flex items-center justify-center mb-6 text-3xl shadow-sm animate-float">
-            🎓
+          <div className="w-20 h-20 bg-brand-purple/10 dark:bg-brand-purple/20 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-sm animate-float">
+             <span className="text-4xl font-bold text-brand-purple">PV</span>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Welcome, {state.user?.name?.split(' ')[0] || 'Student'}!</h1>
-          <p className="text-slate-500 dark:text-slate-400 mb-8">Select your target exam to personalize your AI tutor and revision bank.</p>
+          <h1 className="text-3xl font-bold font-display text-slate-900 dark:text-white mb-3">Welcome to PYQverse!</h1>
+          <p className="text-slate-500 dark:text-slate-400 mb-8">Select your target exam to enter the universe of preparation.</p>
           
           <div className="grid gap-3">
             {Object.values(ExamType).map((exam) => (
               <button
                 key={exam}
                 onClick={() => handleExamSelectFromOnboarding(exam)}
-                className="w-full p-4 text-left rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all font-medium text-slate-700 dark:text-slate-200 flex justify-between items-center group bg-white dark:bg-slate-800 shadow-sm hover:shadow-md hover:scale-[1.02]"
+                className="w-full p-4 text-left rounded-xl border border-slate-200 dark:border-slate-700 hover:border-brand-purple hover:bg-brand-purple/5 dark:hover:bg-brand-purple/20 transition-all font-medium text-slate-700 dark:text-slate-200 flex justify-between items-center group bg-white dark:bg-slate-800 shadow-sm hover:shadow-md hover:scale-[1.02]"
               >
                 {exam}
-                <span className="opacity-0 group-hover:opacity-100 text-indigo-600 dark:text-indigo-400 transition-opacity">→</span>
+                <span className="opacity-0 group-hover:opacity-100 text-brand-purple transition-opacity">→</span>
               </button>
             ))}
           </div>
@@ -527,18 +527,21 @@ const App: React.FC = () => {
       <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 safe-top transition-colors duration-200">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div 
-            className="flex items-center gap-2 cursor-pointer" 
+            className="flex items-center gap-3 cursor-pointer group" 
             onClick={() => navigateTo('dashboard')}
           >
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-200 dark:shadow-none transition-transform active:scale-95 animate-bounce-slight">E</div>
-            <span className="font-bold text-slate-800 dark:text-white hidden sm:block">ExamPilot</span>
+            {/* Nav Logo */}
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-purple to-brand-blue flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+              <span className="text-white font-display font-bold text-xs">PV</span>
+            </div>
+            <span className="font-bold font-display text-slate-800 dark:text-white hidden sm:block tracking-tight group-hover:text-brand-purple transition-colors">PYQverse</span>
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
             {(installPrompt || isIOS) && (
               <button
                 onClick={handleInstallClick}
-                className="hidden sm:flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-all active:scale-95 animate-pulse-glow"
+                className="hidden sm:flex items-center gap-1 bg-brand-purple text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-all active:scale-95 animate-pulse-glow"
               >
                 Install App
               </button>
@@ -547,13 +550,13 @@ const App: React.FC = () => {
             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
               <button 
                 onClick={() => navigateTo('dashboard')}
-                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'dashboard' ? 'bg-white dark:bg-slate-600 text-indigo-700 dark:text-indigo-300 shadow-sm scale-105' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'dashboard' ? 'bg-white dark:bg-slate-600 text-brand-purple dark:text-brand-purple/80 shadow-sm scale-105 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
               >
                 Dash
               </button>
               <button 
                 onClick={() => navigateTo('upload')}
-                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'upload' ? 'bg-white dark:bg-slate-600 text-indigo-700 dark:text-indigo-300 shadow-sm scale-105' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                className={`px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${state.view === 'upload' ? 'bg-white dark:bg-slate-600 text-brand-purple dark:text-brand-purple/80 shadow-sm scale-105 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
               >
                 Add Notes
               </button>
@@ -565,9 +568,9 @@ const App: React.FC = () => {
                <div className="hidden sm:block text-right">
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{state.user?.name}</p>
                   <div className="flex items-center justify-end gap-1">
-                     <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-50 dark:bg-indigo-900/30 px-1.5 rounded-md inline-block">{state.selectedExam}</p>
+                     <p className="text-[10px] text-brand-purple dark:text-brand-purple/80 font-bold bg-indigo-50 dark:bg-indigo-900/30 px-1.5 rounded-md inline-block">{state.selectedExam}</p>
                      {state.user?.isPro && (
-                       <span className="text-[10px] bg-amber-100 text-amber-700 px-1 rounded font-bold">PRO</span>
+                       <span className="text-[10px] bg-brand-yellow text-slate-900 px-1 rounded font-bold">PRO</span>
                      )}
                   </div>
                </div>
@@ -575,13 +578,13 @@ const App: React.FC = () => {
                <div className="flex items-center gap-2">
                  <button 
                     onClick={() => navigateTo('profile')}
-                    className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm hover:ring-2 hover:ring-indigo-400 transition-all active:scale-95" 
+                    className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm hover:ring-2 hover:ring-brand-purple transition-all active:scale-95" 
                     title="View Profile"
                  >
                     {state.user?.photoURL ? (
                       <img src={state.user.photoURL} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 font-bold">
+                      <div className="w-full h-full flex items-center justify-center bg-brand-purple/10 dark:bg-brand-purple/30 text-brand-purple dark:text-brand-purple/80 font-bold">
                         {state.user?.name?.[0] || 'U'}
                       </div>
                     )}
@@ -594,17 +597,17 @@ const App: React.FC = () => {
 
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 pb-24 safe-bottom animate-slide-up-fade">
         {(installPrompt || isIOS) && (
-          <div className="sm:hidden mb-4 bg-indigo-600 text-white p-3 rounded-xl flex items-center justify-between shadow-lg animate-pop-in">
+          <div className="sm:hidden mb-4 bg-brand-purple text-white p-3 rounded-xl flex items-center justify-between shadow-lg animate-pop-in">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl">🎓</div>
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl font-display font-bold">PV</div>
               <div>
-                <p className="font-bold text-sm">Install ExamPilot</p>
+                <p className="font-bold text-sm">Install PYQverse</p>
                 <p className="text-xs text-indigo-200">Practice offline & better experience</p>
               </div>
             </div>
             <button 
               onClick={handleInstallClick}
-              className="bg-white text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold active:scale-95 transition-transform"
+              className="bg-white text-brand-purple px-3 py-1.5 rounded-lg text-xs font-bold active:scale-95 transition-transform"
             >
               Install
             </button>
@@ -634,17 +637,17 @@ const App: React.FC = () => {
               <div className="space-y-4 text-sm text-slate-600 dark:text-slate-300">
                 <p>To install the app on your iPhone or iPad:</p>
                 <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                  <span className="font-bold text-indigo-600 dark:text-indigo-400">1.</span>
+                  <span className="font-bold text-brand-purple dark:text-indigo-400">1.</span>
                   <span>Tap the <strong className="text-slate-800 dark:text-white">Share</strong> button <svg className="w-4 h-4 inline text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> in Safari.</span>
                 </div>
                 <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
-                  <span className="font-bold text-indigo-600 dark:text-indigo-400">2.</span>
+                  <span className="font-bold text-brand-purple dark:text-indigo-400">2.</span>
                   <span>Scroll down and tap <strong className="text-slate-800 dark:text-white">Add to Home Screen</strong>.</span>
                 </div>
               </div>
               <button 
                 onClick={() => setShowIOSHelp(false)}
-                className="w-full mt-6 bg-indigo-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform"
+                className="w-full mt-6 bg-brand-purple text-white font-bold py-3 rounded-xl active:scale-95 transition-transform"
               >
                 Got it
               </button>
@@ -696,7 +699,7 @@ const App: React.FC = () => {
           <div className="max-w-3xl mx-auto animate-fade-in">
             <button 
               onClick={() => navigateTo('dashboard')}
-              className="mb-4 text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 transition-colors"
+              className="mb-4 text-sm text-slate-500 dark:text-slate-400 hover:text-brand-purple dark:hover:text-brand-purple/80 flex items-center gap-1 transition-colors"
             >
               ← Back to Dashboard
             </button>
@@ -718,7 +721,7 @@ const App: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <span>Question {currentQIndex + 1}</span>
                     {practiceConfig.mode === 'endless' && (
-                       <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded text-xs font-bold">∞</span>
+                       <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900 text-brand-purple dark:text-brand-purple/80 rounded text-xs font-bold">∞</span>
                     )}
                     {practiceConfig.mode !== 'endless' && (
                        <span>of {Math.max(practiceConfig.count, practiceQueue.length)}</span>
@@ -753,7 +756,7 @@ const App: React.FC = () => {
                 </p>
                 <button 
                   onClick={() => navigateTo('dashboard')}
-                  className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                  className="bg-brand-purple text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700 transition-colors"
                 >
                    Return to Dashboard
                 </button>

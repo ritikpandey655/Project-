@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { User, ExamType } from '../types';
 import { Button } from './Button';
@@ -38,7 +37,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
         id: `user_google_${Date.now()}`,
         name: 'New Student',
         email: 'student@example.com',
-        photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+        photoURL: 'https://api.dicebear.com/9.x/initials/png?seed=SU&backgroundColor=5B2EFF'
       };
       onSignup(mockUser, selectedExam);
       setIsLoading(false);
@@ -67,13 +66,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-900 flex items-center justify-center p-4 font-sans relative overflow-hidden overflow-y-auto">
+    <div className="min-h-screen w-full bg-[#111827] flex items-center justify-center p-4 font-sans relative overflow-hidden overflow-y-auto">
       
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-15px) rotate(3deg); }
-        }
         @keyframes pulseGlow {
           0%, 100% { opacity: 0.2; transform: scale(1); }
           50% { opacity: 0.3; transform: scale(1.1); }
@@ -92,14 +87,14 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
 
       {/* Dynamic Background Elements */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-600 rounded-full blur-[120px] animate-blob"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600 rounded-full blur-[120px] animate-blob" style={{animationDelay: '2s'}}></div>
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-brand-purple rounded-full blur-[120px] animate-blob"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand-blue/50 rounded-full blur-[120px] animate-blob" style={{animationDelay: '2s'}}></div>
       </div>
 
       <div className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl relative z-10 animate-fade-in my-8">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2">Create Account</h2>
-          <p className="text-indigo-200 text-sm">Start your exam preparation journey</p>
+          <h2 className="text-3xl font-display font-bold text-white mb-2">Create Account</h2>
+          <p className="text-indigo-200 text-sm">Join the PYQverse</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -108,7 +103,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
           <div className="flex flex-col items-center mb-6">
             <div 
               onClick={() => fileInputRef.current?.click()}
-              className="w-24 h-24 rounded-full bg-indigo-500/30 border-2 border-dashed border-indigo-400 flex items-center justify-center cursor-pointer hover:bg-indigo-500/50 transition-colors overflow-hidden relative group"
+              className="w-24 h-24 rounded-full bg-brand-purple/20 border-2 border-dashed border-brand-purple/50 flex items-center justify-center cursor-pointer hover:bg-brand-purple/30 transition-colors overflow-hidden relative group"
             >
               {photoURL ? (
                 <img src={photoURL} alt="Profile" className="w-full h-full object-cover" />
@@ -142,7 +137,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-brand-purple transition-all text-sm"
                 placeholder="John Doe"
               />
             </div>
@@ -154,7 +149,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-brand-purple transition-all text-sm"
                 placeholder="john@example.com"
               />
             </div>
@@ -167,7 +162,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-brand-purple transition-all text-sm"
                   placeholder="••••••••"
                 />
               </div>
@@ -178,7 +173,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-brand-purple transition-all text-sm"
                   placeholder="••••••••"
                 />
               </div>
@@ -189,7 +184,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
               <select 
                 value={selectedExam}
                 onChange={(e) => setSelectedExam(e.target.value as ExamType)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all [&>option]:text-slate-900 text-sm"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-purple transition-all [&>option]:text-slate-900 text-sm"
               >
                 {Object.values(ExamType).map((exam) => (
                   <option key={exam} value={exam}>{exam}</option>
@@ -200,7 +195,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
 
           <Button 
             type="submit" 
-            className="w-full py-3.5 mt-4 font-bold text-lg shadow-xl shadow-indigo-900/20"
+            className="w-full py-3.5 mt-4 font-bold font-display text-lg shadow-xl shadow-brand-purple/20 bg-brand-purple hover:bg-[#4a25cf]"
             isLoading={isLoading}
           >
             Sign Up
@@ -208,7 +203,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
 
           <div className="flex items-center gap-3 my-4">
              <div className="h-px bg-white/10 flex-1"></div>
-             <span className="text-[10px] text-indigo-200 uppercase tracking-wide">OR</span>
+             <span className="text-[10px] text-indigo-200 uppercase tracking-wide font-bold">OR</span>
              <div className="h-px bg-white/10 flex-1"></div>
           </div>
 
@@ -216,7 +211,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
             type="button"
             onClick={handleGoogleSignup}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-indigo-50 text-slate-800 font-bold py-3 rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-indigo-50 text-slate-800 font-bold font-display py-3 rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
