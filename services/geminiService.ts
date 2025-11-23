@@ -86,8 +86,7 @@ export const generateExamQuestions = async (
       }
     });
 
-    let jsonStr = response.text;
-    if (!jsonStr) return [];
+    let jsonStr = response.text || "[]";
     
     jsonStr = cleanJson(jsonStr);
     const rawQuestions = JSON.parse(jsonStr);

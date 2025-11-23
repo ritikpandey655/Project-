@@ -99,9 +99,9 @@ const App: React.FC = () => {
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
-    const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
+    const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
-      setInstallPrompt(e);
+      setInstallPrompt(e as BeforeInstallPromptEvent);
     };
     
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);

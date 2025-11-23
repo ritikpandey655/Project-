@@ -4,8 +4,7 @@ import { QuestionPaper, QuestionType, ExamResult } from '../types';
 import { Button } from './Button';
 import { saveExamResult, getExamHistory, getUser } from '../services/storageService';
 import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, 
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, ResponsiveContainer
 } from 'recharts';
 
 interface PaperViewProps {
