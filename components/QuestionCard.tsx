@@ -11,6 +11,7 @@ interface QuestionCardProps {
   isLoadingNext?: boolean;
   language?: 'en' | 'hi';
   onToggleLanguage?: () => void;
+  onBookmarkToggle?: (question: Question) => void;
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({ 
@@ -20,13 +21,15 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   isLast, 
   isLoadingNext = false,
   language = 'en',
-  onToggleLanguage
+  onToggleLanguage,
+  onBookmarkToggle
 }) => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportSent, setReportSent] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   useEffect(() => {
     setSelectedOption(null);
@@ -34,12 +37,20 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     setShowReport(false);
     setReportSent(false);
     setReportReason('');
-  }, [question.id]);
+    setIsBookmarked(!!question.isBookmarked);
+  }, [question.id, question.isBookmarked]);
 
   const handleSubmit = () => {
     if (selectedOption === null) return;
     setIsSubmitted(true);
     onAnswer(selectedOption === question.correctIndex);
+  };
+
+  const handleBookmarkClick = () => {
+    if (onBookmarkToggle) {
+      setIsBookmarked(!isBookmarked);
+      onBookmarkToggle(question);
+    }
   };
 
   const handleReportSubmit = () => {
@@ -151,6 +162,20 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 </svg>
               </button>
             )}
+            
+            {/* Bookmark Button */}
+            {onBookmarkToggle && (
+              <button
+                onClick={handleBookmarkClick}
+                className={`p-1 transition-colors ${isBookmarked ? 'text-red-500 hover:text-red-600' : 'text-slate-300 hover:text-red-400 dark:text-slate-600 dark:hover:text-red-400'}`}
+                title="Bookmark Question"
+              >
+                <svg className="w-6 h-6" fill={isBookmarked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              </button>
+            )}
+
             <button 
                 onClick={() => setShowReport(true)}
                 className="text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400 transition-colors p-1"

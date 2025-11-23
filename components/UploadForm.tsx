@@ -22,6 +22,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
   const [topic, setTopic] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showSolution, setShowSolution] = useState(false); // New state to show immediate solution
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,6 +38,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
       return;
     }
     setIsGenerating(true);
+    setShowSolution(false);
     try {
       const aiQuestion = await generateSingleQuestion(examType, subject, topic);
       if (aiQuestion) {
@@ -51,6 +53,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
         const newTags = aiQuestion.tags || [];
         if (!newTags.includes(topic)) newTags.unshift(topic);
         setTags(newTags.join(', '));
+        setShowSolution(true); // Show solution immediately for doubt solving
       } else {
         alert("Could not generate a question. Please try a different topic.");
       }
@@ -68,6 +71,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
 
     const mimeType = file.type || 'image/jpeg';
     setIsGenerating(true);
+    setShowSolution(false);
     try {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -85,6 +89,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
                 setCorrectIndex(aiQuestion.correctIndex || 0);
                 setExplanation(aiQuestion.explanation || '');
                 setTags((aiQuestion.tags || []).join(', '));
+                setShowSolution(true); // Show solution for doubt solving
             } else {
                 alert("Could not analyze image. Please try again with a clearer image.");
             }
@@ -125,6 +130,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
       setExplanation('');
       setTags('');
       setTopic('');
+      setShowSolution(false);
     }, 600);
   };
 
@@ -133,26 +139,26 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
       <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-            Add to Self-Revision
+            AI Doubt Solver
             <span className="text-xs font-medium px-2 py-1 rounded-md bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
               {examType}
             </span>
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Digitize your notes. We'll quiz you on this later.</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Upload a photo or type a topic to get an instant solution & save it.</p>
         </div>
       </div>
 
       {/* AI Helper Section */}
       <div className="mb-8 bg-indigo-50/50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/50 space-y-3">
         <label className="block text-xs font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wide">
-          ✨ AI Tools
+          ✨ Ask AI
         </label>
         
         {/* Text Auto-Fill */}
         <div className="flex flex-col sm:flex-row gap-2">
           <input 
             type="text" 
-            placeholder="Enter a topic (e.g. 'Battle of Plassey')" 
+            placeholder="Type your doubt or topic (e.g. 'Newton's Third Law')" 
             value={topic}
             onChange={e => setTopic(e.target.value)}
             className="flex-1 p-2.5 rounded-lg border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
@@ -166,7 +172,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
             className="whitespace-nowrap text-indigo-700 bg-white dark:bg-slate-700 dark:text-indigo-300 shadow-sm"
             disabled={isGenerating}
           >
-             Text Auto-Fill
+             Solve Doubt
           </Button>
         </div>
 
@@ -200,11 +206,18 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
                 Scan Question from Image
             </Button>
         </div>
-
-        <p className="text-[10px] text-indigo-400 text-center">
-          Use AI to generate questions from text topics or scan textbook photos.
-        </p>
       </div>
+
+      {showSolution && (
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl animate-fade-in">
+           <h3 className="font-bold text-green-800 dark:text-green-300 mb-1 flex items-center gap-2">
+             <span className="text-xl">💡</span> AI Solution
+           </h3>
+           <p className="text-sm text-slate-700 dark:text-slate-300 mb-2"><strong>Correct Answer:</strong> {options[correctIndex]}</p>
+           <p className="text-sm text-slate-600 dark:text-slate-400 italic">"{explanation}"</p>
+           <p className="text-xs text-green-700 dark:text-green-400 mt-2 font-bold text-center">👇 Edit details below if needed and save to your notes.</p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -283,7 +296,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
 
         <div className="flex justify-end pt-4">
           <Button type="submit" isLoading={isSaving} className="w-full md:w-auto">
-            Save Question
+            Save to Notes
           </Button>
         </div>
       </form>

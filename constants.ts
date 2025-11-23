@@ -1,13 +1,22 @@
+
 import { ExamType, SubscriptionPlan } from './types';
 
 export const EXAM_SUBJECTS: Record<ExamType, string[]> = {
-  [ExamType.UPSC]: ['History', 'Polity', 'Geography', 'Economy', 'General Science', 'Current Affairs'],
+  [ExamType.UPSC]: ['History', 'Polity', 'Geography', 'Economy', 'General Science', 'Current Affairs', 'CSAT'],
   [ExamType.SSC_CGL]: ['Quantitative Aptitude', 'General Intelligence (Reasoning)', 'English', 'General Awareness'],
+  [ExamType.SSC_CHSL]: ['Quantitative Aptitude', 'Reasoning', 'English', 'General Awareness'],
+  [ExamType.SSC_MTS]: ['Numerical Aptitude', 'Reasoning', 'English', 'General Awareness'],
   [ExamType.JEE_MAINS]: ['Physics', 'Chemistry', 'Mathematics'],
-  [ExamType.NEET]: ['Physics', 'Chemistry', 'Biology'],
-  [ExamType.BANKING]: ['Quantitative Aptitude', 'Reasoning Ability', 'English Language', 'Banking Awareness'],
+  [ExamType.NEET]: ['Physics', 'Chemistry', 'Biology (Botany & Zoology)'],
+  [ExamType.BANKING]: ['Quantitative Aptitude', 'Reasoning Ability', 'English Language', 'Banking Awareness', 'Computer Aptitude'],
   [ExamType.RAILWAYS]: ['Mathematics', 'General Intelligence', 'General Science', 'General Awareness'],
-  [ExamType.GATE]: ['Engineering Mathematics', 'General Aptitude', 'Computer Science', 'Electronics']
+  [ExamType.RRB_NTPC]: ['Mathematics', 'General Intelligence', 'General Awareness'],
+  [ExamType.GATE]: ['Engineering Mathematics', 'General Aptitude', 'Computer Science', 'Electronics', 'Mechanical'],
+  [ExamType.NDA]: ['Mathematics', 'General Ability Test (English)', 'General Ability Test (GK)'],
+  [ExamType.CDS]: ['English', 'General Knowledge', 'Elementary Mathematics'],
+  [ExamType.STATE_PSC]: ['General Studies', 'State Specific GK', 'CSAT'],
+  [ExamType.TEACHING_CTET]: ['Child Development', 'Mathematics', 'Environmental Studies', 'Language I', 'Language II'],
+  [ExamType.POLICE_CONSTABLE]: ['General Knowledge', 'Numerical Ability', 'Reasoning', 'Mental Aptitude']
 };
 
 export const THEME_PALETTES: Record<string, Record<number, string>> = {

@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { UserStats, ExamType, User } from '../types';
+import { UserStats, ExamType, User, Question } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from './Button';
 import { THEME_PALETTES } from '../constants';
@@ -24,6 +24,9 @@ interface DashboardProps {
   onUpgrade?: () => void;
   onInstall?: () => void;
   canInstall?: boolean;
+  qotd?: Question | null;
+  onOpenQOTD?: () => void;
+  onOpenBookmarks?: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
@@ -34,7 +37,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onGeneratePaper,
   onStartCurrentAffairs,
   darkMode,
-  onUpgrade
+  onUpgrade,
+  qotd,
+  onOpenQOTD,
+  onOpenBookmarks
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
@@ -122,7 +128,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onClick={onUpload}
               className="col-span-1 sm:flex-none bg-brand-purple/40 backdrop-blur-sm border border-white/20 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold hover:bg-brand-purple/60 transition-colors active:scale-95 text-sm sm:text-base whitespace-nowrap"
             >
-              Add Notes
+              Doubt Solver
             </button>
             <button 
               onClick={(e) => handleLockedClick(e, onGeneratePaper)}
@@ -149,6 +155,36 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* Decorative circles */}
         <div className="absolute -right-10 -top-10 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-pulse-glow"></div>
         <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-brand-blue/30 rounded-full blur-2xl animate-float"></div>
+      </div>
+
+      {/* Quick Actions Grid */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          {/* Question of the Day Card */}
+          <div onClick={onOpenQOTD} className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-4 sm:p-5 text-white shadow-lg cursor-pointer transform transition-transform hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group">
+              <div className="relative z-10">
+                  <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-sm">Daily Challenge</span>
+                  <h3 className="text-lg sm:text-xl font-display font-bold mt-2">Question of the Day</h3>
+                  <p className="text-indigo-100 text-xs mt-1 line-clamp-2 opacity-90">
+                     {qotd ? qotd.text : "Tap to reveal today's challenge!"}
+                  </p>
+                  <div className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-white group-hover:gap-2 transition-all">
+                     Solve Now <span>→</span>
+                  </div>
+              </div>
+              <div className="absolute -bottom-4 -right-4 text-6xl opacity-20">📅</div>
+          </div>
+
+          {/* Bookmarks Card */}
+          <div onClick={onOpenBookmarks} className="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-700 cursor-pointer hover:shadow-md transition-all active:scale-[0.98] flex flex-col justify-between">
+              <div>
+                  <div className="flex justify-between items-start">
+                     <span className="text-3xl">❤️</span>
+                     <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2 py-1 rounded-md">SAVED</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white mt-2">Bookmarks</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Review saved questions</p>
+              </div>
+          </div>
       </div>
 
       {/* Filter Section */}

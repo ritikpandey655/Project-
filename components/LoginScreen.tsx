@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User } from '../types';
 
@@ -35,10 +36,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     setIsLoading(true);
     // Simulate Auth API call
     setTimeout(() => {
+      const isAdmin = email === 'admin@pyqverse.com';
       const mockUser: User = {
         id: `user_${Date.now()}`,
-        name: email.split('@')[0], 
+        name: isAdmin ? 'Admin User' : email.split('@')[0], 
         email: email,
+        isAdmin: isAdmin
       };
       onLogin(mockUser);
       setIsLoading(false);
@@ -229,7 +232,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                 <button
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-3 bg-white hover:bg-indigo-50 text-slate-900 font-display font-bold py-3 rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
+                  className="w-full flex items-center justify-center gap-3 bg-white hover:bg-indigo-50 text-slate-800 font-display font-bold py-3 rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
