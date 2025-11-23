@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { SUBSCRIPTION_PLANS } from '../constants';
 import { Button } from './Button';
@@ -85,17 +84,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden min-h-[600px] border border-slate-200 dark:border-slate-700">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-[90vh] border border-slate-200 dark:border-slate-700">
         
         {/* Left Side - Plan Selection / Summary */}
-        <div className="w-full md:w-5/12 bg-slate-50 dark:bg-slate-800 p-6 sm:p-8 flex flex-col border-r border-slate-200 dark:border-slate-700">
-          <button onClick={onClose} className="md:hidden text-slate-500 mb-4 flex items-center gap-1 hover:text-slate-800 dark:hover:text-white transition-colors">
+        <div className="w-full md:w-5/12 bg-slate-50 dark:bg-slate-800 p-6 sm:p-8 flex flex-col border-r border-slate-200 dark:border-slate-700 overflow-y-auto max-h-[30vh] md:max-h-full">
+          <button onClick={onClose} className="md:hidden text-slate-500 mb-4 flex items-center gap-1 hover:text-slate-800 dark:hover:text-white transition-colors sticky top-0 bg-slate-50 dark:bg-slate-800 z-10 py-1">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg> Back
           </button>
           
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Upgrade to Pro</h2>
+          <div className="mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Upgrade to Pro</h2>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Unlock AI generation & analytics.</p>
           </div>
 
@@ -124,7 +123,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
                     <span className="text-xs text-slate-500 dark:text-slate-400">/{plan.duration}</span>
                   </div>
                 </div>
-                <ul className="space-y-1.5">
+                <ul className="space-y-1.5 hidden sm:block">
                   {plan.features.slice(0, 3).map((feat, i) => (
                     <li key={i} className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                       <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -137,17 +136,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
               </div>
             ))}
           </div>
-
-          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 hidden md:block">
-             <div className="flex items-center gap-2 text-xs text-slate-400">
-               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-               Secure 256-bit SSL Encrypted Payment
-             </div>
-          </div>
         </div>
 
         {/* Right Side - Checkout Form */}
-        <div className="w-full md:w-7/12 p-6 sm:p-8 flex flex-col bg-white dark:bg-slate-900 relative">
+        <div className="w-full md:w-7/12 p-6 sm:p-8 flex flex-col bg-white dark:bg-slate-900 relative overflow-y-auto h-full">
           
           {/* Close Button Desktop */}
           <button 
@@ -157,12 +149,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
 
-          <div className="mb-6">
+          <div className="mb-4">
              <h3 className="text-xl font-bold text-slate-800 dark:text-white">Checkout Details</h3>
              <p className="text-sm text-slate-500 dark:text-slate-400">Complete your purchase safely.</p>
           </div>
 
-          <div className="mb-6 flex space-x-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+          <div className="mb-4 flex space-x-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
             {(['card', 'upi', 'netbanking'] as PaymentMethod[]).map(method => (
               <button
                 key={method}
@@ -178,7 +170,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto no-scrollbar">
+          <div className="flex-1">
             {paymentMethod === 'card' && (
               <div className="space-y-4 animate-fade-in">
                 <div>

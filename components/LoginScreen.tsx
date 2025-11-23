@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User } from '../types';
 
@@ -104,50 +103,50 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       </div>
 
       {/* Content Container */}
-      <div className="relative z-10 flex flex-col min-h-screen w-full max-w-md mx-auto px-6 pt-12 pb-8">
+      <div className="relative z-10 flex flex-col min-h-screen w-full max-w-md mx-auto px-6 pt-8 pb-6 sm:pt-12 sm:pb-8">
         
         {/* Top Section: Logo & Title */}
-        <div className={`flex flex-col items-center text-center transition-all duration-700 ${showLoginOptions ? 'mt-4 scale-90' : 'mt-10 sm:mt-20'}`}>
+        <div className={`flex flex-col items-center text-center transition-all duration-700 ${showLoginOptions ? 'mt-2 scale-90 origin-top' : 'mt-6 sm:mt-20'}`}>
           
           {/* Brand Logo: Orbit Concept */}
-          <div className="animate-scale-in mb-8 relative">
-            <div className="w-28 h-28 rounded-full border border-white/10 flex items-center justify-center relative backdrop-blur-md bg-white/5">
+          <div className="animate-scale-in mb-6 sm:mb-8 relative">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border border-white/10 flex items-center justify-center relative backdrop-blur-md bg-white/5">
                {/* Center Monogram */}
-               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-purple to-brand-blue flex items-center justify-center shadow-lg shadow-brand-purple/50 z-10 font-display font-extrabold text-3xl text-white tracking-tighter">
+               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-brand-purple to-brand-blue flex items-center justify-center shadow-lg shadow-brand-purple/50 z-10 font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tighter">
                  PV
                </div>
                
                {/* Orbiting Elements */}
                <div className="absolute inset-0 w-full h-full animate-spin-slow">
-                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 w-4 h-4 bg-brand-green rounded-full shadow-[0_0_10px_#10B981]"></div>
+                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 w-3 h-3 sm:w-4 sm:h-4 bg-brand-green rounded-full shadow-[0_0_10px_#10B981]"></div>
                </div>
                <div className="absolute inset-0 w-full h-full animate-spin-slow" style={{ animationDirection: 'reverse', animationDuration: '12s' }}>
-                 <div className="absolute bottom-1 left-1/4 w-3 h-3 bg-brand-yellow rounded-full shadow-[0_0_8px_#FACC15]"></div>
+                 <div className="absolute bottom-1 left-1/4 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-brand-yellow rounded-full shadow-[0_0_8px_#FACC15]"></div>
                </div>
             </div>
           </div>
           
-          <h1 className="animate-title-enter text-5xl sm:text-6xl font-extrabold text-white tracking-tight mb-2 drop-shadow-lg font-display">
+          <h1 className="animate-title-enter text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight mb-2 drop-shadow-lg font-display">
             PYQ<span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-blue">verse</span>
           </h1>
           
-          <p className="animate-subtitle-enter text-indigo-100 text-lg leading-relaxed max-w-xs mx-auto opacity-90 font-medium">
+          <p className="animate-subtitle-enter text-indigo-100 text-base sm:text-lg leading-relaxed max-w-xs mx-auto opacity-90 font-medium">
             All exams ka pura universe.
           </p>
 
           {!showLoginOptions && (
-            <div className="mt-8 space-y-3 animate-fade-in w-full max-w-xs text-left">
+            <div className="mt-6 sm:mt-8 space-y-3 animate-fade-in w-full max-w-xs text-left">
                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm">
-                 <span className="text-brand-green text-xl">✔</span>
-                 <p className="text-sm text-indigo-100">AI-generated Smart Questions</p>
+                 <span className="text-brand-green text-lg sm:text-xl">✔</span>
+                 <p className="text-xs sm:text-sm text-indigo-100">AI-generated Smart Questions</p>
                </div>
                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm">
-                 <span className="text-brand-blue text-xl">✔</span>
-                 <p className="text-sm text-indigo-100">Har exam ke Previous Year Qs</p>
+                 <span className="text-brand-blue text-lg sm:text-xl">✔</span>
+                 <p className="text-xs sm:text-sm text-indigo-100">Har exam ke Previous Year Qs</p>
                </div>
                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm">
-                 <span className="text-brand-yellow text-xl">✔</span>
-                 <p className="text-sm text-indigo-100">Fast & Accurate Prep</p>
+                 <span className="text-brand-yellow text-lg sm:text-xl">✔</span>
+                 <p className="text-xs sm:text-sm text-indigo-100">Fast & Accurate Prep</p>
                </div>
             </div>
           )}
@@ -157,7 +156,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         <div className="flex-1"></div>
 
         {/* Bottom Section: Actions */}
-        <div className="w-full mt-auto pt-6 mb-8">
+        <div className="w-full mt-auto pt-4 mb-4 sm:mb-8">
           {!showLoginOptions ? (
             <button
               onClick={() => setShowLoginOptions(true)}
@@ -172,8 +171,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
             <div className="space-y-4 animate-fade-in">
               <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl">
                 <div className="text-center mb-6">
-                  <h2 className="text-white text-xl font-display font-bold">Welcome Back</h2>
-                  <p className="text-indigo-200 text-sm">Sign in to continue preparation</p>
+                  <h2 className="text-white text-lg sm:text-xl font-display font-bold">Welcome Back</h2>
+                  <p className="text-indigo-200 text-xs sm:text-sm">Sign in to continue preparation</p>
                 </div>
                 
                 <form onSubmit={handleEmailLogin} className="space-y-3">

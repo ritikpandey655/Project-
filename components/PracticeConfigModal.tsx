@@ -9,9 +9,11 @@ interface PracticeConfigModalProps {
   onStart: (config: { subject: string; count: number; mode: 'finite' | 'endless' }) => void;
   onClose: () => void;
   onExamChange: (exam: ExamType) => void;
+  isPro?: boolean;
+  onUpgrade?: () => void;
 }
 
-export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examType, onStart, onClose, onExamChange }) => {
+export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examType, onStart, onClose, onExamChange, isPro, onUpgrade }) => {
   const [subject, setSubject] = useState<string>('Mixed');
   const [mode, setMode] = useState<'short' | 'medium' | 'long' | 'endless'>('medium');
 
@@ -23,20 +25,34 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examTy
   const subjects = ['Mixed', ...EXAM_SUBJECTS[examType]];
 
   const modes = [
-    { id: 'short', label: 'Quick 10', count: 10, icon: '⚡', desc: 'Rapid fire revision' },
-    { id: 'medium', label: 'Standard 30', count: 30, icon: '📝', desc: 'Daily practice set' },
-    { id: 'long', label: 'Marathon 50', count: 50, icon: '🏃', desc: 'Deep dive session' },
-    { id: 'endless', label: 'Endless ∞', count: 1000, icon: '♾️', desc: 'Non-stop until you quit' },
+    { id: 'short', label: 'Quick 10', count: 10, icon: '⚡', desc: 'Rapid fire revision', pro: false },
+    { id: 'medium', label: 'Standard 30', count: 30, icon: '📝', desc: 'Daily practice set', pro: false },
+    { id: 'long', label: 'Marathon 50', count: 50, icon: '🏃', desc: 'Deep dive session', pro: false },
+    { id: 'endless', label: 'Endless ∞', count: 1000, icon: '♾️', desc: 'Non-stop until you quit', pro: true },
   ];
 
   const handleStart = () => {
     const selectedMode = modes.find(m => m.id === mode)!;
+    if (selectedMode.pro && !isPro) {
+      if (onUpgrade) onUpgrade();
+      return;
+    }
+
     onStart({
       subject,
       count: selectedMode.count,
       mode: mode === 'endless' ? 'endless' : 'finite'
     });
   };
+
+  const selectMode = (modeId: any) => {
+    const selectedMode = modes.find(m => m.id === modeId)!;
+    if (selectedMode.pro && !isPro) {
+      if(onUpgrade) onUpgrade();
+      return;
+    }
+    setMode(modeId);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
@@ -86,24 +102,32 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examTy
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Session Length</label>
             <div className="grid grid-cols-2 gap-3">
-              {modes.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setMode(m.id as any)}
-                  className={`p-3 rounded-xl border-2 text-left transition-all ${
-                    mode === m.id 
-                      ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 ring-1 ring-indigo-600' 
-                      : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-lg">{m.icon}</span>
-                    {mode === m.id && <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>}
-                  </div>
-                  <div className={`font-bold text-sm ${mode === m.id ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`}>{m.label}</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400">{m.desc}</div>
-                </button>
-              ))}
+              {modes.map((m) => {
+                const isLocked = m.pro && !isPro;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => selectMode(m.id)}
+                    className={`p-3 rounded-xl border-2 text-left transition-all relative overflow-hidden ${
+                      mode === m.id 
+                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 ring-1 ring-indigo-600' 
+                        : isLocked
+                        ? 'border-slate-100 dark:border-slate-700 opacity-60 bg-slate-50 dark:bg-slate-900'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {isLocked && (
+                      <div className="absolute top-2 right-2 text-xs">🔒</div>
+                    )}
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-lg">{m.icon}</span>
+                      {mode === m.id && <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>}
+                    </div>
+                    <div className={`font-bold text-sm ${mode === m.id ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`}>{m.label}</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">{m.desc}</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AppState, ExamType, Question, User, ViewState, QuestionPaper } from './types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from './constants';
@@ -12,7 +13,7 @@ import {
   removeUser,
   INITIAL_STATS
 } from './services/storageService';
-import { generateExamQuestions } from './services/geminiService';
+import { generateExamQuestions, generateCurrentAffairs } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
 import { QuestionCard } from './components/QuestionCard';
 import { UploadForm } from './components/UploadForm';
@@ -342,6 +343,28 @@ const App: React.FC = () => {
     }
   };
 
+  const startCurrentAffairsSession = async () => {
+    if (!state.selectedExam || !state.user) return;
+    if (!state.user.isPro) {
+      setShowPaymentModal(true);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+       const caQuestions = await generateCurrentAffairs(state.selectedExam, 15); // Fetch 15 CA questions
+       setPracticeConfig({ mode: 'finite', subject: 'Current Affairs', count: 15 });
+       setPracticeQueue(caQuestions);
+       setCurrentQIndex(0);
+       navigateTo('practice');
+    } catch (e) {
+      console.error(e);
+      alert("Could not load current affairs.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAnswer = (isCorrect: boolean) => {
     const currentQ = practiceQueue[currentQIndex];
     if (!state.user) return;
@@ -371,6 +394,10 @@ const App: React.FC = () => {
            const subjects = EXAM_SUBJECTS[state.selectedExam!];
            subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
         }
+        
+        // Handle Current Affairs refill if specific logic needed, otherwise falls back to general gen
+        // For now, general gen handles subject 'Current Affairs' by just generating regular MCQs unless updated logic passed.
+        // We will stick to exam generation logic:
 
         let batchSize = 5;
         // If finite mode, don't over-fetch past the target count
@@ -380,14 +407,22 @@ const App: React.FC = () => {
         }
 
         if (batchSize > 0) {
-            generateExamQuestions(state.selectedExam!, subjectToGen, batchSize)
-            .then(newQs => {
-                if (newQs.length > 0) {
-                  setPracticeQueue(prev => [...prev, ...newQs]);
-                }
-            })
-            .catch(err => console.error("Background fetch failed", err))
-            .finally(() => setIsFetchingMore(false));
+            // Check if we are in CA mode to use correct generator
+            if (practiceConfig.subject === 'Current Affairs') {
+                generateCurrentAffairs(state.selectedExam!, batchSize)
+                .then(newQs => {
+                   if (newQs.length > 0) setPracticeQueue(prev => [...prev, ...newQs]);
+                }).finally(() => setIsFetchingMore(false));
+            } else {
+                generateExamQuestions(state.selectedExam!, subjectToGen, batchSize)
+                .then(newQs => {
+                    if (newQs.length > 0) {
+                    setPracticeQueue(prev => [...prev, ...newQs]);
+                    }
+                })
+                .catch(err => console.error("Background fetch failed", err))
+                .finally(() => setIsFetchingMore(false));
+            }
         } else {
             setIsFetchingMore(false);
         }
@@ -454,14 +489,14 @@ const App: React.FC = () => {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
         <div className="w-16 h-16 border-4 border-brand-purple/30 border-t-brand-purple rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-500 dark:text-slate-400 font-medium animate-pulse">Curating your revision set...</p>
+        <p className="text-slate-500 dark:text-slate-400 font-medium animate-pulse">Curating your content...</p>
       </div>
     );
   }
 
   if (state.view === 'onboarding' || !state.selectedExam) {
     return (
-      <div className="min-h-screen bg-white dark:bg-slate-900 flex items-center justify-center p-6 relative transition-colors duration-200">
+      <div className="min-h-screen bg-white dark:bg-slate-900 flex items-center justify-center p-4 sm:p-6 relative transition-colors duration-200">
         <button 
           onClick={handleLogout}
           className="absolute top-6 right-6 text-sm text-slate-400 hover:text-red-500"
@@ -472,8 +507,8 @@ const App: React.FC = () => {
           <div className="w-20 h-20 bg-brand-purple/10 dark:bg-brand-purple/20 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-sm animate-float">
              <span className="text-4xl font-bold text-brand-purple">PV</span>
           </div>
-          <h1 className="text-3xl font-bold font-display text-slate-900 dark:text-white mb-3">Welcome to PYQverse!</h1>
-          <p className="text-slate-500 dark:text-slate-400 mb-8">Select your target exam to enter the universe of preparation.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold font-display text-slate-900 dark:text-white mb-3">Welcome to PYQverse!</h1>
+          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 mb-8">Select your target exam to enter the universe of preparation.</p>
           
           <div className="grid gap-3">
             {Object.values(ExamType).map((exam) => (
@@ -527,7 +562,7 @@ const App: React.FC = () => {
       <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 safe-top transition-colors duration-200">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div 
-            className="flex items-center gap-3 cursor-pointer group" 
+            className="flex items-center gap-2 sm:gap-3 cursor-pointer group" 
             onClick={() => navigateTo('dashboard')}
           >
             {/* Nav Logo */}
@@ -543,7 +578,7 @@ const App: React.FC = () => {
                 onClick={handleInstallClick}
                 className="hidden sm:flex items-center gap-1 bg-brand-purple text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-all active:scale-95 animate-pulse-glow"
               >
-                Install App
+                Install
               </button>
             )}
 
@@ -562,10 +597,10 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <div className="h-6 w-px bg-slate-200 dark:bg-slate-600"></div>
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-600 hidden sm:block"></div>
 
             <div className="flex items-center gap-3">
-               <div className="hidden sm:block text-right">
+               <div className="hidden md:block text-right">
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{state.user?.name}</p>
                   <div className="flex items-center justify-end gap-1">
                      <p className="text-[10px] text-brand-purple dark:text-brand-purple/80 font-bold bg-indigo-50 dark:bg-indigo-900/30 px-1.5 rounded-md inline-block">{state.selectedExam}</p>
@@ -578,7 +613,7 @@ const App: React.FC = () => {
                <div className="flex items-center gap-2">
                  <button 
                     onClick={() => navigateTo('profile')}
-                    className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm hover:ring-2 hover:ring-brand-purple transition-all active:scale-95" 
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border-2 border-white dark:border-slate-600 shadow-sm hover:ring-2 hover:ring-brand-purple transition-all active:scale-95" 
                     title="View Profile"
                  >
                     {state.user?.photoURL ? (
@@ -595,6 +630,7 @@ const App: React.FC = () => {
         </div>
       </nav>
 
+      {/* Main Content Area - Fully Responsive Wrapper */}
       <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 pb-24 safe-bottom animate-slide-up-fade">
         {(installPrompt || isIOS) && (
           <div className="sm:hidden mb-4 bg-brand-purple text-white p-3 rounded-xl flex items-center justify-between shadow-lg animate-pop-in">
@@ -620,6 +656,11 @@ const App: React.FC = () => {
             onStart={startPracticeSession}
             onClose={() => setShowPracticeConfig(false)}
             onExamChange={handleExamSelect}
+            isPro={state.user?.isPro}
+            onUpgrade={() => {
+              setShowPracticeConfig(false);
+              setShowPaymentModal(true);
+            }}
           />
         )}
 
@@ -666,6 +707,7 @@ const App: React.FC = () => {
             onToggleTimer={toggleTimer}
             onToggleDarkMode={toggleDarkMode}
             onGeneratePaper={() => navigateTo('paperGenerator')}
+            onStartCurrentAffairs={startCurrentAffairsSession}
             onEnableNotifications={enableNotifications}
             language={state.language}
             onToggleLanguage={toggleLanguage}

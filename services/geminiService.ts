@@ -118,6 +118,72 @@ export const generateExamQuestions = async (
   }
 };
 
+export const generateCurrentAffairs = async (
+  exam: string,
+  count: number = 10
+): Promise<Question[]> => {
+  if (!apiKey || apiKey.trim() === '') return [];
+
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = `
+    Act as an expert exam setter for ${exam}.
+    TASK: Generate ${count} Current Affairs MCQs based on events from the LAST 6-12 MONTHS.
+    Focus on: National/International News, Awards, Sports, Science, Govt Schemes relevant to ${exam}.
+    REQUIREMENT: Provide content in BOTH English and Hindi.
+    IMPORTANT: Return raw JSON only.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-flash-lite-latest',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              text: { type: Type.STRING },
+              text_hi: { type: Type.STRING },
+              options: { type: Type.ARRAY, items: { type: Type.STRING } },
+              options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
+              correctIndex: { type: Type.INTEGER },
+              explanation: { type: Type.STRING },
+              explanation_hi: { type: Type.STRING },
+              tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['text', 'options', 'correctIndex', 'explanation']
+          }
+        }
+      }
+    });
+
+    const jsonStr = cleanJson(response.text || "[]");
+    const rawQuestions = JSON.parse(jsonStr);
+    
+    return rawQuestions.map((q: any, index: number) => ({
+      id: generateId(`ca-q${index}`),
+      text: q.text,
+      textHindi: q.text_hi,
+      options: q.options,
+      optionsHindi: q.options_hi,
+      correctIndex: q.correctIndex,
+      explanation: q.explanation, 
+      explanationHindi: q.explanation_hi,
+      source: QuestionSource.PYQ_AI,
+      examType: exam as ExamType,
+      subject: 'Current Affairs',
+      createdAt: Date.now(),
+      tags: ['Current Affairs', ...(q.tags || [])],
+      type: QuestionType.MCQ
+    }));
+  } catch (error) {
+    console.error("Current Affairs generation failed:", error);
+    return [];
+  }
+};
+
 export const generateSingleQuestion = async (
   exam: string,
   subject: string,

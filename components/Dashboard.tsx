@@ -15,6 +15,7 @@ interface DashboardProps {
   onToggleTimer: () => void;
   onToggleDarkMode: () => void;
   onGeneratePaper: () => void;
+  onStartCurrentAffairs: () => void;
   onEnableNotifications: () => void;
   language?: 'en' | 'hi';
   onToggleLanguage?: () => void;
@@ -33,6 +34,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onToggleTimer, 
   onToggleDarkMode,
   onGeneratePaper,
+  onStartCurrentAffairs,
   onEnableNotifications,
   language = 'en',
   onToggleLanguage,
@@ -82,48 +84,71 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const isPro = user?.isPro;
 
+  // Handler for locked features
+  const handleLockedClick = (e: React.MouseEvent, action: () => void) => {
+    if (isPro) {
+      action();
+    } else {
+      if(onUpgrade) onUpgrade();
+    }
+  };
+
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-6 sm:space-y-8 pb-20">
       {/* Hero Section - Rebranded */}
-      <div className="bg-gradient-to-r from-brand-purple to-brand-blue rounded-3xl p-8 text-white shadow-lg shadow-brand-purple/20 dark:shadow-none relative overflow-hidden animate-fade-in">
+      <div className="bg-gradient-to-r from-brand-purple to-brand-blue rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-brand-purple/20 dark:shadow-none relative overflow-hidden animate-fade-in">
         <div className="relative z-10">
-          <div className="flex justify-between items-start mb-2">
+          <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-2">
             <div>
-              <h2 className="text-3xl font-display font-bold leading-tight">PYQverse</h2>
-              <p className="text-xs text-brand-yellow font-bold uppercase tracking-wide">All Exams Ka Pura Universe</p>
+              <h2 className="text-2xl sm:text-3xl font-display font-bold leading-tight">PYQverse</h2>
+              <p className="text-[10px] sm:text-xs text-brand-yellow font-bold uppercase tracking-wide mt-1">All Exams Ka Pura Universe</p>
             </div>
             {isPro ? (
-              <span className="bg-brand-yellow text-slate-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm animate-pulse-glow">
+              <span className="bg-brand-yellow text-slate-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm animate-pulse-glow self-start">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                 Pro Member
               </span>
             ) : (
-               <button onClick={onUpgrade} className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-colors border border-white/30">
+               <button onClick={onUpgrade} className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-colors border border-white/30 self-start animate-pulse">
                  Upgrade Plan
                </button>
             )}
           </div>
-          <p className="text-indigo-100 mb-6 max-w-md text-sm sm:text-base mt-2">
+          <p className="text-indigo-100 mb-6 max-w-md text-sm leading-relaxed">
             AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep.
           </p>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
             <button 
               onClick={onStartPractice}
-              className="bg-white text-brand-purple px-6 py-3 rounded-xl font-bold font-display shadow-lg hover:bg-indigo-50 transition-colors active:scale-95 flex items-center gap-2"
+              className="col-span-2 sm:flex-none bg-white text-brand-purple px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold font-display shadow-lg hover:bg-indigo-50 transition-colors active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base whitespace-nowrap"
             >
-              <span>⚡</span> Start Practice
+              <span>⚡</span> Start
             </button>
             <button 
               onClick={onUpload}
-              className="bg-brand-purple/40 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-xl font-semibold hover:bg-brand-purple/60 transition-colors active:scale-95"
+              className="col-span-1 sm:flex-none bg-brand-purple/40 backdrop-blur-sm border border-white/20 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold hover:bg-brand-purple/60 transition-colors active:scale-95 text-sm sm:text-base whitespace-nowrap"
             >
-              Add Question
+              Add Notes
             </button>
             <button 
-              onClick={onGeneratePaper}
-              className="bg-brand-blue/40 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-xl font-semibold hover:bg-brand-blue/60 transition-colors flex items-center gap-2 active:scale-95"
+              onClick={(e) => handleLockedClick(e, onGeneratePaper)}
+              className={`col-span-1 sm:flex-none backdrop-blur-sm border border-white/20 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 active:scale-95 text-sm sm:text-base whitespace-nowrap ${isPro ? 'bg-brand-blue/40 hover:bg-brand-blue/60' : 'bg-slate-800/40 hover:bg-slate-800/60'}`}
             >
-              <span>📄</span> Mock Paper
+              {isPro ? (
+                 <><span>📄</span> Mock</>
+              ) : (
+                 <><span>🔒</span> Mock</>
+              )}
+            </button>
+            <button 
+              onClick={(e) => handleLockedClick(e, onStartCurrentAffairs)}
+              className={`col-span-2 sm:flex-none backdrop-blur-sm border border-white/20 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 active:scale-95 text-sm sm:text-base whitespace-nowrap ${isPro ? 'bg-brand-green/40 hover:bg-brand-green/60' : 'bg-slate-800/40 hover:bg-slate-800/60'}`}
+            >
+               {isPro ? (
+                 <><span>🌍</span> Current Affairs</>
+               ) : (
+                 <><span>🔒</span> Current Affairs</>
+               )}
             </button>
           </div>
         </div>
@@ -133,7 +158,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Filter Section */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar touch-pan-x">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar touch-pan-x -mx-4 px-4 sm:mx-0 sm:px-0">
         <button
           onClick={() => setActiveFilter('All')}
           className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all active:scale-95 ${
@@ -160,54 +185,54 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '0ms'}}>
-          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Current Streak</p>
-          <p className="text-3xl font-bold font-display text-brand-yellow mt-1 flex items-center gap-1">
-            {stats.streakCurrent} <span className="text-lg animate-bounce-slight">🔥</span>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '0ms'}}>
+          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">Current Streak</p>
+          <p className="text-2xl sm:text-3xl font-bold font-display text-brand-yellow mt-1 flex items-center gap-1">
+            {stats.streakCurrent} <span className="text-base sm:text-lg animate-bounce-slight">🔥</span>
           </p>
-          {activeFilter !== 'All' && <span className="text-[10px] text-slate-400">(Global)</span>}
+          {activeFilter !== 'All' && <span className="text-[10px] text-slate-400 block mt-1">(Global)</span>}
         </div>
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '100ms'}}>
-          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Questions Solved</p>
-          <p className="text-3xl font-bold font-display text-slate-800 dark:text-white mt-1">{displayedStats.attempted}</p>
+        <div className="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '100ms'}}>
+          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">Questions Solved</p>
+          <p className="text-2xl sm:text-3xl font-bold font-display text-slate-800 dark:text-white mt-1">{displayedStats.attempted}</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '200ms'}}>
-          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Accuracy</p>
-          <p className="text-3xl font-bold font-display text-brand-green mt-1">
+        <div className="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '200ms'}}>
+          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">Accuracy</p>
+          <p className="text-2xl sm:text-3xl font-bold font-display text-brand-green mt-1">
             {displayedStats.attempted > 0 
               ? Math.round((displayedStats.correct / displayedStats.attempted) * 100) 
               : 0}%
           </p>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '300ms'}}>
-          <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">Best Streak</p>
-          <p className="text-3xl font-bold font-display text-brand-purple mt-1">{stats.streakMax}</p>
-          {activeFilter !== 'All' && <span className="text-[10px] text-slate-400">(Global)</span>}
+        <div className="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '300ms'}}>
+          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">Best Streak</p>
+          <p className="text-2xl sm:text-3xl font-bold font-display text-brand-purple mt-1">{stats.streakMax}</p>
+          {activeFilter !== 'All' && <span className="text-[10px] text-slate-400 block mt-1">(Global)</span>}
         </div>
       </div>
 
       {/* Charts & Sidebar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart Column */}
-        <div className="md:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6">
            {chartData.length > 0 ? (
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 h-[350px] transition-colors animate-fade-in">
-              <h3 className="text-lg font-bold font-display text-slate-800 dark:text-white mb-6 flex justify-between">
+            <div className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 h-[300px] sm:h-[350px] transition-colors animate-fade-in">
+              <h3 className="text-base sm:text-lg font-bold font-display text-slate-800 dark:text-white mb-4 sm:mb-6 flex justify-between">
                 <span>Subject Performance (%)</span>
-                <span className="text-sm font-normal text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                <span className="text-xs sm:text-sm font-normal text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
                   {activeFilter}
                 </span>
               </h3>
-              <div className="h-64 w-full">
+              <div className="h-[200px] sm:h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 20 }}>
+                  <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
                     <XAxis type="number" domain={[0, 100]} hide />
                     <YAxis 
                         dataKey="name" 
                         type="category" 
-                        width={100} 
-                        tick={{fontSize: 12, fill: darkMode ? '#cbd5e1' : '#334155'}} 
+                        width={90} 
+                        tick={{fontSize: 11, fill: darkMode ? '#cbd5e1' : '#334155'}} 
                         axisLine={false} 
                         tickLine={false} 
                     />
@@ -218,10 +243,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           border: 'none', 
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                           backgroundColor: darkMode ? '#1e293b' : '#fff',
-                          color: darkMode ? '#fff' : '#000'
+                          color: darkMode ? '#fff' : '#000',
+                          fontSize: '12px'
                       }}
                     />
-                    <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={24}>
+                    <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={20}>
                       {chartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.score > 70 ? '#10B981' : entry.score > 40 ? '#5B2EFF' : '#F87171'} />
                       ))}
@@ -231,7 +257,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 text-center h-[350px] flex flex-col justify-center transition-colors animate-fade-in">
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 text-center h-[300px] sm:h-[350px] flex flex-col justify-center transition-colors animate-fade-in">
               <p className="text-slate-400 dark:text-slate-500 mb-2">No performance data yet for {activeFilter}.</p>
               <button onClick={onStartPractice} className="text-brand-purple dark:text-brand-purple/80 font-semibold text-sm hover:underline">
                 Start practicing to see analytics
@@ -241,21 +267,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           {/* Upgrade Banner for Free Users */}
           {!isPro && onUpgrade && (
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white relative overflow-hidden animate-slide-up shadow-xl">
-              <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 sm:p-6 text-white relative overflow-hidden animate-slide-up shadow-xl">
+              <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 text-center sm:text-left">
                  <div>
-                    <h3 className="text-xl font-bold font-display mb-2 flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-bold font-display mb-2 flex items-center justify-center sm:justify-start gap-2">
                        <span className="text-brand-yellow text-2xl">👑</span> Unlock PYQverse Pro
                     </h3>
-                    <ul className="text-slate-300 text-sm space-y-1 mb-4 sm:mb-0">
+                    <ul className="text-slate-300 text-xs sm:text-sm space-y-1 mb-4 sm:mb-0 inline-block text-left">
                        <li className="flex items-center gap-2">✓ Unlimited AI Questions</li>
-                       <li className="flex items-center gap-2">✓ Detailed Performance Analytics</li>
-                       <li className="flex items-center gap-2">✓ Offline Mode & No Ads</li>
+                       <li className="flex items-center gap-2">✓ Current Affairs & Mock Papers</li>
+                       <li className="flex items-center gap-2">✓ Detailed Analytics & No Ads</li>
                     </ul>
                  </div>
                  <button 
                    onClick={onUpgrade}
-                   className="bg-brand-yellow text-slate-900 font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-yellow-300 transition-colors active:scale-95 whitespace-nowrap"
+                   className="bg-brand-yellow text-slate-900 font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-yellow-300 transition-colors active:scale-95 whitespace-nowrap w-full sm:w-auto"
                  >
                     Upgrade Now
                  </button>
@@ -267,9 +293,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Sidebar Column */}
-        <div className="md:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-6">
            {/* Settings */}
-           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors animate-slide-up" style={{animationDelay: '400ms'}}>
+           <div className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors animate-slide-up" style={{animationDelay: '400ms'}}>
               <h3 className="text-lg font-bold font-display text-slate-800 dark:text-white mb-4">Settings</h3>
               
               <div className="space-y-3">
@@ -353,7 +379,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
            </div>
 
            {/* Feedback */}
-           <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors animate-slide-up" style={{animationDelay: '500ms'}}>
+           <div className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors animate-slide-up" style={{animationDelay: '500ms'}}>
              <h3 className="text-lg font-bold font-display text-slate-800 dark:text-white mb-2">Feedback & Support</h3>
              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Found a bug or have a feature request? Let us know!</p>
              
