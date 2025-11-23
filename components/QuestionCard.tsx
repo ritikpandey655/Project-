@@ -250,10 +250,16 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         {/* Footer / Explanation */}
         {isSubmitted && (
           <div className="bg-slate-50 dark:bg-slate-900/50 p-6 border-t border-slate-100 dark:border-slate-700 animate-slide-up">
-            <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Explanation</h3>
-            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
-              {displayExplanation || "No explanation provided."}
-            </p>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl">💡</span>
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase">AI Explanation & Analysis</h3>
+            </div>
+            
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+               <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap text-sm sm:text-base font-medium">
+                {displayExplanation || "No explanation provided."}
+               </p>
+            </div>
           </div>
         )}
       </div>

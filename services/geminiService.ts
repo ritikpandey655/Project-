@@ -49,6 +49,11 @@ export const generateExamQuestions = async (
     ${topics.length > 0 ? `CRITICAL: STRICTLY generate questions ONLY related to these specific topics: "${topics.join(', ')}".` : ''}
     
     TASK: Generate ${count} high-quality multiple-choice questions.
+    
+    CRITICAL INSTRUCTION FOR EXPLANATIONS:
+    - For Physics/Maths/Chemistry (NEET/JEE): The explanation MUST be Step-by-Step. Include 'Given', 'Formula Used', 'Calculation', and 'Final Result'.
+    - For General Studies/Theory: Provide detailed reasoning, covering why the correct option is right AND why others are wrong.
+    
     REQUIREMENT: Provide content in BOTH English and Hindi (Devanagari script).
     IMPORTANT: Return raw JSON only. Do not use Markdown formatting.
     
@@ -56,7 +61,7 @@ export const generateExamQuestions = async (
     text (English), text_hi (Hindi), 
     options (English Array), options_hi (Hindi Array), 
     correctIndex, 
-    explanation (English), explanation_hi (Hindi), 
+    explanation (English - Structured with line breaks), explanation_hi (Hindi), 
     tags.
   `;
 
@@ -129,6 +134,9 @@ export const generateCurrentAffairs = async (
     Act as an expert exam setter for ${exam}.
     TASK: Generate ${count} Current Affairs MCQs based on events from the LAST 6-12 MONTHS.
     Focus on: National/International News, Awards, Sports, Science, Govt Schemes relevant to ${exam}.
+    
+    EXPLANATION STYLE: detailed background info on the news event.
+    
     REQUIREMENT: Provide content in BOTH English and Hindi.
     IMPORTANT: Return raw JSON only.
   `;
@@ -192,7 +200,12 @@ export const generateSingleQuestion = async (
   if (!apiKey || apiKey.trim() === '') return null;
   
   const ai = new GoogleGenAI({ apiKey });
-  const prompt = `Generate 1 high-quality multiple-choice question for ${exam}, Subject: ${subject}, Topic: ${topic}. Provide English and Hindi. Output JSON.`;
+  const prompt = `
+    Generate 1 high-quality multiple-choice question for ${exam}, Subject: ${subject}, Topic: ${topic}. 
+    Provide English and Hindi. 
+    EXPLANATION: Must be step-by-step with clear reasoning and formula usage if applicable.
+    Output JSON.
+  `;
 
   try {
     const response = await ai.models.generateContent({
@@ -334,6 +347,7 @@ export const generateFullPaper = async (
            Batch: ${i + 1}/${mcqBatches}.
            Context: ${seedData}.
            Start Q#: ${startNum}.
+           EXPLANATION REQ: Detailed, Step-by-Step, Formula-based where needed.
            REQUIREMENT: English and Hindi.
         `;
 
@@ -470,7 +484,7 @@ export const generateQuestionFromImage = async (
       contents: {
         parts: [
             { inlineData: { mimeType: mimeType, data: base64Image } },
-            { text: `Extract question from image for ${examType} (${subject}). Include Hindi translation if possible.` }
+            { text: `Extract question from image for ${examType} (${subject}). Include Hindi translation if possible. EXPLANATION: Step-by-step reasoning.` }
         ]
       },
       config: { 
