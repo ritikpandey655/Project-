@@ -6,9 +6,9 @@ import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 // Vite replaces 'process.env.API_KEY' with the actual string during build.
 const apiKey = process.env.API_KEY;
 
-// Helper to warn in production if key is missing (debugging Vercel issues)
+// Helper to warn in production if key is missing
 if (typeof window !== 'undefined' && !apiKey) {
-  console.error("⚠️ API_KEY is missing! The app cannot contact Gemini. Please check your Vercel Environment Variables.");
+  console.error("⚠️ API_KEY is missing! The app cannot contact Gemini. Please check your Replit Environment Variables.");
 }
 
 const cleanJson = (text: string) => {
@@ -170,7 +170,7 @@ export const generateFullPaper = async (
   }
 ): Promise<QuestionPaper | null> => {
   if (!apiKey || apiKey.trim() === '') {
-    alert("API Key is missing in production. Please configure Vercel env vars.");
+    alert("API Key is missing. Please configure your Replit environment variables.");
     return null;
   }
 
