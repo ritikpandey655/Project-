@@ -1,5 +1,5 @@
 
-import { Question, UserStats, ExamType, User, ExamResult, QuestionSource } from '../types';
+import { Question, UserStats, ExamType, User, ExamResult, QuestionSource, QuestionPaper } from '../types';
 
 const QUESTIONS_KEY = 'exam_master_questions';
 const STATS_KEY = 'exam_master_stats';
@@ -10,6 +10,7 @@ const PRACTICE_SESSION_KEY = 'exam_master_practice_session';
 const BOOKMARKS_KEY = 'exam_master_bookmarks';
 const QOTD_KEY = 'exam_master_qotd';
 const ADMIN_QUESTION_BANK_KEY = 'exam_master_admin_q_bank';
+const OFFLINE_PAPERS_KEY = 'exam_master_offline_papers';
 
 export const INITIAL_STATS: UserStats = {
   totalAttempted: 0,
@@ -138,6 +139,36 @@ export const isQuestionBookmarked = (userId: string, questionId: string): boolea
   return bookmarks.some(q => q.id === questionId);
 };
 // --- BOOKMARKS END ---
+
+// --- OFFLINE PAPERS START ---
+export const saveOfflinePaper = (userId: string, paper: QuestionPaper): void => {
+  const key = getUserKey(OFFLINE_PAPERS_KEY, userId);
+  const data = localStorage.getItem(key);
+  const papers: QuestionPaper[] = data ? JSON.parse(data) : [];
+  
+  // Check if exists
+  const exists = papers.some(p => p.id === paper.id);
+  if (!exists) {
+    papers.unshift(paper);
+    localStorage.setItem(key, JSON.stringify(papers));
+  }
+};
+
+export const getOfflinePapers = (userId: string): QuestionPaper[] => {
+  const data = localStorage.getItem(getUserKey(OFFLINE_PAPERS_KEY, userId));
+  return data ? JSON.parse(data) : [];
+};
+
+export const removeOfflinePaper = (userId: string, paperId: string): void => {
+  const key = getUserKey(OFFLINE_PAPERS_KEY, userId);
+  const data = localStorage.getItem(key);
+  if (!data) return;
+  
+  const papers: QuestionPaper[] = JSON.parse(data);
+  const updated = papers.filter(p => p.id !== paperId);
+  localStorage.setItem(key, JSON.stringify(updated));
+};
+// --- OFFLINE PAPERS END ---
 
 // --- QOTD START ---
 export const getStoredQOTD = (userId: string): Question | null => {

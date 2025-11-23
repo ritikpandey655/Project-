@@ -98,6 +98,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                  <span className="text-xl">📚</span>
                  <span className="font-medium">My Notes</span>
               </button>
+              <button onClick={() => { onNavigate('downloads'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
+                 <span className="text-xl">📥</span>
+                 <span className="font-medium">Downloads / Offline</span>
+              </button>
               {user?.isAdmin && (
                 <button onClick={() => { onNavigate('admin'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-700 dark:text-red-300 transition-colors mt-2">
                    <span className="text-xl">🛡️</span>

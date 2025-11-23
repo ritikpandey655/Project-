@@ -1,10 +1,8 @@
 
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { QuestionPaper, QuestionType, ExamResult } from '../types';
 import { Button } from './Button';
-import { saveExamResult, getExamHistory, getUser } from '../services/storageService';
+import { saveExamResult, getExamHistory, getUser, saveOfflinePaper } from '../services/storageService';
 import { 
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -52,6 +50,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
   const [showWarning, setShowWarning] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [historicalTrend, setHistoricalTrend] = useState<any[]>([]);
+  const [isSaved, setIsSaved] = useState(false);
   
   // Local state for language if toggle is available
   const [localLang, setLocalLang] = useState(language);
@@ -80,6 +79,15 @@ export const PaperView: React.FC<PaperViewProps> = ({
   // Handle Answer Change
   const handleAnswerChange = (qId: string, value: string) => {
     setAnswers(prev => ({ ...prev, [qId]: value }));
+  };
+
+  const handleSaveOffline = () => {
+    const user = getUser();
+    if(user) {
+      saveOfflinePaper(user.id, paper);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+    }
   };
 
   // Grade the paper (Auto-grade MCQs)
@@ -429,30 +437,42 @@ export const PaperView: React.FC<PaperViewProps> = ({
 
       {/* Header Toolbar */}
       <div className="sticky top-0 z-40 bg-slate-900 text-white p-4 shadow-md flex justify-between items-center">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-4">
           <div className="hidden sm:block">
-            <h1 className="font-bold text-lg">{paper.title}</h1>
+            <h1 className="font-bold text-lg max-w-[200px] truncate">{paper.title}</h1>
             <span className="text-xs text-slate-300">Mock Exam</span>
           </div>
-          <button
-              onClick={handleToggle}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1
-                bg-slate-700 text-white border-slate-500 hover:bg-slate-600"
-          >
-             <span>{localLang === 'en' ? 'ENG' : 'HIN'}</span>
-             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-             </svg>
-          </button>
+          
+          <div className="flex gap-2">
+            <button
+                onClick={handleToggle}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1
+                  bg-slate-700 text-white border-slate-500 hover:bg-slate-600"
+            >
+              <span>{localLang === 'en' ? 'ENG' : 'HIN'}</span>
+            </button>
+            <button
+                onClick={handleSaveOffline}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1
+                  ${isSaved ? 'bg-green-600 border-green-500 text-white' : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500'}`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {isSaved ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />}
+              </svg>
+              <span className="hidden sm:inline">{isSaved ? 'Saved' : 'Save Offline'}</span>
+            </button>
+          </div>
         </div>
         
-        <div className={`font-mono text-xl font-bold px-4 py-1 rounded-lg ${timeLeft < 300 ? 'bg-red-600 animate-pulse' : 'bg-slate-800'}`}>
-          {formatTime(timeLeft)}
-        </div>
+        <div className="flex items-center gap-3">
+           <div className={`font-mono text-xl font-bold px-4 py-1 rounded-lg ${timeLeft < 300 ? 'bg-red-600 animate-pulse' : 'bg-slate-800'}`}>
+             {formatTime(timeLeft)}
+           </div>
 
-        <Button size="sm" variant="primary" onClick={() => setShowSubmitConfirm(true)}>
-          Submit Paper
-        </Button>
+           <Button size="sm" variant="primary" onClick={() => setShowSubmitConfirm(true)}>
+             Submit
+           </Button>
+        </div>
       </div>
 
       {/* Main Content */}

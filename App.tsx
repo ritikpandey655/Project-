@@ -34,6 +34,7 @@ import { PracticeConfigModal } from './components/PracticeConfigModal';
 import { PaymentModal } from './components/PaymentModal';
 import { Sidebar } from './components/Sidebar';
 import { AdminDashboard } from './components/AdminDashboard';
+import { OfflinePapersList } from './components/OfflinePapersList';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -816,6 +817,17 @@ const App: React.FC = () => {
             onLogout={handleLogout}
             onInstall={handleInstallClick}
             canInstall={canInstall}
+          />
+        )}
+
+        {state.view === 'downloads' && state.user && (
+          <OfflinePapersList 
+            userId={state.user.id}
+            onOpenPaper={(paper) => {
+               setState(prev => ({ ...prev, generatedPaper: paper }));
+               navigateTo('paperView');
+            }}
+            onBack={() => navigateTo('dashboard')}
           />
         )}
 
