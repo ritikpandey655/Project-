@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AppState, ExamType, Question, User, ViewState, QuestionPaper } from './types';
-import { EXAM_SUBJECTS, THEME_PALETTES } from './constants';
+import { EXAM_SUBJECTS, THEME_PALETTES, TECHNICAL_EXAMS } from './constants';
 import { 
   getUserPref, 
   getStats, 
@@ -520,6 +520,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleFetchNotes = async (subject?: string) => {
+    if (!state.selectedExam || !state.user) return;
+    if (!isOnline) {
+      alert("Internet connection required.");
+      return;
+    }
+    try {
+      const notes = await generateStudyNotes(state.selectedExam, subject);
+      setState(prev => ({ ...prev, newsFeed: notes }));
+    } catch(e) {
+      console.error(e);
+      alert("Could not load notes.");
+    }
+  }
+
   const startReadCurrentAffairs = async () => {
     setIsLoading(true);
     await handleFetchNews(); // Fetch default (today)
@@ -747,14 +762,22 @@ const App: React.FC = () => {
   }
 
   if (state.view === 'news' && state.newsFeed) {
+    const isTechnical = TECHNICAL_EXAMS.includes(state.selectedExam!);
     return (
       <CurrentAffairsFeed 
         news={state.newsFeed}
         onBack={() => navigateTo('dashboard')}
         onTakeQuiz={startCurrentAffairsSession}
         language={state.language}
-        onFilterChange={handleFetchNews} 
-        mode={state.newsFeed[0]?.category === 'Science & Tech' ? 'notes' : 'news'} // Simplistic check for demo
+        examType={state.selectedExam!}
+        onFilterChange={async (filters) => {
+           if (isTechnical) {
+              await handleFetchNotes(filters.subject);
+           } else {
+              await handleFetchNews(filters.month, filters.year, filters.category);
+           }
+        }}
+        mode={isTechnical ? 'notes' : 'news'}
       />
     );
   }

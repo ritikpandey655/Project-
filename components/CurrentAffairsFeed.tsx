@@ -1,16 +1,17 @@
 
 import React, { useState } from 'react';
-import { NewsItem } from '../types';
+import { NewsItem, ExamType } from '../types';
 import { Button } from './Button';
-import { MONTHS, NEWS_CATEGORIES } from '../constants';
+import { MONTHS, NEWS_CATEGORIES, EXAM_SUBJECTS } from '../constants';
 
 interface CurrentAffairsFeedProps {
   news: NewsItem[];
   onBack: () => void;
   onTakeQuiz: () => void;
   language?: 'en' | 'hi';
-  onFilterChange?: (month: string, year: number, category: string) => Promise<void>;
+  onFilterChange?: (filters: { month?: string; year?: number; category?: string; subject?: string }) => Promise<void>;
   mode?: 'news' | 'notes';
+  examType?: ExamType;
 }
 
 export const CurrentAffairsFeed: React.FC<CurrentAffairsFeedProps> = ({ 
@@ -19,18 +20,24 @@ export const CurrentAffairsFeed: React.FC<CurrentAffairsFeedProps> = ({
   onTakeQuiz, 
   language = 'en',
   onFilterChange,
-  mode = 'news'
+  mode = 'news',
+  examType
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<string>(MONTHS[new Date().getMonth()]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedSubject, setSelectedSubject] = useState<string>('Mixed');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleApplyFilter = async () => {
     if (!onFilterChange) return;
     setIsRefreshing(true);
     try {
-      await onFilterChange(selectedMonth, selectedYear, selectedCategory);
+      if (mode === 'news') {
+        await onFilterChange({ month: selectedMonth, year: selectedYear, category: selectedCategory });
+      } else {
+        await onFilterChange({ subject: selectedSubject === 'Mixed' ? undefined : selectedSubject });
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -52,57 +59,73 @@ export const CurrentAffairsFeed: React.FC<CurrentAffairsFeedProps> = ({
 
       <div className="text-center mb-6">
         <h2 className="text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">
-          {mode === 'news' ? 'Daily Briefing' : 'Smart Revision'}
+          {mode === 'news' ? 'Daily Briefing' : 'Short Tricks & Formulas'}
         </h2>
         <p className="text-slate-500 dark:text-slate-400">
-          {mode === 'news' ? 'Curated Current Affairs for Exam Prep' : 'Important Formulas & Short Tricks'}
+          {mode === 'news' ? 'Curated Current Affairs for Exam Prep' : 'Key formulas and quick revision notes'}
         </p>
       </div>
 
-      {/* Filter Section - Only for News */}
-      {mode === 'news' && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 mb-8 animate-slide-up">
-           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-               <div className="col-span-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Year</label>
+      {/* Filter Section */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 mb-8 animate-slide-up">
+         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+             {mode === 'news' ? (
+               <>
+                 <div className="col-span-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Year</label>
+                    <select 
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-sm outline-none focus:border-indigo-500"
+                    >
+                       <option value={2025}>2025</option>
+                       <option value={2024}>2024</option>
+                       <option value={2023}>2023</option>
+                    </select>
+                 </div>
+                 <div className="col-span-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Month</label>
+                    <select 
+                       value={selectedMonth}
+                       onChange={(e) => setSelectedMonth(e.target.value)}
+                       className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-sm outline-none focus:border-indigo-500"
+                    >
+                       {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                 </div>
+                 <div className="col-span-2 md:col-span-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Category</label>
+                    <select 
+                       value={selectedCategory}
+                       onChange={(e) => setSelectedCategory(e.target.value)}
+                       className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-sm outline-none focus:border-indigo-500"
+                    >
+                       {NEWS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                 </div>
+               </>
+             ) : (
+               // Notes / Formulas Mode Filters
+               <div className="col-span-3 md:col-span-3">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Subject</label>
                   <select 
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-sm outline-none focus:border-indigo-500"
-                  >
-                     <option value={2025}>2025</option>
-                     <option value={2024}>2024</option>
-                     <option value={2023}>2023</option>
-                  </select>
-               </div>
-               <div className="col-span-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Month</label>
-                  <select 
-                     value={selectedMonth}
-                     onChange={(e) => setSelectedMonth(e.target.value)}
+                     value={selectedSubject}
+                     onChange={(e) => setSelectedSubject(e.target.value)}
                      className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-sm outline-none focus:border-indigo-500"
                   >
-                     {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                     <option value="Mixed">All Subjects</option>
+                     {examType && EXAM_SUBJECTS[examType]?.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                </div>
-               <div className="col-span-2 md:col-span-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Category</label>
-                  <select 
-                     value={selectedCategory}
-                     onChange={(e) => setSelectedCategory(e.target.value)}
-                     className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-sm outline-none focus:border-indigo-500"
-                  >
-                     {NEWS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-               </div>
-               <div className="col-span-2 md:col-span-1 flex items-end">
-                  <Button onClick={handleApplyFilter} isLoading={isRefreshing} size="sm" className="w-full">
-                     {isRefreshing ? 'Fetching...' : 'Fetch News'}
-                  </Button>
-               </div>
-           </div>
-        </div>
-      )}
+             )}
+             
+             <div className="col-span-2 md:col-span-1 flex items-end">
+                <Button onClick={handleApplyFilter} isLoading={isRefreshing} size="sm" className="w-full">
+                   {isRefreshing ? 'Fetching...' : (mode === 'news' ? 'Fetch News' : 'Get Formulas')}
+                </Button>
+             </div>
+         </div>
+      </div>
 
       {/* Loading State: Sand Timer */}
       {isRefreshing ? (
