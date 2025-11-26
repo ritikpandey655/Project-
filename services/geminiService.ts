@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType } from "../types";
+import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 
 // Initialize the client with the environment variable.
@@ -67,7 +67,7 @@ export const generateExamQuestions = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-lite-latest',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -123,6 +123,90 @@ export const generateExamQuestions = async (
   }
 };
 
+export const generatePYQList = async (
+  exam: string,
+  subject: string,
+  year: number,
+  topic?: string
+): Promise<Question[]> => {
+  if (!apiKey || apiKey.trim() === '') return [];
+
+  const ai = new GoogleGenAI({ apiKey });
+  
+  // Modified prompt to be less strict on "Retrieval" to avoid AI refusal, and focus on "Pattern"
+  const prompt = `
+    Act as an exam expert. Create 10 high-quality practice questions that strictly follow the pattern, difficulty, and topics found in the:
+    Exam: ${exam}
+    Year: ${year}
+    Subject: ${subject}
+    ${topic ? `Topic/Chapter Focus: ${topic}` : ''}
+    
+    Mix of Question Types: Include 7 MCQs and 3 Numerical/Short Answer questions (if applicable to subject, otherwise all MCQs).
+    
+    REQUIREMENT: English and Hindi.
+    EXPLANATION: Detailed solution.
+    IMPORTANT: Return raw JSON only.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              text: { type: Type.STRING },
+              text_hi: { type: Type.STRING },
+              options: { type: Type.ARRAY, items: { type: Type.STRING } },
+              options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
+              correctIndex: { type: Type.INTEGER }, // -1 if non-MCQ
+              answer: { type: Type.STRING }, // For non-MCQ
+              explanation: { type: Type.STRING },
+              explanation_hi: { type: Type.STRING },
+              type: { type: Type.STRING }, // MCQ, NUMERICAL, SHORT_ANSWER
+              tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['text', 'explanation', 'type']
+          }
+        }
+      }
+    });
+
+    const jsonStr = cleanJson(response.text || "[]");
+    const rawQuestions = JSON.parse(jsonStr);
+    
+    if (!Array.isArray(rawQuestions)) return [];
+
+    return rawQuestions.map((q: any, index: number) => ({
+      id: generateId(`pyq-${year}-${index}`),
+      text: q.text,
+      textHindi: q.text_hi,
+      options: q.options || [],
+      optionsHindi: q.options_hi || [],
+      correctIndex: q.correctIndex ?? -1,
+      answer: q.answer, // For non-MCQs
+      explanation: q.explanation, 
+      explanationHindi: q.explanation_hi,
+      source: QuestionSource.PYQ_AI,
+      examType: exam as ExamType,
+      subject: subject,
+      createdAt: Date.now(),
+      tags: q.tags || [],
+      type: q.type === 'MCQ' ? QuestionType.MCQ : 
+            q.type === 'NUMERICAL' ? QuestionType.NUMERICAL : QuestionType.SHORT_ANSWER,
+      pyqYear: year
+    }));
+
+  } catch (error) {
+    console.error("PYQ generation failed:", error);
+    return [];
+  }
+};
+
 export const generateCurrentAffairs = async (
   exam: string,
   count: number = 10
@@ -130,10 +214,22 @@ export const generateCurrentAffairs = async (
   if (!apiKey || apiKey.trim() === '') return [];
 
   const ai = new GoogleGenAI({ apiKey });
+  
+  // Randomize focus to ensure variety across batches
+  const focuses = [
+      "National News, Government Schemes, Polity",
+      "International Relations, Geopolitics, Summits",
+      "Sports, Awards, Books & Authors",
+      "Science & Tech, Defence, Space Missions",
+      "Economy, Budget, Indices & Reports"
+  ];
+  const randomFocus = focuses[Math.floor(Math.random() * focuses.length)];
+
   const prompt = `
     Act as an expert exam setter for ${exam}.
-    TASK: Generate ${count} Current Affairs MCQs based on events from the LAST 6-12 MONTHS.
-    Focus on: National/International News, Awards, Sports, Science, Govt Schemes relevant to ${exam}.
+    TASK: Generate ${count} UNIQUE Current Affairs MCQs based on events from the LAST 12 MONTHS.
+    
+    BATCH FOCUS: ${randomFocus}. (Ensure questions are primarily from this domain to ensure depth).
     
     EXPLANATION STYLE: detailed background info on the news event.
     
@@ -143,7 +239,7 @@ export const generateCurrentAffairs = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-lite-latest',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -192,6 +288,87 @@ export const generateCurrentAffairs = async (
   }
 };
 
+export const generateNews = async (
+  exam: string,
+  month?: string,
+  year?: number,
+  category?: string
+): Promise<NewsItem[]> => {
+  if (!apiKey || apiKey.trim() === '') return [];
+
+  const ai = new GoogleGenAI({ apiKey });
+  
+  // Enforce STRICT date context
+  const timeContext = month && year 
+      ? `specifically ONLY for the period of ${month} ${year}.` 
+      : 'recently (Last 24-48 hours)';
+  
+  const categoryContext = category && category !== 'All' 
+      ? `Focus specifically on "${category}" news.` 
+      : 'Cover major categories: National, International, Sports, Awards, Science.';
+
+  const prompt = `
+    Act as a news curator for ${exam} aspirants.
+    
+    TASK: Generate 8-10 concise Current Affairs flashcards for events that occurred ${timeContext}.
+    ${categoryContext}
+    
+    CRITICAL DATE INSTRUCTION:
+    - You MUST provide the EXACT date for every single event in "DD Month YYYY" format (e.g., 12 November 2023).
+    - If the user asked for a specific month/year, ensure ALL events fall strictly within that timeline.
+    
+    REQUIREMENT: 
+    1. Headline and Summary in English AND Hindi.
+    2. Category (e.g., National, Sports).
+    3. Precise Date field (REQUIRED).
+    
+    IMPORTANT: Return raw JSON only.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              headline: { type: Type.STRING },
+              headline_hi: { type: Type.STRING },
+              summary: { type: Type.STRING },
+              summary_hi: { type: Type.STRING },
+              category: { type: Type.STRING },
+              date: { type: Type.STRING },
+              tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['headline', 'summary', 'category', 'date']
+          }
+        }
+      }
+    });
+
+    const jsonStr = cleanJson(response.text || "[]");
+    const rawNews = JSON.parse(jsonStr);
+    
+    return rawNews.map((n: any, index: number) => ({
+      id: generateId(`news-${index}`),
+      headline: n.headline,
+      headlineHindi: n.headline_hi,
+      summary: n.summary,
+      summaryHindi: n.summary_hi,
+      category: n.category,
+      date: n.date || `${month || 'Unknown'} ${year || ''}`,
+      tags: n.tags || []
+    }));
+  } catch (error) {
+    console.error("News generation failed:", error);
+    return [];
+  }
+};
+
 export const generateSingleQuestion = async (
   exam: string,
   subject: string,
@@ -209,7 +386,7 @@ export const generateSingleQuestion = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-lite-latest',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -353,7 +530,7 @@ export const generateFullPaper = async (
 
         batchPromises.push(
             ai.models.generateContent({
-                model: 'gemini-flash-lite-latest',
+                model: 'gemini-2.5-flash',
                 contents: batchPrompt,
                 config: { 
                     responseMimeType: "application/json",

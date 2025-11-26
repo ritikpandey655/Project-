@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { UserStats, ExamType, User, Question } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from './Button';
-import { THEME_PALETTES } from '../constants';
+import { TRANSLATIONS } from '../constants';
 
 interface DashboardProps {
   stats: UserStats;
@@ -16,6 +16,7 @@ interface DashboardProps {
   onToggleDarkMode: () => void;
   onGeneratePaper: () => void;
   onStartCurrentAffairs: () => void;
+  onReadCurrentAffairs: () => void; // New prop
   onEnableNotifications: () => void;
   language?: 'en' | 'hi';
   onToggleLanguage?: () => void;
@@ -29,6 +30,7 @@ interface DashboardProps {
   onOpenBookmarks?: () => void;
   onOpenAnalytics?: () => void;
   onOpenLeaderboard?: () => void;
+  onOpenPYQLibrary?: () => void; // New Prop
   isOnline?: boolean;
 }
 
@@ -39,6 +41,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onUpload, 
   onGeneratePaper,
   onStartCurrentAffairs,
+  onReadCurrentAffairs,
   darkMode,
   onUpgrade,
   qotd,
@@ -46,13 +49,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenBookmarks,
   onOpenAnalytics,
   onOpenLeaderboard,
+  onOpenPYQLibrary,
   onInstall,
   canInstall,
-  isOnline = true
+  isOnline = true,
+  language = 'en'
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const [showCAMenu, setShowCAMenu] = useState(false); // CA Toggle
+
+  const t = TRANSLATIONS[language];
 
   const displayedStats = useMemo(() => {
     if (activeFilter === 'All') {
@@ -94,11 +102,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Handler for locked features
   const handleLockedClick = (e: React.MouseEvent, action: () => void) => {
+    e.stopPropagation();
     if (isPro) {
       action();
     } else {
       if(onUpgrade) onUpgrade();
     }
+  };
+
+  const toggleCAMenu = (e: React.MouseEvent) => {
+    if (!isPro) {
+       if(onUpgrade) onUpgrade();
+       return;
+    }
+    setShowCAMenu(!showCAMenu);
   };
 
   return (
@@ -122,7 +139,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-2">
             <div>
               <h2 className="text-2xl sm:text-3xl font-display font-bold leading-tight">PYQverse</h2>
-              <p className="text-[10px] sm:text-xs text-brand-yellow font-bold uppercase tracking-wide mt-1">All exams ka pura universe</p>
+              <p className="text-[10px] sm:text-xs text-brand-yellow font-bold uppercase tracking-wide mt-1">{t.tagline}</p>
             </div>
             {isPro ? (
               <span className="bg-brand-yellow text-slate-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm animate-pulse-glow self-start">
@@ -136,41 +153,62 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
           </div>
           <p className="text-indigo-100 mb-6 max-w-md text-sm leading-relaxed">
-            AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep.
+            {t.desc}
           </p>
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
             <button 
               onClick={onStartPractice}
               className="col-span-2 sm:flex-none bg-white text-brand-purple px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold font-display shadow-lg hover:bg-indigo-50 transition-colors active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base whitespace-nowrap"
             >
-              <span>{isOnline ? '⚡' : '📥'}</span> {isOnline ? 'Start' : 'Offline Mode'}
+              <span>{isOnline ? '⚡' : '📥'}</span> {isOnline ? t.start : t.offlineMode}
             </button>
             <button 
               onClick={onUpload}
               className="col-span-1 sm:flex-none bg-brand-purple/40 backdrop-blur-sm border border-white/20 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold hover:bg-brand-purple/60 transition-colors active:scale-95 text-sm sm:text-base whitespace-nowrap"
             >
-              Doubt Solver
+              {t.doubtSolver}
             </button>
             <button 
               onClick={(e) => handleLockedClick(e, onGeneratePaper)}
               className={`col-span-1 sm:flex-none backdrop-blur-sm border border-white/20 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 active:scale-95 text-sm sm:text-base whitespace-nowrap ${isPro ? 'bg-brand-blue/40 hover:bg-brand-blue/60' : 'bg-slate-800/40 hover:bg-slate-800/60'}`}
             >
               {isPro ? (
-                 <><span>📄</span> Mock</>
+                 <><span>📄</span> {t.mock}</>
               ) : (
-                 <><span>🔒</span> Mock</>
+                 <><span>🔒</span> {t.mock}</>
               )}
             </button>
-            <button 
-              onClick={(e) => handleLockedClick(e, onStartCurrentAffairs)}
-              className={`col-span-2 sm:flex-none backdrop-blur-sm border border-white/20 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 active:scale-95 text-sm sm:text-base whitespace-nowrap ${isPro ? 'bg-brand-green/40 hover:bg-brand-green/60' : 'bg-slate-800/40 hover:bg-slate-800/60'}`}
-            >
-               {isPro ? (
-                 <><span>🌍</span> Current Affairs</>
-               ) : (
-                 <><span>🔒</span> Current Affairs</>
-               )}
-            </button>
+            
+            {/* Current Affairs with Read Option */}
+            <div className="relative col-span-2 sm:flex-none">
+              {showCAMenu && (
+                 <div className="absolute bottom-full left-0 w-full bg-white dark:bg-slate-800 rounded-xl shadow-xl mb-2 p-2 flex flex-col gap-1 z-20 animate-slide-up">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowCAMenu(false); onReadCurrentAffairs(); }}
+                      className="text-left px-3 py-2 text-sm font-bold text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
+                    >
+                       📖 Read Daily News
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowCAMenu(false); onStartCurrentAffairs(); }}
+                      className="text-left px-3 py-2 text-sm font-bold text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
+                    >
+                       📝 Take Daily Quiz
+                    </button>
+                 </div>
+              )}
+              <button 
+                onClick={toggleCAMenu}
+                className={`w-full backdrop-blur-sm border border-white/20 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 active:scale-95 text-sm sm:text-base whitespace-nowrap ${isPro ? 'bg-brand-green/40 hover:bg-brand-green/60' : 'bg-slate-800/40 hover:bg-slate-800/60'}`}
+              >
+                {isPro ? (
+                  <><span>🌍</span> {t.currentAffairs}</>
+                ) : (
+                  <><span>🔒</span> {t.currentAffairs}</>
+                )}
+              </button>
+            </div>
+            
           </div>
         </div>
         {/* Decorative circles */}
@@ -183,10 +221,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {/* Question of the Day Card */}
           <div onClick={onOpenQOTD} className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-4 sm:p-5 text-white shadow-lg cursor-pointer transform transition-transform hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group">
               <div className="relative z-10">
-                  <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-sm">Daily Challenge</span>
-                  <h3 className="text-lg sm:text-xl font-display font-bold mt-2">Question of the Day</h3>
+                  <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-sm">{t.dailyChallenge}</span>
+                  <h3 className="text-lg sm:text-xl font-display font-bold mt-2">{t.qotd}</h3>
                   <p className="text-indigo-100 text-xs mt-1 line-clamp-2 opacity-90">
-                     {qotd ? qotd.text : "Tap to reveal today's challenge!"}
+                     {qotd ? (language === 'hi' && qotd.textHindi ? qotd.textHindi : qotd.text) : "Tap to reveal today's challenge!"}
                   </p>
                   <div className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-white group-hover:gap-2 transition-all">
                      Solve Now <span>→</span>
@@ -202,9 +240,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                      <span className="text-3xl">❤️</span>
                      <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2 py-1 rounded-md">SAVED</span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-white mt-2">Bookmarks</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Review saved questions</p>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white mt-2">{t.bookmarks}</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t.reviewSaved}</p>
               </div>
+          </div>
+
+          {/* PYQ Library Card */}
+          <div onClick={onOpenPYQLibrary} className="col-span-2 bg-gradient-to-r from-teal-500 to-teal-700 rounded-2xl p-4 sm:p-5 text-white shadow-lg cursor-pointer transform transition-transform hover:scale-[1.01] active:scale-[0.99] relative overflow-hidden group flex items-center justify-between">
+                <div className="relative z-10">
+                    <h3 className="text-lg font-bold font-display flex items-center gap-2">
+                      <span>🏛️</span> PYQ Library
+                    </h3>
+                    <p className="text-teal-100 text-xs sm:text-sm mt-1">Browse Past Year Questions by Year & Subject</p>
+                </div>
+                <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl font-bold text-sm group-hover:bg-white/30 transition-colors">
+                    Explore
+                </div>
           </div>
 
           {/* Install App Card */}
@@ -212,7 +263,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div onClick={onInstall} className="col-span-2 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-indigo-900 dark:to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-lg cursor-pointer transform transition-transform hover:scale-[1.01] active:scale-[0.99] relative overflow-hidden group flex items-center justify-between">
                 <div className="relative z-10">
                     <h3 className="text-lg font-bold font-display flex items-center gap-2">
-                      <span>📲</span> Install App
+                      <span>📲</span> {t.install}
                     </h3>
                     <p className="text-indigo-100 text-xs sm:text-sm mt-1">Get the full experience with offline mode.</p>
                 </div>
@@ -231,7 +282,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           >
              <div className="text-left">
                 <span className="text-xl">📊</span>
-                <h3 className="font-bold text-slate-800 dark:text-white text-sm mt-1">Smart Analytics</h3>
+                <h3 className="font-bold text-slate-800 dark:text-white text-sm mt-1">{t.analytics}</h3>
              </div>
              <span className="text-slate-400">→</span>
           </button>
@@ -242,7 +293,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           >
              <div className="text-left">
                 <span className="text-xl">🏆</span>
-                <h3 className="font-bold text-slate-800 dark:text-white text-sm mt-1">Leaderboard</h3>
+                <h3 className="font-bold text-slate-800 dark:text-white text-sm mt-1">{t.leaderboard}</h3>
              </div>
              <span className="text-slate-400">→</span>
           </button>
@@ -278,18 +329,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '0ms'}}>
-          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">Current Streak</p>
+          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">{t.streak}</p>
           <p className="text-2xl sm:text-3xl font-bold font-display text-brand-yellow mt-1 flex items-center gap-1">
             {stats.streakCurrent} <span className="text-base sm:text-lg animate-bounce-slight">🔥</span>
           </p>
           {activeFilter !== 'All' && <span className="text-[10px] text-slate-400 block mt-1">(Global)</span>}
         </div>
         <div className="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '100ms'}}>
-          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">Questions Solved</p>
+          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">{t.solved}</p>
           <p className="text-2xl sm:text-3xl font-bold font-display text-slate-800 dark:text-white mt-1">{displayedStats.attempted}</p>
         </div>
         <div className="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '200ms'}}>
-          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">Accuracy</p>
+          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">{t.accuracy}</p>
           <p className="text-2xl sm:text-3xl font-bold font-display text-brand-green mt-1">
             {displayedStats.attempted > 0 
               ? Math.round((displayedStats.correct / displayedStats.attempted) * 100) 
@@ -297,7 +348,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </p>
         </div>
         <div className="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors hover:shadow-md animate-slide-up" style={{animationDelay: '300ms'}}>
-          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">Best Streak</p>
+          <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium uppercase">{t.bestStreak}</p>
           <p className="text-2xl sm:text-3xl font-bold font-display text-brand-purple mt-1">{stats.streakMax}</p>
           {activeFilter !== 'All' && <span className="text-[10px] text-slate-400 block mt-1">(Global)</span>}
         </div>
@@ -361,7 +412,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="lg:col-span-1 space-y-6">
            {/* Feedback */}
            <div className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors animate-slide-up" style={{animationDelay: '500ms'}}>
-             <h3 className="text-lg font-bold font-display text-slate-800 dark:text-white mb-2">Feedback & Support</h3>
+             <h3 className="text-lg font-bold font-display text-slate-800 dark:text-white mb-2">{t.feedback}</h3>
              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Found a bug or have a feature request? Let us know!</p>
              
              {feedbackSent ? (
@@ -385,7 +436,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                    size="sm" 
                    className="w-full"
                  >
-                   Send Feedback
+                   {t.sendFeedback}
                  </Button>
                </div>
              )}

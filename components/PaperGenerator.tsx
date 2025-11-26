@@ -53,6 +53,25 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-12 text-center animate-fade-in">
+         <div className="relative w-20 h-20 mx-auto mb-6">
+            {/* Sand Timer SVG */}
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-indigo-500 animate-spin-slow">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center text-3xl animate-bounce">⏳</div>
+         </div>
+         <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Structuring Your Paper...</h3>
+         <p className="text-slate-500 dark:text-slate-400 text-sm">AI is generating questions for {subject} ({difficulty})</p>
+         {config.includeMCQ && mcqCount > 30 && (
+            <p className="text-xs text-amber-500 mt-4 animate-pulse">Large papers may take up to a minute.</p>
+         )}
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 animate-fade-in transition-colors">
       <div className="mb-6">
@@ -163,7 +182,6 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
 
         <Button 
           onClick={handleGenerate} 
-          isLoading={isLoading} 
           className="w-full py-4 font-bold text-lg shadow-lg shadow-indigo-200 dark:shadow-none"
         >
           {config.includeMCQ && mcqCount > 50 ? 'Generate Large Paper' : 'Generate Paper'}

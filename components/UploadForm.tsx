@@ -134,6 +134,23 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
     }, 600);
   };
 
+  if (isGenerating || isSaving) {
+    return (
+      <div className="bg-white dark:bg-slate-800 p-12 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 max-w-3xl mx-auto flex flex-col items-center justify-center text-center animate-fade-in">
+         <div className="relative w-20 h-20 mb-6">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-indigo-500 animate-spin-slow">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center text-3xl animate-bounce">⏳</div>
+         </div>
+         <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
+            {isSaving ? "Saving to Notebook..." : "AI is Thinking..."}
+         </h3>
+         <p className="text-slate-500 dark:text-slate-400 text-sm">Analyzing input and generating detailed solution</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 max-w-3xl mx-auto transition-colors">
       <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
@@ -168,9 +185,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
             type="button" 
             variant="secondary" 
             onClick={handleAutoGenerate} 
-            isLoading={isGenerating}
             className="whitespace-nowrap text-indigo-700 bg-white dark:bg-slate-700 dark:text-indigo-300 shadow-sm"
-            disabled={isGenerating}
           >
              Solve Doubt
           </Button>
@@ -195,9 +210,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
                 type="button"
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
-                isLoading={isGenerating}
                 className="w-full border-dashed border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
-                disabled={isGenerating}
             >
                 <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -295,7 +308,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
         </div>
 
         <div className="flex justify-end pt-4">
-          <Button type="submit" isLoading={isSaving} className="w-full md:w-auto">
+          <Button type="submit" className="w-full md:w-auto">
             Save to Notes
           </Button>
         </div>

@@ -57,6 +57,17 @@ export interface Question {
   moderationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
+export interface NewsItem {
+  id: string;
+  headline: string;
+  headlineHindi?: string;
+  summary: string;
+  summaryHindi?: string;
+  category: string;
+  date: string;
+  tags: string[];
+}
+
 export interface PaperSection {
   id: string;
   title: string;
@@ -139,7 +150,7 @@ export interface LeaderboardEntry {
   isCurrentUser: boolean;
 }
 
-export type ViewState = 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile' | 'paperGenerator' | 'paperView' | 'bookmarks' | 'admin' | 'downloads' | 'analytics' | 'leaderboard';
+export type ViewState = 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile' | 'paperGenerator' | 'paperView' | 'bookmarks' | 'admin' | 'downloads' | 'analytics' | 'leaderboard' | 'news' | 'pyqLibrary';
 
 export interface AppState {
   view: ViewState;
@@ -152,4 +163,5 @@ export interface AppState {
   language: 'en' | 'hi';
   theme: string;
   qotd?: Question | null;
+  newsFeed?: NewsItem[];
 }

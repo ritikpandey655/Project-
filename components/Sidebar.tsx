@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { User, UserStats } from '../types';
-import { THEME_PALETTES } from '../constants';
+import { THEME_PALETTES, TRANSLATIONS } from '../constants';
 import { Button } from './Button';
 
 interface SidebarProps {
@@ -43,6 +43,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canInstall,
   onEnableNotifications
 }) => {
+  const t = TRANSLATIONS[language];
+
   return (
     <>
       {/* Backdrop */}
@@ -92,20 +94,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
            <div className="space-y-1">
               <button onClick={() => { onNavigate('dashboard'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
                  <span className="text-xl">🏠</span>
-                 <span className="font-medium">Dashboard</span>
+                 <span className="font-medium">{t.dashboard}</span>
               </button>
               <button onClick={() => { onNavigate('upload'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
                  <span className="text-xl">📚</span>
-                 <span className="font-medium">My Notes</span>
+                 <span className="font-medium">{t.myNotes}</span>
               </button>
               <button onClick={() => { onNavigate('downloads'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
                  <span className="text-xl">📥</span>
-                 <span className="font-medium">Downloads / Offline</span>
+                 <span className="font-medium">{t.downloads}</span>
               </button>
               {user?.isAdmin && (
                 <button onClick={() => { onNavigate('admin'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-700 dark:text-red-300 transition-colors mt-2">
                    <span className="text-xl">🛡️</span>
-                   <span className="font-bold">Admin Panel</span>
+                   <span className="font-bold">{t.adminPanel}</span>
                 </button>
               )}
            </div>
@@ -114,12 +116,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
            {/* Settings */}
            <div>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-3">Preferences</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-3">{t.preferences}</h3>
               
               {/* Theme */}
               <div className="px-3 mb-4">
                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Color Theme</p>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{t.colorTheme}</p>
                     <span className="text-xs text-slate-400">{currentTheme}</span>
                  </div>
                  <div className="flex flex-wrap gap-2">
@@ -140,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                  <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <div className="flex items-center gap-3">
                        <span className="text-lg">🌙</span>
-                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Dark Mode</span>
+                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.darkMode}</span>
                     </div>
                     <button 
                       onClick={onToggleDarkMode}
@@ -153,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                  <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <div className="flex items-center gap-3">
                        <span className="text-lg">🗣️</span>
-                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Language (Hindi)</span>
+                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.language} (Hindi)</span>
                     </div>
                     <button 
                       onClick={onToggleLanguage}
@@ -166,7 +168,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                  <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <div className="flex items-center gap-3">
                        <span className="text-lg">⏱️</span>
-                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Practice Timer</span>
+                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.timer}</span>
                     </div>
                     <button 
                       onClick={onToggleTimer}
@@ -182,7 +184,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                  >
                     <div className="flex items-center gap-3">
                        <span className="text-lg">🔔</span>
-                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Notifications</span>
+                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.notifications}</span>
                     </div>
                     <span className="text-xs text-indigo-500 font-bold bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded">ENABLE</span>
                  </button>
@@ -194,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-3 bg-slate-50 dark:bg-slate-800/50">
            {canInstall && onInstall && (
              <Button onClick={onInstall} className="w-full bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-none">
-                Install App
+                {t.install}
              </Button>
            )}
            <button 
@@ -204,7 +206,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
              </svg>
-             Sign Out
+             {t.signOut}
            </button>
         </div>
 

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { SUBSCRIPTION_PLANS } from '../constants';
 import { Button } from './Button';
@@ -60,6 +61,23 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
       setStep('success');
     }, 2500);
   };
+
+  if (isProcessing) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl p-12 text-center shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col items-center">
+           <div className="relative w-16 h-16 mb-6">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-indigo-500 animate-spin-slow">
+                  <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center text-2xl animate-bounce">⏳</div>
+           </div>
+           <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Processing...</h3>
+           <p className="text-slate-500 text-sm">Securing your premium access</p>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 'success') {
     return (
@@ -285,10 +303,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
             </div>
             <Button 
               onClick={handlePayment} 
-              isLoading={isProcessing} 
               className="w-full py-4 text-lg font-bold shadow-xl shadow-indigo-500/20 transition-transform active:scale-[0.98]"
             >
-              {isProcessing ? 'Contacting Bank...' : 'Confirm & Pay'}
+              Confirm & Pay
             </Button>
           </div>
         </div>

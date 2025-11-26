@@ -19,6 +19,23 @@ export const EXAM_SUBJECTS: Record<ExamType, string[]> = {
   [ExamType.POLICE_CONSTABLE]: ['General Knowledge', 'Numerical Ability', 'Reasoning', 'Mental Aptitude']
 };
 
+export const NEWS_CATEGORIES = [
+  'All',
+  'National',
+  'International',
+  'Sports',
+  'Economy',
+  'Science & Tech',
+  'Awards',
+  'Appointments',
+  'Defence'
+];
+
+export const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June', 
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 export const THEME_PALETTES: Record<string, Record<number, string>> = {
   'PYQverse Prime': {
     50: '#efebff', 100: '#dcd0ff', 200: '#bfa6ff', 300: '#9e75ff', 400: '#7d4bff', 
@@ -39,6 +56,79 @@ export const THEME_PALETTES: Record<string, Record<number, string>> = {
   'Tech Cyan': {
     50: '#ecfeff', 100: '#cffafe', 200: '#a5f3fc', 300: '#67e8f9', 400: '#22d3ee', 
     500: '#06b6d4', 600: '#0891b2', 700: '#0e7490', 800: '#155e75', 900: '#164e63'
+  }
+};
+
+export const TRANSLATIONS = {
+  en: {
+    start: "Start",
+    offlineMode: "Offline Mode",
+    doubtSolver: "Doubt Solver",
+    mock: "Mock",
+    currentAffairs: "Current Affairs",
+    qotd: "Question of the Day",
+    bookmarks: "Bookmarks",
+    install: "Install App",
+    analytics: "Smart Analytics",
+    leaderboard: "Leaderboard",
+    streak: "Current Streak",
+    solved: "Questions Solved",
+    accuracy: "Accuracy",
+    bestStreak: "Best Streak",
+    feedback: "Feedback & Support",
+    sendFeedback: "Send Feedback",
+    dashboard: "Dashboard",
+    myNotes: "My Notes",
+    downloads: "Downloads / Offline",
+    adminPanel: "Admin Panel",
+    preferences: "Preferences",
+    colorTheme: "Color Theme",
+    darkMode: "Dark Mode",
+    language: "Language",
+    timer: "Practice Timer",
+    notifications: "Notifications",
+    signOut: "Sign Out",
+    welcome: "Welcome to PYQverse!",
+    selectExam: "Select your target exam to enter the universe of preparation.",
+    tagline: "All exams ka pura universe",
+    desc: "AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep.",
+    reviewSaved: "Review saved questions",
+    dailyChallenge: "Daily Challenge"
+  },
+  hi: {
+    start: "शुरू करें",
+    offlineMode: "ऑफलाइन मोड",
+    doubtSolver: "डाउट सॉल्वर",
+    mock: "मॉक टेस्ट",
+    currentAffairs: "करंट अफेयर्स",
+    qotd: "आज का सवाल",
+    bookmarks: "बुकमार्क",
+    install: "ऐप इंस्टॉल करें",
+    analytics: "स्मार्ट एनालिटिक्स",
+    leaderboard: "लीडरबोर्ड",
+    streak: "मौजूदा स्ट्रीक",
+    solved: "हल किए गए सवाल",
+    accuracy: "सटीकता",
+    bestStreak: "सर्वश्रेष्ठ स्ट्रीक",
+    feedback: "सुझाव और सहायता",
+    sendFeedback: "सुझाव भेजें",
+    dashboard: "डैशबोर्ड",
+    myNotes: "मेरे नोट्स",
+    downloads: "डाउनलोड / ऑफलाइन",
+    adminPanel: "एडमिन पैनल",
+    preferences: "सेटिंग्स",
+    colorTheme: "कलर थीम",
+    darkMode: "डार्क मोड",
+    language: "भाषा",
+    timer: "टाइमर",
+    notifications: "नोटिफिकेशन",
+    signOut: "साइन आउट",
+    welcome: "PYQverse में आपका स्वागत है!",
+    selectExam: "तैयारी शुरू करने के लिए अपना लक्ष्य परीक्षा चुनें।",
+    tagline: "सभी परीक्षाओं का पूरा यूनिवर्स",
+    desc: "AI-आधारित पिछले वर्षों के प्रश्न, स्मार्ट जनरेशन और तेज़, सटीक परीक्षा तैयारी।",
+    reviewSaved: "सहेजे गए प्रश्न देखें",
+    dailyChallenge: "दैनिक चुनौती"
   }
 };
 

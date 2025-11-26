@@ -19,7 +19,7 @@ import {
   isQuestionBookmarked,
   getExamHistory
 } from './services/storageService';
-import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion } from './services/geminiService';
+import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion, generateNews } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
 import { QuestionCard } from './components/QuestionCard';
 import { UploadForm } from './components/UploadForm';
@@ -38,6 +38,8 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { OfflinePapersList } from './components/OfflinePapersList';
 import { SmartAnalytics } from './components/SmartAnalytics';
 import { Leaderboard } from './components/Leaderboard';
+import { CurrentAffairsFeed } from './components/CurrentAffairsFeed';
+import { PYQLibrary } from './components/PYQLibrary';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -50,7 +52,8 @@ const App: React.FC = () => {
     darkMode: false,
     language: 'en',
     theme: 'PYQverse Prime',
-    qotd: null
+    qotd: null,
+    newsFeed: []
   });
 
   const [practiceQueue, setPracticeQueue] = useState<Question[]>([]);
@@ -135,10 +138,14 @@ const App: React.FC = () => {
       }
 
       applyTheme(theme || 'PYQverse Prime');
+      
+      // Initialize history state to prevent back button issues
+      window.history.replaceState({ view: nextView }, '', '');
 
     } else {
       setState(prev => ({ ...prev, view: 'login' }));
       applyTheme('PYQverse Prime');
+      window.history.replaceState({ view: 'login' }, '', '');
     }
     setIsAppInitializing(false);
 
@@ -179,6 +186,7 @@ const App: React.FC = () => {
       if (event.state && event.state.view) {
         setState(prev => ({ ...prev, view: event.state.view }));
       } else {
+        // Fallback if no state (e.g. on initial load before replaceState)
         if (state.user) {
           setState(prev => ({ ...prev, view: 'dashboard' }));
         } else {
@@ -437,6 +445,7 @@ const App: React.FC = () => {
       alert("Internet connection required for Current Affairs.");
       return;
     }
+    // Pro check handled in dashboard, but double checking
     if (!state.user.isPro) {
       setShowPaymentModal(true);
       return;
@@ -444,12 +453,13 @@ const App: React.FC = () => {
 
     setIsLoading(true);
     try {
-       const caQuestions = await generateCurrentAffairs(state.selectedExam, 15);
+       // Fetch initial batch of 20 to start quickly
+       const caQuestions = await generateCurrentAffairs(state.selectedExam, 20);
        const finalQuestions = caQuestions.map(q => ({
           ...q,
           isBookmarked: isQuestionBookmarked(state.user!.id, q.id)
        }));
-       setPracticeConfig({ mode: 'finite', subject: 'Current Affairs', count: 15 });
+       setPracticeConfig({ mode: 'finite', subject: 'Current Affairs', count: 200 }); // Set total target to 200
        setPracticeQueue(finalQuestions);
        setCurrentQIndex(0);
        navigateTo('practice');
@@ -459,6 +469,35 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Renamed to support filtering
+  const handleFetchNews = async (month?: string, year?: number, category?: string) => {
+    if (!state.selectedExam || !state.user) return;
+    if (!isOnline) {
+      alert("Internet connection required for Daily News.");
+      return;
+    }
+    if (!state.user.isPro) {
+      setShowPaymentModal(true);
+      return;
+    }
+
+    try {
+      const news = await generateNews(state.selectedExam, month, year, category);
+      setState(prev => ({ ...prev, newsFeed: news }));
+      // We don't navigate here because we might already be in the 'news' view and just refreshing data
+    } catch (e) {
+      console.error(e);
+      alert("Could not load news feed.");
+    }
+  };
+
+  const startReadCurrentAffairs = async () => {
+    setIsLoading(true);
+    await handleFetchNews(); // Fetch default (today)
+    navigateTo('news');
+    setIsLoading(false);
   };
 
   const handleOpenBookmarks = () => {
@@ -516,20 +555,14 @@ const App: React.FC = () => {
       } else {
           const remaining = practiceQueue.length - (currentQIndex + 1);
           
-          // If running low on questions (less than 3 remaining)
-          if (remaining < 3) {
+          // If running low on questions (less than 5 remaining)
+          if (remaining < 5) {
             setIsFetchingMore(true);
             
-            let subjectToGen = practiceConfig.subject;
-            if (practiceConfig.subject === 'Mixed') {
-               const subjects = EXAM_SUBJECTS[state.selectedExam!];
-               subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
-            }
-            
-            let batchSize = 5;
+            let batchSize = 10;
             if (practiceConfig.mode === 'finite') {
                 const needed = practiceConfig.count - practiceQueue.length;
-                batchSize = Math.min(5, needed);
+                batchSize = Math.min(10, needed);
             }
 
             if (batchSize > 0) {
@@ -541,9 +574,17 @@ const App: React.FC = () => {
                            const mapped = newQs.map(q => ({...q, isBookmarked: isQuestionBookmarked(state.user!.id, q.id)}));
                            setPracticeQueue(prev => [...prev, ...mapped]);
                        }
-                    }).finally(() => setIsFetchingMore(false));
+                    })
+                    .catch(err => console.error("CA Background fetch failed", err))
+                    .finally(() => setIsFetchingMore(false));
                 } else {
+                    let subjectToGen = practiceConfig.subject;
+                    if (practiceConfig.subject === 'Mixed') {
+                       const subjects = EXAM_SUBJECTS[state.selectedExam!];
+                       subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
+                    }
                     const topicsList = practiceConfig.topic ? [practiceConfig.topic] : [];
+                    
                     generateExamQuestions(state.selectedExam!, subjectToGen, batchSize, 'Medium', topicsList)
                     .then(newQs => {
                         if (newQs.length > 0) {
@@ -619,8 +660,14 @@ const App: React.FC = () => {
   if (isLoading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
-        <div className="w-16 h-16 border-4 border-brand-purple/30 border-t-brand-purple rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-500 dark:text-slate-400 font-medium animate-pulse">Curating your content...</p>
+        <div className="relative w-20 h-20 mb-6">
+           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-brand-purple animate-spin-slow">
+              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
+           </svg>
+           <div className="absolute inset-0 flex items-center justify-center text-3xl animate-bounce">⏳</div>
+        </div>
+        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2 animate-pulse">Curating your content...</h3>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">Preparing the best questions for you</p>
       </div>
     );
   }
@@ -650,6 +697,29 @@ const App: React.FC = () => {
         onBack={() => navigateTo('dashboard')} 
       />
     );
+  }
+
+  if (state.view === 'news' && state.newsFeed) {
+    return (
+      <CurrentAffairsFeed 
+        news={state.newsFeed}
+        onBack={() => navigateTo('dashboard')}
+        onTakeQuiz={startCurrentAffairsSession}
+        language={state.language}
+        onFilterChange={handleFetchNews} // Pass filter handler
+      />
+    );
+  }
+
+  if (state.view === 'pyqLibrary' && state.selectedExam) {
+     return (
+       <PYQLibrary 
+         examType={state.selectedExam}
+         onBack={() => navigateTo('dashboard')}
+         onBookmarkToggle={handleBookmarkToggle}
+         language={state.language}
+       />
+     );
   }
 
   if (state.view === 'onboarding' || !state.selectedExam) {
@@ -858,6 +928,7 @@ const App: React.FC = () => {
             onToggleDarkMode={toggleDarkMode}
             onGeneratePaper={() => navigateTo('paperGenerator')}
             onStartCurrentAffairs={startCurrentAffairsSession}
+            onReadCurrentAffairs={startReadCurrentAffairs}
             onEnableNotifications={enableNotifications}
             language={state.language}
             onToggleLanguage={toggleLanguage}
@@ -871,6 +942,7 @@ const App: React.FC = () => {
             onOpenBookmarks={handleOpenBookmarks}
             onOpenAnalytics={() => navigateTo('analytics')}
             onOpenLeaderboard={() => navigateTo('leaderboard')}
+            onOpenPYQLibrary={() => navigateTo('pyqLibrary')}
             isOnline={isOnline}
           />
         )}

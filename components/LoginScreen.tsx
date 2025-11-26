@@ -17,7 +17,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
   const handleStartPrep = () => {
     if (!isOnline) {
-      alert("Please connect to the internet to access PYQverse.");
+      alert("⚠️ No Internet Connection\n\nPlease connect to the internet to log in. If you have already saved offline papers, please restart the app to access them.");
       return;
     }
     setShowLoginOptions(true);
@@ -172,9 +172,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
           {!showLoginOptions ? (
             <button
               onClick={handleStartPrep}
-              className={`animate-fade-in w-full group relative flex items-center justify-center gap-3 bg-white text-brand-dark font-display font-bold text-lg py-4 rounded-2xl shadow-[0_0_20px_rgba(91,46,255,0.3)] hover:scale-[1.02] transition-all duration-300 overflow-hidden ${!isOnline ? 'opacity-75 cursor-not-allowed' : ''}`}
+              className={`animate-fade-in w-full group relative flex items-center justify-center gap-3 bg-white text-brand-dark font-display font-bold text-lg py-4 rounded-2xl shadow-[0_0_20px_rgba(91,46,255,0.3)] hover:scale-[1.02] transition-all duration-300 overflow-hidden ${!isOnline ? 'opacity-80' : ''}`}
             >
-              <span className="relative z-10">{isOnline ? 'Start Your Prep' : 'Connect to Internet'}</span>
+              <span className="relative z-10">{isOnline ? 'Start Your Prep' : 'Offline Mode (Requires Login)'}</span>
               <svg className="w-5 h-5 text-brand-purple group-hover:translate-x-1 transition-transform relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
@@ -253,7 +253,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                 </button>
 
                 <div className="mt-4 text-center">
-                  <p className="text-xs text-indigo-200">
+                  <p className="text-sm text-indigo-200">
                     Don't have an account?{' '}
                     <button 
                       onClick={onNavigateToSignup}
