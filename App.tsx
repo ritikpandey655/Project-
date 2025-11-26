@@ -17,7 +17,8 @@ import {
   getStoredQOTD,
   saveQOTD,
   isQuestionBookmarked,
-  getExamHistory
+  getExamHistory,
+  getOfficialQuestions
 } from './services/storageService';
 import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion, generateNews, generateStudyNotes } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
@@ -402,40 +403,68 @@ const App: React.FC = () => {
     
     setShowPracticeConfig(false);
     setPracticeConfig({ mode: config.mode, subject: config.subject, count: config.count, topic: config.topic });
-    setIsLoading(true);
     
-    try {
-      const userQuestions = getUserQuestions(state.user.id).filter(q => q.examType === state.selectedExam);
-      const shuffledUserQ = userQuestions.sort(() => 0.5 - Math.random()).slice(0, 3);
+    let subjectToGen = config.subject;
+    if (config.subject === 'Mixed') {
+      const subjects = EXAM_SUBJECTS[state.selectedExam];
+      subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
+    }
 
-      let subjectToGen = config.subject;
-      if (config.subject === 'Mixed') {
-        const subjects = EXAM_SUBJECTS[state.selectedExam];
-        subjectToGen = subjects[Math.floor(Math.random() * subjects.length)];
-      }
+    // --- INSTANT START STRATEGY ---
+    // 1. Try to fetch official questions locally first
+    const officialQs = getOfficialQuestions(state.selectedExam, subjectToGen, 5);
+    
+    if (officialQs.length > 0) {
+       // Start immediately with available official questions
+       const mappedOfficial = officialQs.map(q => ({
+          ...q,
+          isBookmarked: isQuestionBookmarked(state.user!.id, q.id)
+       }));
+       setPracticeQueue(mappedOfficial);
+       setCurrentQIndex(0);
+       navigateTo('practice');
+       
+       // 2. Fetch AI questions in background to append
+       const batchSize = Math.min(config.count, 10); 
+       const topicsList = config.topic ? [config.topic] : [];
+       
+       generateExamQuestions(state.selectedExam, subjectToGen, batchSize, 'Medium', topicsList)
+         .then(aiQuestions => {
+             // Filter out IDs we already have
+             const currentIds = new Set(mappedOfficial.map(q => q.id));
+             const newUnique = aiQuestions
+                .filter(q => !currentIds.has(q.id))
+                .map(q => ({...q, isBookmarked: isQuestionBookmarked(state.user!.id, q.id)}));
+             
+             if (newUnique.length > 0) {
+                 setPracticeQueue(prev => [...prev, ...newUnique]);
+             }
+         })
+         .catch(err => console.error("Background AI fetch failed", err));
 
-      // Initial batch
-      const batchSize = Math.min(config.count, 5); 
-      // Use config.topic if provided (passed as array to topics param)
-      const topicsList = config.topic ? [config.topic] : [];
-      const aiQuestions = await generateExamQuestions(state.selectedExam, subjectToGen, batchSize, 'Medium', topicsList);
+    } else {
+       // Fallback: Standard loading if no official questions
+       setIsLoading(true);
+       try {
+          const batchSize = Math.min(config.count, 5); 
+          const topicsList = config.topic ? [config.topic] : [];
+          const aiQuestions = await generateExamQuestions(state.selectedExam, subjectToGen, batchSize, 'Medium', topicsList);
 
-      // Check bookmark status for AI questions
-      const finalAiQuestions = aiQuestions.map(q => ({
-        ...q,
-        isBookmarked: isQuestionBookmarked(state.user!.id, q.id)
-      }));
+          const finalAiQuestions = aiQuestions.map(q => ({
+            ...q,
+            isBookmarked: isQuestionBookmarked(state.user!.id, q.id)
+          }));
 
-      const combined = [...shuffledUserQ, ...finalAiQuestions];
-      setPracticeQueue(combined.sort(() => 0.5 - Math.random()));
-      setCurrentQIndex(0);
-      navigateTo('practice');
-      
-    } catch (error) {
-      console.error("Practice load failed", error);
-      alert("Failed to generate practice session. Please try again.");
-    } finally {
-      setIsLoading(false);
+          setPracticeQueue(finalAiQuestions);
+          setCurrentQIndex(0);
+          navigateTo('practice');
+          
+       } catch (error) {
+          console.error("Practice load failed", error);
+          alert("Failed to generate practice session. Please try again.");
+       } finally {
+          setIsLoading(false);
+       }
     }
   };
 
@@ -987,6 +1016,7 @@ const App: React.FC = () => {
             onLogout={handleLogout}
             onInstall={handleInstallClick}
             canInstall={canInstall}
+            onExamChange={handleExamSelect}
           />
         )}
 

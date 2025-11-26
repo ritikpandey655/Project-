@@ -2,6 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
+import { getOfficialQuestions, getOfficialNews } from "./storageService";
 
 // Initialize the client with the environment variable.
 const apiKey = process.env.API_KEY;
@@ -31,13 +32,30 @@ export const generateExamQuestions = async (
   difficulty: string = 'Medium',
   topics: string[] = []
 ): Promise<Question[]> => {
+  
+  // --- HYBRID LOGIC START ---
+  // 1. Try to fetch Official/Admin questions first
+  const officialQs = getOfficialQuestions(exam, subject, count);
+  
+  if (officialQs.length >= count) {
+    console.log("Serving 100% Official Questions");
+    return officialQs;
+  }
+  
+  // 2. If not enough, calculate remaining needed
+  const remainingCount = count - officialQs.length;
+  console.log(`Serving ${officialQs.length} Official Qs and generating ${remainingCount} AI Qs`);
+  
+  if (remainingCount <= 0) return officialQs;
+  // --- HYBRID LOGIC END ---
+
   if (!apiKey || apiKey.trim() === '') {
     console.warn("No API Key found, using mock data.");
-    return MOCK_QUESTIONS_FALLBACK.map(q => ({
+    return [...officialQs, ...MOCK_QUESTIONS_FALLBACK.map(q => ({
       ...q, 
       id: generateId('mock'),
       type: QuestionType.MCQ
-    })) as unknown as Question[];
+    }))] as unknown as Question[];
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -48,7 +66,7 @@ export const generateExamQuestions = async (
     Difficulty Level: "${difficulty}".
     ${topics.length > 0 ? `CRITICAL: STRICTLY generate questions ONLY related to these specific topics: "${topics.join(', ')}".` : ''}
     
-    TASK: Generate ${count} high-quality multiple-choice questions.
+    TASK: Generate ${remainingCount} high-quality multiple-choice questions.
     
     CRITICAL INSTRUCTION FOR EXPLANATIONS:
     - For Physics/Maths/Chemistry (NEET/JEE): The explanation MUST be Step-by-Step. Include 'Given', 'Formula Used', 'Calculation', and 'Final Result'.
@@ -96,7 +114,7 @@ export const generateExamQuestions = async (
     jsonStr = cleanJson(jsonStr);
     const rawQuestions = JSON.parse(jsonStr);
     
-    return rawQuestions.map((q: any, index: number) => ({
+    const aiQuestions = rawQuestions.map((q: any, index: number) => ({
       id: generateId(`ai-q${index}`),
       text: q.text,
       textHindi: q.text_hi,
@@ -113,13 +131,16 @@ export const generateExamQuestions = async (
       type: QuestionType.MCQ
     }));
 
+    // Merge Official + AI
+    return [...officialQs, ...aiQuestions];
+
   } catch (error) {
     console.error("Gemini generation failed:", error);
-    return MOCK_QUESTIONS_FALLBACK.map(q => ({
+    return [...officialQs, ...(MOCK_QUESTIONS_FALLBACK.map(q => ({
       ...q, 
       id: generateId('fallback'),
       type: QuestionType.MCQ
-    })) as unknown as Question[];
+    })) as unknown as Question[])];
   }
 };
 
@@ -130,6 +151,15 @@ export const generatePYQList = async (
   topic?: string
 ): Promise<Question[]> => {
   if (!apiKey || apiKey.trim() === '') return [];
+
+  // Hybrid: Check for Official PYQs for this year first
+  const allOfficial = getOfficialQuestions(exam, subject, 50); // Get max available
+  const officialPYQs = allOfficial.filter(q => q.pyqYear === year);
+  
+  // If we have enough (e.g. > 5), just return those to save AI tokens
+  if (officialPYQs.length >= 5) {
+     return officialPYQs;
+  }
 
   const ai = new GoogleGenAI({ apiKey });
   
@@ -181,7 +211,7 @@ export const generatePYQList = async (
     
     if (!Array.isArray(rawQuestions)) return [];
 
-    return rawQuestions.map((q: any, index: number) => ({
+    const aiPYQs = rawQuestions.map((q: any, index: number) => ({
       id: generateId(`pyq-${year}-${index}`),
       text: q.text,
       textHindi: q.text_hi,
@@ -201,9 +231,11 @@ export const generatePYQList = async (
       pyqYear: year
     }));
 
+    return [...officialPYQs, ...aiPYQs];
+
   } catch (error) {
     console.error("PYQ generation failed:", error);
-    return [];
+    return officialPYQs; // Fallback to whatever official we have
   }
 };
 
@@ -211,11 +243,19 @@ export const generateCurrentAffairs = async (
   exam: string,
   count: number = 10
 ): Promise<Question[]> => {
+  // Hybrid: Check Official News converted to Questions? 
+  // For now, let's stick to AI generation as NewsItems -> Questions conversion is complex.
+  // Ideally, Admin would upload Questions tagged 'Current Affairs' directly.
+  
+  const officialCA = getOfficialQuestions(exam, 'Current Affairs', count);
+  if (officialCA.length >= count) return officialCA;
+  
+  const remaining = count - officialCA.length;
+
   if (!apiKey || apiKey.trim() === '') return [];
 
   const ai = new GoogleGenAI({ apiKey });
   
-  // Randomize focus to ensure variety across batches
   const focuses = [
       "National News, Government Schemes, Polity",
       "International Relations, Geopolitics, Summits",
@@ -227,7 +267,7 @@ export const generateCurrentAffairs = async (
 
   const prompt = `
     Act as an expert exam setter for ${exam}.
-    TASK: Generate ${count} UNIQUE Current Affairs MCQs based on events from the LAST 12 MONTHS.
+    TASK: Generate ${remaining} UNIQUE Current Affairs MCQs based on events from the LAST 12 MONTHS.
     
     BATCH FOCUS: ${randomFocus}. (Ensure questions are primarily from this domain to ensure depth).
     
@@ -266,7 +306,7 @@ export const generateCurrentAffairs = async (
     const jsonStr = cleanJson(response.text || "[]");
     const rawQuestions = JSON.parse(jsonStr);
     
-    return rawQuestions.map((q: any, index: number) => ({
+    const aiQuestions = rawQuestions.map((q: any, index: number) => ({
       id: generateId(`ca-q${index}`),
       text: q.text,
       textHindi: q.text_hi,
@@ -282,9 +322,12 @@ export const generateCurrentAffairs = async (
       tags: ['Current Affairs', ...(q.tags || [])],
       type: QuestionType.MCQ
     }));
+
+    return [...officialCA, ...aiQuestions];
+
   } catch (error) {
     console.error("Current Affairs generation failed:", error);
-    return [];
+    return officialCA;
   }
 };
 
@@ -294,11 +337,17 @@ export const generateNews = async (
   year?: number,
   category?: string
 ): Promise<NewsItem[]> => {
-  if (!apiKey || apiKey.trim() === '') return [];
+  // --- HYBRID LOGIC ---
+  // 1. Check for Admin Uploaded News first
+  const officialNews = getOfficialNews(category, month, year);
+  
+  // If we have enough news (e.g., > 3 items), prioritize them and maybe fetch fewer AI items
+  // For now, we prepend them to the AI list.
+  
+  if (!apiKey || apiKey.trim() === '') return officialNews;
 
   const ai = new GoogleGenAI({ apiKey });
   
-  // Enforce STRICT date context
   const timeContext = month && year 
       ? `specifically ONLY for the period of ${month} ${year}.` 
       : 'recently (Last 24-48 hours)';
@@ -353,7 +402,7 @@ export const generateNews = async (
     const jsonStr = cleanJson(response.text || "[]");
     const rawNews = JSON.parse(jsonStr);
     
-    return rawNews.map((n: any, index: number) => ({
+    const aiNews = rawNews.map((n: any, index: number) => ({
       id: generateId(`news-${index}`),
       headline: n.headline,
       headlineHindi: n.headline_hi,
@@ -363,9 +412,13 @@ export const generateNews = async (
       date: n.date || `${month || 'Unknown'} ${year || ''}`,
       tags: n.tags || []
     }));
+
+    // Return Official News FIRST, then AI
+    return [...officialNews, ...aiNews];
+
   } catch (error) {
     console.error("News generation failed:", error);
-    return [];
+    return officialNews;
   }
 };
 

@@ -66,6 +66,7 @@ export interface NewsItem {
   category: string;
   date: string;
   tags: string[];
+  isOfficial?: boolean; // True if uploaded by Admin
 }
 
 export interface PaperSection {

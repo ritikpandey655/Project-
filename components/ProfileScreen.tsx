@@ -13,6 +13,7 @@ interface ProfileScreenProps {
   onLogout: () => void;
   onInstall?: () => void;
   canInstall?: boolean;
+  onExamChange: (exam: ExamType) => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ 
@@ -23,7 +24,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onBack, 
   onLogout,
   onInstall,
-  canInstall
+  canInstall,
+  onExamChange
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [notesCount, setNotesCount] = useState(0);
@@ -128,9 +130,26 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{name}</h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm mb-3">{email}</p>
               
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
-                 Target: {selectedExam}
-              </span>
+              {/* Exam Selector / Badge */}
+              {!user.isPro ? (
+                 <div className="mt-3 relative">
+                    <select 
+                      value={selectedExam}
+                      onChange={(e) => onExamChange(e.target.value as ExamType)}
+                      className="appearance-none bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 px-4 py-1.5 rounded-full text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-center pr-8"
+                    >
+                      {Object.values(ExamType).map(e => (
+                         <option key={e} value={e}>{e}</option>
+                      ))}
+                    </select>
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none text-[10px]">▼</span>
+                 </div>
+              ) : (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 mt-3">
+                   Target: {selectedExam}
+                </span>
+              )}
+              
               {user.isPro && (
                  <p className="text-[10px] text-amber-500 mt-2 font-bold flex items-center gap-1">
                    <span>🔒</span> Exam locked due to Pro Plan

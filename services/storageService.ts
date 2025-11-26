@@ -1,5 +1,5 @@
 
-import { Question, UserStats, ExamType, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry } from '../types';
+import { Question, UserStats, ExamType, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem } from '../types';
 
 const QUESTIONS_KEY = 'exam_master_questions';
 const STATS_KEY = 'exam_master_stats';
@@ -10,6 +10,7 @@ const PRACTICE_SESSION_KEY = 'exam_master_practice_session';
 const BOOKMARKS_KEY = 'exam_master_bookmarks';
 const QOTD_KEY = 'exam_master_qotd';
 const ADMIN_QUESTION_BANK_KEY = 'exam_master_admin_q_bank';
+const ADMIN_NEWS_BANK_KEY = 'exam_master_admin_news_bank';
 const OFFLINE_PAPERS_KEY = 'exam_master_offline_papers';
 
 export const INITIAL_STATS: UserStats = {
@@ -70,6 +71,20 @@ export const getAdminQuestions = (): Question[] => {
   return data ? JSON.parse(data) : [];
 };
 
+// SMART FILTER: Get Official Questions for Hybrid Mode
+export const getOfficialQuestions = (exam: string, subject: string, count: number): Question[] => {
+  const all = getAdminQuestions();
+  // Filter by Exam and Subject, and ensure Approved
+  const relevant = all.filter(q => 
+    q.examType === exam && 
+    (q.subject === subject || subject === 'Mixed') &&
+    q.moderationStatus !== 'REJECTED'
+  );
+  
+  // Shuffle and slice
+  return relevant.sort(() => 0.5 - Math.random()).slice(0, count);
+};
+
 export const updateAdminQuestionStatus = (id: string, status: 'APPROVED' | 'REJECTED'): void => {
   const questions = getAdminQuestions();
   const index = questions.findIndex(q => q.id === id);
@@ -77,6 +92,30 @@ export const updateAdminQuestionStatus = (id: string, status: 'APPROVED' | 'REJE
     questions[index].moderationStatus = status;
     localStorage.setItem(ADMIN_QUESTION_BANK_KEY, JSON.stringify(questions));
   }
+};
+
+// Admin News Storage
+export const saveAdminNews = (news: NewsItem): void => {
+  const data = localStorage.getItem(ADMIN_NEWS_BANK_KEY);
+  const bank: NewsItem[] = data ? JSON.parse(data) : [];
+  bank.unshift(news);
+  localStorage.setItem(ADMIN_NEWS_BANK_KEY, JSON.stringify(bank));
+};
+
+export const getAdminNews = (): NewsItem[] => {
+  const data = localStorage.getItem(ADMIN_NEWS_BANK_KEY);
+  return data ? JSON.parse(data) : [];
+};
+
+// Filter Official News
+export const getOfficialNews = (category?: string, month?: string, year?: number): NewsItem[] => {
+  const all = getAdminNews();
+  return all.filter(n => {
+    const catMatch = !category || category === 'All' || n.category === category;
+    // Simple date string check (assuming 'Month Year' format in n.date or filtered by creation)
+    // For now, we return relevant categories
+    return catMatch;
+  });
 };
 
 // Mock Global Stats for Admin Dashboard
