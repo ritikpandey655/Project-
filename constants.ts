@@ -19,6 +19,12 @@ export const EXAM_SUBJECTS: Record<ExamType, string[]> = {
   [ExamType.POLICE_CONSTABLE]: ['General Knowledge', 'Numerical Ability', 'Reasoning', 'Mental Aptitude']
 };
 
+export const TECHNICAL_EXAMS = [
+  ExamType.JEE_MAINS,
+  ExamType.NEET,
+  ExamType.GATE
+];
+
 export const NEWS_CATEGORIES = [
   'All',
   'National',
@@ -66,6 +72,7 @@ export const TRANSLATIONS = {
     doubtSolver: "Doubt Solver",
     mock: "Mock",
     currentAffairs: "Current Affairs",
+    shortTricks: "Short Tricks / Formulas",
     qotd: "Question of the Day",
     bookmarks: "Bookmarks",
     install: "Install App",
@@ -101,6 +108,7 @@ export const TRANSLATIONS = {
     doubtSolver: "डाउट सॉल्वर",
     mock: "मॉक टेस्ट",
     currentAffairs: "करंट अफेयर्स",
+    shortTricks: "शॉर्ट ट्रिक्स / सूत्र",
     qotd: "आज का सवाल",
     bookmarks: "बुकमार्क",
     install: "ऐप इंस्टॉल करें",

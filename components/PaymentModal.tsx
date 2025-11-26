@@ -48,13 +48,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
     setError(null);
     setIsProcessing(true);
 
-    /**
-     * ------------------------------------------------------------------
-     * 🔴 REAL PAYMENT INTEGRATION GUIDE (Razorpay Example)
-     * ------------------------------------------------------------------
-     * To go live, replace the setTimeout below with your Gateway logic.
-     */
-
     // --- SIMULATION (Active) ---
     setTimeout(() => {
       setIsProcessing(false);
@@ -170,6 +163,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, onSuccess }
           <div className="mb-4">
              <h3 className="text-xl font-bold text-slate-800 dark:text-white">Checkout Details</h3>
              <p className="text-sm text-slate-500 dark:text-slate-400">Complete your purchase safely.</p>
+          </div>
+
+          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/30 rounded-xl border border-amber-100 dark:border-amber-800/50 flex items-start gap-3">
+             <span className="text-lg">⚠️</span>
+             <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+               <strong>Note:</strong> Once you subscribe, your profile will be locked to your current exam preference. You won't be able to change your exam type until the subscription ends.
+             </p>
           </div>
 
           <div className="mb-4 flex space-x-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">

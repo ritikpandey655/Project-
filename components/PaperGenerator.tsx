@@ -86,15 +86,10 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Exam</label>
-             <select
-              value={examType}
-              onChange={(e) => onExamChange(e.target.value as ExamType)}
-              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-            >
-              {Object.values(ExamType).map(e => (
-                <option key={e} value={e}>{e}</option>
-              ))}
-            </select>
+             {/* Locked Exam Display */}
+             <div className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold flex items-center gap-2">
+                <span>🔒</span> {examType}
+             </div>
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Subject</label>

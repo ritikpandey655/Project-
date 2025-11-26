@@ -131,6 +131,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
                  Target: {selectedExam}
               </span>
+              {user.isPro && (
+                 <p className="text-[10px] text-amber-500 mt-2 font-bold flex items-center gap-1">
+                   <span>🔒</span> Exam locked due to Pro Plan
+                 </p>
+              )}
             </div>
           </div>
 

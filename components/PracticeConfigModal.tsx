@@ -73,18 +73,12 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examTy
         </div>
 
         <div className="space-y-5">
-          {/* Exam Selection */}
+          {/* Exam Selection - Locked */}
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Target Exam</label>
-            <select
-              value={examType}
-              onChange={(e) => onExamChange(e.target.value as ExamType)}
-              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors font-medium"
-            >
-              {Object.values(ExamType).map(e => (
-                <option key={e} value={e}>{e}</option>
-              ))}
-            </select>
+            <div className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold flex items-center gap-2">
+                <span>🔒</span> {examType}
+            </div>
           </div>
 
           {/* Subject Selection */}

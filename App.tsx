@@ -19,7 +19,7 @@ import {
   isQuestionBookmarked,
   getExamHistory
 } from './services/storageService';
-import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion, generateNews } from './services/geminiService';
+import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion, generateNews, generateStudyNotes } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
 import { QuestionCard } from './components/QuestionCard';
 import { UploadForm } from './components/UploadForm';
@@ -471,7 +471,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Renamed to support filtering
   const handleFetchNews = async (month?: string, year?: number, category?: string) => {
     if (!state.selectedExam || !state.user) return;
     if (!isOnline) {
@@ -486,7 +485,6 @@ const App: React.FC = () => {
     try {
       const news = await generateNews(state.selectedExam, month, year, category);
       setState(prev => ({ ...prev, newsFeed: news }));
-      // We don't navigate here because we might already be in the 'news' view and just refreshing data
     } catch (e) {
       console.error(e);
       alert("Could not load news feed.");
@@ -498,6 +496,26 @@ const App: React.FC = () => {
     await handleFetchNews(); // Fetch default (today)
     navigateTo('news');
     setIsLoading(false);
+  };
+
+  const startReadStudyNotes = async () => {
+    if (!state.selectedExam || !state.user) return;
+    if (!state.user.isPro) {
+      setShowPaymentModal(true);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      // Fetch formulas/tricks
+      const notes = await generateStudyNotes(state.selectedExam);
+      setState(prev => ({ ...prev, newsFeed: notes })); // Reuse newsFeed state
+      navigateTo('news'); // Reuse news view (component handles mode)
+    } catch(e) {
+      console.error(e);
+      alert("Could not load notes.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleOpenBookmarks = () => {
@@ -706,7 +724,8 @@ const App: React.FC = () => {
         onBack={() => navigateTo('dashboard')}
         onTakeQuiz={startCurrentAffairsSession}
         language={state.language}
-        onFilterChange={handleFetchNews} // Pass filter handler
+        onFilterChange={handleFetchNews} 
+        mode={state.newsFeed[0]?.category === 'Science & Tech' ? 'notes' : 'news'} // Simplistic check for demo
       />
     );
   }
@@ -929,6 +948,7 @@ const App: React.FC = () => {
             onGeneratePaper={() => navigateTo('paperGenerator')}
             onStartCurrentAffairs={startCurrentAffairsSession}
             onReadCurrentAffairs={startReadCurrentAffairs}
+            onReadNotes={startReadStudyNotes}
             onEnableNotifications={enableNotifications}
             language={state.language}
             onToggleLanguage={toggleLanguage}
@@ -944,6 +964,7 @@ const App: React.FC = () => {
             onOpenLeaderboard={() => navigateTo('leaderboard')}
             onOpenPYQLibrary={() => navigateTo('pyqLibrary')}
             isOnline={isOnline}
+            selectedExam={state.selectedExam}
           />
         )}
 

@@ -369,6 +369,72 @@ export const generateNews = async (
   }
 };
 
+export const generateStudyNotes = async (
+  exam: string,
+  subject?: string
+): Promise<NewsItem[]> => {
+  if (!apiKey || apiKey.trim() === '') return [];
+
+  const ai = new GoogleGenAI({ apiKey });
+  
+  const prompt = `
+    Act as a expert tutor for ${exam}.
+    Target Subject: ${subject || 'Important Topics'}.
+    
+    TASK: Generate 8-10 "Short Trick" or "Important Formula" cards.
+    Content should be things students often forget or need for quick revision (e.g., a Physics formula, a Math shortcut, a Chemical reaction mechanism).
+    
+    REQUIREMENT: 
+    1. Title (Topic Name) in English & Hindi.
+    2. Content (The Formula/Trick) in English & Hindi.
+    3. Category (Subject Name).
+    
+    IMPORTANT: Return raw JSON only.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              title_hi: { type: Type.STRING },
+              content: { type: Type.STRING },
+              content_hi: { type: Type.STRING },
+              subject: { type: Type.STRING },
+              tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['title', 'content', 'subject']
+          }
+        }
+      }
+    });
+
+    const jsonStr = cleanJson(response.text || "[]");
+    const rawNotes = JSON.parse(jsonStr);
+    
+    return rawNotes.map((n: any, index: number) => ({
+      id: generateId(`note-${index}`),
+      headline: n.title,
+      headlineHindi: n.title_hi,
+      summary: n.content,
+      summaryHindi: n.content_hi,
+      category: n.subject,
+      date: 'Key Concept', // Fallback for UI
+      tags: n.tags || []
+    }));
+  } catch (error) {
+    console.error("Study Notes generation failed:", error);
+    return [];
+  }
+};
+
 export const generateSingleQuestion = async (
   exam: string,
   subject: string,
