@@ -67,6 +67,9 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
+  // Security State
+  const [isSecurityBlackout, setIsSecurityBlackout] = useState(false);
+  
   // Practice Config State
   const [showPracticeConfig, setShowPracticeConfig] = useState(false);
   const [practiceConfig, setPracticeConfig] = useState<{ mode: 'finite' | 'endless'; subject: string; count: number; topic?: string }>({ 
@@ -199,6 +202,79 @@ const App: React.FC = () => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [state.user]);
+
+  // GLOBAL SECURITY EFFECT
+  useEffect(() => {
+    // 1. Interaction Blocking (Right click, Copy, Cut, Drag)
+    const preventInteraction = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+
+    const events = ['contextmenu', 'copy', 'cut', 'paste', 'dragstart', 'selectstart'];
+    events.forEach(event => document.addEventListener(event, preventInteraction));
+
+    // 2. Anti-Screenshot / Window Blur Logic
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p') || (e.metaKey && e.shiftKey)) {
+        setIsSecurityBlackout(true);
+        setTimeout(() => setIsSecurityBlackout(false), 2000); // Flash warning
+        alert("Screenshots/Recording disabled for security.");
+        e.preventDefault();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Tab switch detection
+        setIsSecurityBlackout(true);
+      } else {
+        setIsSecurityBlackout(false);
+      }
+    };
+
+    const handleBlur = () => {
+      // Window focus lost (e.g. Snipping Tool opened)
+      setIsSecurityBlackout(true);
+    };
+
+    const handleFocus = () => {
+      setIsSecurityBlackout(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+
+    // 3. CSS Hardening (Touch Callout, Selection)
+    const style = document.createElement('style');
+    style.innerHTML = `
+      * {
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        -khtml-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+      }
+      input, textarea, select {
+        -webkit-user-select: auto !important;
+        user-select: auto !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      events.forEach(event => document.removeEventListener(event, preventInteraction));
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      document.head.removeChild(style);
+    };
+  }, []);
 
   const navigateTo = (view: ViewState) => {
     window.history.pushState({ view }, '', '');
@@ -851,8 +927,31 @@ const App: React.FC = () => {
   const canInstall = !!installPrompt || isIOS;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200 select-none">
       
+      {/* Blackout Curtain */}
+      {isSecurityBlackout && (
+        <div className="fixed inset-0 z-[10000] bg-black flex flex-col items-center justify-center text-white text-center p-8 backdrop-blur-xl animate-fade-in">
+           <div className="text-6xl mb-6 animate-pulse">🔒</div>
+           <h1 className="text-3xl font-bold mb-2">Security Mode Active</h1>
+           <p className="text-slate-400 max-w-md">
+             Content is hidden while the app is in the background or a capture attempt is detected.
+           </p>
+           <p className="text-xs text-slate-600 mt-8 uppercase tracking-widest">Protected by PYQverse Secure</p>
+        </div>
+      )}
+
+      {/* Global Watermark */}
+      {state.user && (
+        <div className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden flex flex-wrap items-center justify-center gap-24 opacity-[0.03] select-none">
+           {Array.from({length: 15}).map((_, i) => (
+              <div key={i} className="transform -rotate-45 p-8 text-xl font-bold text-black dark:text-white whitespace-nowrap">
+                 {state.user?.email} <br/> <span className="text-xs">ID: {state.user?.id.slice(0,8)}...</span>
+              </div>
+           ))}
+        </div>
+      )}
+
       {showPaymentModal && (
         <PaymentModal 
           onClose={() => setShowPaymentModal(false)}
