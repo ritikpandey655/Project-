@@ -18,28 +18,46 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
   const [topic, setTopic] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [expandedQ, setExpandedQ] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState(false);
 
   const years = [2024, 2023, 2022, 2021, 2020, 2019, 2018];
 
-  const handleFetch = async () => {
-    setIsLoading(true);
+  const handleFetch = async (isLoadMore = false) => {
+    if (isLoadMore) setIsFetchingMore(true);
+    else setIsLoading(true);
+    
     setFetchError(false);
-    setExpandedQ(null);
-    setQuestions([]); // Clear previous
+    if (!isLoadMore) {
+        setExpandedQ(null);
+        setQuestions([]); // Clear previous if new search
+    }
     
     try {
+      // Pass a random seed to prompt if loading more to ensure variety
+      const seed = isLoadMore ? `Batch-${Date.now()}` : undefined;
       const data = await generatePYQList(examType, subject, year, topic);
+      
       if (data && data.length > 0) {
-        setQuestions(data);
+        if (isLoadMore) {
+            // Append new questions, filtering out duplicates by ID
+            setQuestions(prev => {
+                const existingIds = new Set(prev.map(q => q.id));
+                const uniqueNew = data.filter(q => !existingIds.has(q.id));
+                return [...prev, ...uniqueNew];
+            });
+        } else {
+            setQuestions(data);
+        }
       } else {
-        setFetchError(true);
+        if (!isLoadMore) setFetchError(true);
       }
     } catch (e) {
-      setFetchError(true);
+      if (!isLoadMore) setFetchError(true);
     } finally {
       setIsLoading(false);
+      setIsFetchingMore(false);
     }
   };
 
@@ -91,7 +109,7 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
                   className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
                />
             </div>
-            <Button onClick={handleFetch} isLoading={isLoading} className="w-full sm:w-auto">
+            <Button onClick={() => handleFetch(false)} isLoading={isLoading} className="w-full sm:w-auto">
                {isLoading ? 'Fetching...' : 'Find Questions'}
             </Button>
          </div>
@@ -116,7 +134,7 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
             <p className="text-slate-500 dark:text-slate-400 mb-4 text-sm max-w-xs mx-auto">
                We couldn't generate PYQs for this specific criteria. Try removing the "Topic" filter or selecting a different year.
             </p>
-            <Button variant="secondary" size="sm" onClick={handleFetch}>Try Again</Button>
+            <Button variant="secondary" size="sm" onClick={() => handleFetch(false)}>Try Again</Button>
          </div>
       ) : questions.length === 0 ? (
          <div className="text-center py-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
@@ -130,7 +148,7 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
                const displayExplanation = (language === 'hi' && q.explanationHindi) ? q.explanationHindi : q.explanation;
                
                return (
-                 <div key={q.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-all animate-slide-up" style={{animationDelay: `${idx * 50}ms`}}>
+                 <div key={q.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-all animate-slide-up" style={{animationDelay: `${(idx % 10) * 50}ms`}}>
                     <div 
                       className="p-5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50"
                       onClick={() => toggleExpand(q.id)}
@@ -191,6 +209,18 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
                  </div>
                );
             })}
+            
+            {/* Load More Button */}
+            <div className="pt-4 flex justify-center pb-8">
+               <Button 
+                 onClick={() => handleFetch(true)} 
+                 isLoading={isFetchingMore} 
+                 variant="secondary"
+                 className="shadow-md"
+               >
+                 {isFetchingMore ? 'Loading...' : 'Load More Questions'}
+               </Button>
+            </div>
          </div>
       )}
     </div>

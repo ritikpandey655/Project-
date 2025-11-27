@@ -1,6 +1,9 @@
 
 import React, { useState } from 'react';
 import { User } from '../types';
+import { auth, googleProvider, db } from '../src/firebaseConfig';
+import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface LoginScreenProps {
   onLogin: (user: User) => void;
@@ -14,261 +17,137 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
   const [showLoginOptions, setShowLoginOptions] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   const handleStartPrep = () => {
     if (!isOnline) {
-      alert("⚠️ No Internet Connection\n\nPlease connect to the internet to log in. If you have already saved offline papers, please restart the app to access them.");
+      alert("⚠️ No Internet Connection\n\nPlease connect to the internet to log in.");
       return;
     }
     setShowLoginOptions(true);
   };
 
-  const handleGoogleLogin = () => {
-    setIsLoading(true);
-    // Simulate Google Login network delay
-    setTimeout(() => {
-      const mockUser: User = {
-        id: 'user_student_local_001',
-        name: 'Student User',
-        email: 'student@example.com',
-        photoURL: 'https://api.dicebear.com/9.x/initials/png?seed=SU&backgroundColor=5B2EFF'
+  const syncUserToDB = async (firebaseUser: any) => {
+    const userRef = doc(db, "users", firebaseUser.uid);
+    const userSnap = await getDoc(userRef);
+    
+    let userData: User;
+    if (userSnap.exists()) {
+      userData = userSnap.data() as User;
+    } else {
+      userData = {
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || email.split('@')[0],
+        email: firebaseUser.email || '',
+        photoURL: firebaseUser.photoURL || undefined,
+        isAdmin: firebaseUser.email === 'admin@pyqverse.com' // Basic Check
       };
-      onLogin(mockUser);
-      setIsLoading(false);
-    }, 1500);
+      await setDoc(userRef, userData);
+    }
+    return userData;
   };
 
-  const handleEmailLogin = (e: React.FormEvent) => {
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = await syncUserToDB(result.user);
+      onLogin(user);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Google Sign In Failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
     
     setIsLoading(true);
-    // Simulate Auth API call
-    setTimeout(() => {
-      const isAdmin = email === 'admin@pyqverse.com';
-      const mockUser: User = {
-        id: `user_${Date.now()}`,
-        name: isAdmin ? 'Admin User' : email.split('@')[0], 
-        email: email,
-        isAdmin: isAdmin
-      };
-      onLogin(mockUser);
+    setError('');
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const user = await syncUserToDB(result.user);
+      onLogin(user);
+    } catch (err: any) {
+      console.error(err);
+      setError('Invalid Email or Password');
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
     <div className="min-h-screen w-full relative bg-[#111827] flex flex-col items-center justify-between overflow-hidden selection:bg-brand-purple selection:text-white overflow-y-auto">
-      
+      {/* Styles & Background Animations kept same for aesthetics */}
       <style>{`
-        @keyframes orbit {
-          from { transform: rotate(0deg) translateX(30px) rotate(0deg); }
-          to { transform: rotate(360deg) translateX(30px) rotate(-360deg); }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes scaleIn {
-          from { transform: scale(0.8); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        @keyframes pulseGlow {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(1.1); }
-        }
-        .animate-orbit {
-          animation: orbit 8s linear infinite;
-        }
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-        .animate-scale-in {
-          animation: scaleIn 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-        }
-        .animate-title-enter {
-          opacity: 0;
-          animation: fadeInUp 0.8s ease-out 0.2s forwards;
-        }
-        .animate-subtitle-enter {
-          opacity: 0;
-          animation: fadeInUp 0.8s ease-out 0.4s forwards;
-        }
-        .animate-fade-in {
-          opacity: 0;
-          animation: fadeInUp 1s ease-out 0.6s forwards;
-        }
-        .animate-blob {
-          animation: pulseGlow 8s ease-in-out infinite;
-        }
+        @keyframes orbit { from { transform: rotate(0deg) translateX(30px) rotate(0deg); } to { transform: rotate(360deg) translateX(30px) rotate(-360deg); } }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-spin-slow { animation: orbit 8s linear infinite; }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-fade-in { animation: fadeInUp 0.8s ease-out forwards; }
       `}</style>
 
-      {/* Dynamic Background Elements */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand-purple/40 rounded-full blur-[120px] animate-blob"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-brand-blue/30 rounded-full blur-[120px] animate-blob" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-[40%] left-[50%] transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-purple/10 rounded-full blur-[150px] animate-blob" style={{animationDelay: '4s'}}></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand-purple/40 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-brand-blue/30 rounded-full blur-[120px]"></div>
       </div>
 
-      {/* Content Container */}
       <div className="relative z-10 flex flex-col min-h-screen w-full max-w-md mx-auto px-6 pt-8 pb-6 sm:pt-12 sm:pb-8">
-        
-        {/* Top Section: Logo & Title */}
         <div className={`flex flex-col items-center text-center transition-all duration-700 ${showLoginOptions ? 'mt-2 scale-90 origin-top' : 'mt-6 sm:mt-20'}`}>
-          
-          {/* Brand Logo: Orbit Concept */}
-          <div className="animate-scale-in mb-6 sm:mb-8 relative">
+          <div className="mb-6 sm:mb-8 relative">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border border-white/10 flex items-center justify-center relative backdrop-blur-md bg-white/5">
-               {/* Center Monogram */}
-               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-brand-purple to-brand-blue flex items-center justify-center shadow-lg shadow-brand-purple/50 z-10 font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tighter">
-                 PV
-               </div>
-               
-               {/* Orbiting Elements */}
-               <div className="absolute inset-0 w-full h-full animate-spin-slow">
-                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 w-3 h-3 sm:w-4 sm:h-4 bg-brand-green rounded-full shadow-[0_0_10px_#10B981]"></div>
-               </div>
-               <div className="absolute inset-0 w-full h-full animate-spin-slow" style={{ animationDirection: 'reverse', animationDuration: '12s' }}>
-                 <div className="absolute bottom-1 left-1/4 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-brand-yellow rounded-full shadow-[0_0_8px_#FACC15]"></div>
-               </div>
+               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-brand-purple to-brand-blue flex items-center justify-center shadow-lg shadow-brand-purple/50 z-10 font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tighter">PV</div>
+               <div className="absolute inset-0 w-full h-full animate-spin-slow"><div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 w-3 h-3 bg-brand-green rounded-full shadow-[0_0_10px_#10B981]"></div></div>
             </div>
           </div>
-          
-          <h1 className="animate-title-enter text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight mb-2 drop-shadow-lg font-display">
-            PYQ<span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-blue">verse</span>
-          </h1>
-          
-          <p className="animate-subtitle-enter text-indigo-100 text-base sm:text-lg leading-relaxed max-w-xs mx-auto opacity-90 font-medium">
-            All exams ka pura universe.
-          </p>
-
-          {!showLoginOptions && (
-            <div className="mt-6 sm:mt-8 space-y-3 animate-fade-in w-full max-w-xs text-left">
-               <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm">
-                 <span className="text-brand-green text-lg sm:text-xl">✔</span>
-                 <p className="text-xs sm:text-sm text-indigo-100">AI-generated Smart Questions</p>
-               </div>
-               <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm">
-                 <span className="text-brand-blue text-lg sm:text-xl">✔</span>
-                 <p className="text-xs sm:text-sm text-indigo-100">Har exam ke Previous Year Qs</p>
-               </div>
-               <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm">
-                 <span className="text-brand-yellow text-lg sm:text-xl">✔</span>
-                 <p className="text-xs sm:text-sm text-indigo-100">Fast & Accurate Prep</p>
-               </div>
-            </div>
-          )}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight mb-2 font-display">PYQ<span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-blue">verse</span></h1>
+          <p className="text-indigo-100 text-base sm:text-lg leading-relaxed max-w-xs mx-auto opacity-90 font-medium">All exams ka pura universe.</p>
         </div>
 
-        {/* Spacer to push content down */}
         <div className="flex-1"></div>
 
-        {/* Bottom Section: Actions */}
         <div className="w-full mt-auto pt-4 mb-4 sm:mb-8">
           {!showLoginOptions ? (
-            <button
-              onClick={handleStartPrep}
-              className={`animate-fade-in w-full group relative flex items-center justify-center gap-3 bg-white text-brand-dark font-display font-bold text-lg py-4 rounded-2xl shadow-[0_0_20px_rgba(91,46,255,0.3)] hover:scale-[1.02] transition-all duration-300 overflow-hidden ${!isOnline ? 'opacity-80' : ''}`}
-            >
-              <span className="relative z-10">{isOnline ? 'Start Your Prep' : 'Offline Mode (Requires Login)'}</span>
-              <svg className="w-5 h-5 text-brand-purple group-hover:translate-x-1 transition-transform relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
+            <button onClick={handleStartPrep} className="w-full group relative flex items-center justify-center gap-3 bg-white text-brand-dark font-display font-bold text-lg py-4 rounded-2xl shadow-[0_0_20px_rgba(91,46,255,0.3)] hover:scale-[1.02] transition-all duration-300">
+              <span className="relative z-10">{isOnline ? 'Start Your Prep' : 'Offline (Req Login)'}</span>
             </button>
           ) : (
             <div className="space-y-4 animate-fade-in">
               <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl">
                 <div className="text-center mb-6">
                   <h2 className="text-white text-lg sm:text-xl font-display font-bold">Welcome Back</h2>
-                  <p className="text-indigo-200 text-xs sm:text-sm">Sign in to continue preparation</p>
+                  <p className="text-indigo-200 text-xs sm:text-sm">Sign in to sync your progress</p>
                 </div>
                 
+                {error && <p className="text-red-400 text-xs text-center mb-3 bg-red-900/20 p-2 rounded">{error}</p>}
+
                 <form onSubmit={handleEmailLogin} className="space-y-3">
-                  <div>
-                    <input 
-                      type="email" 
-                      placeholder="Email Address"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-indigo-200/50 focus:outline-none focus:ring-2 focus:ring-brand-purple transition-all text-sm font-sans"
-                    />
-                  </div>
-                  <div>
-                    <input 
-                      type="password" 
-                      placeholder="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-indigo-200/50 focus:outline-none focus:ring-2 focus:ring-brand-purple transition-all text-sm font-sans"
-                    />
-                  </div>
-                  
-                  <div className="text-right">
-                    <button 
-                      type="button" 
-                      onClick={onForgotPassword}
-                      className="text-xs text-brand-blue hover:text-white transition-colors font-medium"
-                    >
-                      Forgot Password?
-                    </button>
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-brand-purple hover:bg-[#4a25cf] text-white font-display font-bold py-3.5 rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-brand-purple/30 mt-2"
-                  >
-                    {isLoading ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
-                    ) : (
-                      "Sign In"
-                    )}
+                  <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-indigo-200/50 outline-none focus:border-brand-purple text-sm" />
+                  <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-indigo-200/50 outline-none focus:border-brand-purple text-sm" />
+                  <button type="submit" disabled={isLoading} className="w-full bg-brand-purple hover:bg-[#4a25cf] text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-lg mt-2">
+                    {isLoading ? "Signing In..." : "Sign In"}
                   </button>
                 </form>
 
-                <div className="flex items-center gap-3 my-4">
-                   <div className="h-px bg-white/10 flex-1"></div>
-                   <span className="text-[10px] text-indigo-200 uppercase tracking-wide font-bold">OR</span>
-                   <div className="h-px bg-white/10 flex-1"></div>
-                </div>
+                <div className="flex items-center gap-3 my-4"><div className="h-px bg-white/10 flex-1"></div><span className="text-[10px] text-indigo-200 font-bold">OR</span><div className="h-px bg-white/10 flex-1"></div></div>
 
-                <button
-                  onClick={handleGoogleLogin}
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-3 bg-white hover:bg-indigo-50 text-slate-800 font-display font-bold py-3 rounded-xl transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
-                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z" />
-                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                  </svg>
-                  <span>Google</span>
+                <button onClick={handleGoogleLogin} disabled={isLoading} className="w-full flex items-center justify-center gap-3 bg-white hover:bg-indigo-50 text-slate-800 font-bold py-3 rounded-xl transition-all active:scale-95 text-sm">
+                  <span>Sign in with Google</span>
                 </button>
 
                 <div className="mt-4 text-center">
-                  <p className="text-sm text-indigo-200">
-                    Don't have an account?{' '}
-                    <button 
-                      onClick={onNavigateToSignup}
-                      className="text-white font-bold hover:underline"
-                    >
-                      Sign Up
-                    </button>
-                  </p>
+                  <p className="text-sm text-indigo-200">New here? <button onClick={onNavigateToSignup} className="text-white font-bold hover:underline">Sign Up</button></p>
                 </div>
-
               </div>
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

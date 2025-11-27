@@ -186,6 +186,15 @@
         color: #64748b;
         font-weight: bold;
       }
+      
+      /* Disable Printing */
+      @media print {
+        html, body {
+          display: none !important;
+          height: 0 !important;
+          overflow: hidden !important;
+        }
+      }
     </style>
 <script type="importmap">
 {
@@ -197,7 +206,8 @@
     "recharts": "https://aistudiocdn.com/recharts@^3.5.0",
     "vite": "https://aistudiocdn.com/vite@^7.2.4",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "path": "https://aistudiocdn.com/path@^0.12.7"
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
   }
 }
 </script>

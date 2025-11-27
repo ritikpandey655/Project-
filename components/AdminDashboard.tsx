@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { 
@@ -40,10 +39,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    setStats(getGlobalStats());
-    const stored = getAdminQuestions();
-    let pending = stored.filter(q => q.moderationStatus === 'PENDING');
-    setModerationQueue(pending);
+    const fetchData = async () => {
+        const statsData = await getGlobalStats();
+        setStats(statsData);
+        
+        const stored = await getAdminQuestions();
+        let pending = stored.filter(q => q.moderationStatus === 'PENDING');
+        setModerationQueue(pending);
+    }
+    fetchData();
   }, []);
 
   useEffect(() => {

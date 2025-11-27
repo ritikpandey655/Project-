@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
@@ -35,7 +34,7 @@ export const generateExamQuestions = async (
   
   // --- HYBRID LOGIC START ---
   // 1. Try to fetch Official/Admin questions first
-  const officialQs = getOfficialQuestions(exam, subject, count);
+  const officialQs = await getOfficialQuestions(exam, subject, count);
   
   if (officialQs.length >= count) {
     console.log("Serving 100% Official Questions");
@@ -59,60 +58,77 @@ export const generateExamQuestions = async (
   }
 
   const ai = new GoogleGenAI({ apiKey });
+  
+  // --- PARALLEL FETCHING LOGIC ---
+  // Split the request into small batches of 5 to speed up generation
+  const BATCH_SIZE = 5;
+  const numBatches = Math.ceil(remainingCount / BATCH_SIZE);
+  const aiPromises = [];
 
-  const prompt = `
-    Act as an expert exam setter for the Indian Competitive Exam: "${exam}".
-    Subject: "${subject}".
-    Difficulty Level: "${difficulty}".
-    ${topics.length > 0 ? `CRITICAL: STRICTLY generate questions ONLY related to these specific topics: "${topics.join(', ')}".` : ''}
+  for (let i = 0; i < numBatches; i++) {
+    const currentBatchCount = Math.min(BATCH_SIZE, remainingCount - (i * BATCH_SIZE));
     
-    TASK: Generate ${remainingCount} high-quality multiple-choice questions.
-    
-    CRITICAL INSTRUCTION FOR EXPLANATIONS:
-    - For Physics/Maths/Chemistry (NEET/JEE): The explanation MUST be Step-by-Step. Include 'Given', 'Formula Used', 'Calculation', and 'Final Result'.
-    - For General Studies/Theory: Provide detailed reasoning, covering why the correct option is right AND why others are wrong.
-    
-    REQUIREMENT: Provide content in BOTH English and Hindi (Devanagari script).
-    IMPORTANT: Return raw JSON only. Do not use Markdown formatting.
-    
-    Output a JSON array of objects with keys: 
-    text (English), text_hi (Hindi), 
-    options (English Array), options_hi (Hindi Array), 
-    correctIndex, 
-    explanation (English - Structured with line breaks), explanation_hi (Hindi), 
-    tags.
-  `;
+    const prompt = `
+      Act as an expert exam setter for the Indian Competitive Exam: "${exam}".
+      Subject: "${subject}".
+      Difficulty Level: "${difficulty}".
+      ${topics.length > 0 ? `CRITICAL: STRICTLY generate questions ONLY related to these specific topics: "${topics.join(', ')}".` : ''}
+      
+      TASK: Generate ${currentBatchCount} high-quality multiple-choice questions.
+      Batch Context: Part ${i + 1} of a larger set. Ensure variety.
+      
+      CRITICAL INSTRUCTION FOR EXPLANATIONS:
+      - For Physics/Maths/Chemistry (NEET/JEE): The explanation MUST be Step-by-Step. Include 'Given', 'Formula Used', 'Calculation', and 'Final Result'.
+      - For General Studies/Theory: Provide detailed reasoning, covering why the correct option is right AND why others are wrong.
+      
+      REQUIREMENT: Provide content in BOTH English and Hindi (Devanagari script).
+      IMPORTANT: Return raw JSON only. Do not use Markdown formatting.
+      
+      Output a JSON array of objects with keys: 
+      text (English), text_hi (Hindi), 
+      options (English Array), options_hi (Hindi Array), 
+      correctIndex, 
+      explanation (English - Structured with line breaks), explanation_hi (Hindi), 
+      tags.
+    `;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              text: { type: Type.STRING },
-              text_hi: { type: Type.STRING },
-              options: { type: Type.ARRAY, items: { type: Type.STRING } },
-              options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
-              correctIndex: { type: Type.INTEGER },
-              explanation: { type: Type.STRING },
-              explanation_hi: { type: Type.STRING },
-              tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ['text', 'options', 'correctIndex', 'explanation']
+    aiPromises.push(
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                text: { type: Type.STRING },
+                text_hi: { type: Type.STRING },
+                options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
+                correctIndex: { type: Type.INTEGER },
+                explanation: { type: Type.STRING },
+                explanation_hi: { type: Type.STRING },
+                tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+              },
+              required: ['text', 'options', 'correctIndex', 'explanation']
+            }
           }
         }
-      }
-    });
+      }).then(response => {
+         const jsonStr = cleanJson(response.text || "[]");
+         return JSON.parse(jsonStr);
+      }).catch(err => {
+         console.error(`Batch ${i} failed`, err);
+         return [];
+      })
+    );
+  }
 
-    let jsonStr = response.text || "[]";
-    
-    jsonStr = cleanJson(jsonStr);
-    const rawQuestions = JSON.parse(jsonStr);
+  try {
+    const results = await Promise.all(aiPromises);
+    const rawQuestions = results.flat();
     
     const aiQuestions = rawQuestions.map((q: any, index: number) => ({
       id: generateId(`ai-q${index}`),
@@ -152,64 +168,71 @@ export const generatePYQList = async (
 ): Promise<Question[]> => {
   if (!apiKey || apiKey.trim() === '') return [];
 
-  // Hybrid: Check for Official PYQs for this year first
-  const allOfficial = getOfficialQuestions(exam, subject, 50); // Get max available
+  // Hybrid: Check for Official PYQs
+  const allOfficial = await getOfficialQuestions(exam, subject, 50);
   const officialPYQs = allOfficial.filter(q => q.pyqYear === year);
-  
-  // If we have enough (e.g. > 5), just return those to save AI tokens
-  if (officialPYQs.length >= 5) {
-     return officialPYQs;
-  }
+  if (officialPYQs.length >= 5) return officialPYQs;
 
   const ai = new GoogleGenAI({ apiKey });
   
-  // Modified prompt to be less strict on "Retrieval" to avoid AI refusal, and focus on "Pattern"
-  const prompt = `
-    Act as an exam expert. Create 10 high-quality practice questions that strictly follow the pattern, difficulty, and topics found in the:
-    Exam: ${exam}
-    Year: ${year}
-    Subject: ${subject}
-    ${topic ? `Topic/Chapter Focus: ${topic}` : ''}
-    
-    Mix of Question Types: Include 7 MCQs and 3 Numerical/Short Answer questions (if applicable to subject, otherwise all MCQs).
-    
-    REQUIREMENT: English and Hindi.
-    EXPLANATION: Detailed solution.
-    IMPORTANT: Return raw JSON only.
-  `;
+  // PARALLEL FETCHING: 15 questions = 3 batches of 5
+  const TOTAL_REQ = 15;
+  const BATCH_SIZE = 5;
+  const numBatches = TOTAL_REQ / BATCH_SIZE;
+  const aiPromises = [];
+
+  for (let i = 0; i < numBatches; i++) {
+    const prompt = `
+      Act as an exam expert. Create ${BATCH_SIZE} high-quality practice questions that strictly follow the pattern, difficulty, and topics found in the:
+      Exam: ${exam}
+      Year: ${year}
+      Subject: ${subject}
+      ${topic ? `Topic/Chapter Focus: ${topic}` : ''}
+      
+      Batch: ${i + 1} (Generate diverse questions).
+      
+      Mix of Question Types: Mostly MCQs, but include 1 Numerical/Short Answer if applicable.
+      
+      REQUIREMENT: English and Hindi.
+      EXPLANATION: Detailed solution.
+      IMPORTANT: Return raw JSON only.
+    `;
+
+    aiPromises.push(
+        ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  text: { type: Type.STRING },
+                  text_hi: { type: Type.STRING },
+                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  correctIndex: { type: Type.INTEGER },
+                  answer: { type: Type.STRING },
+                  explanation: { type: Type.STRING },
+                  explanation_hi: { type: Type.STRING },
+                  type: { type: Type.STRING },
+                  tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+                },
+                required: ['text', 'explanation', 'type']
+              }
+            }
+          }
+        }).then(res => JSON.parse(cleanJson(res.text || "[]"))).catch(e => [])
+    );
+  }
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              text: { type: Type.STRING },
-              text_hi: { type: Type.STRING },
-              options: { type: Type.ARRAY, items: { type: Type.STRING } },
-              options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
-              correctIndex: { type: Type.INTEGER }, // -1 if non-MCQ
-              answer: { type: Type.STRING }, // For non-MCQ
-              explanation: { type: Type.STRING },
-              explanation_hi: { type: Type.STRING },
-              type: { type: Type.STRING }, // MCQ, NUMERICAL, SHORT_ANSWER
-              tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ['text', 'explanation', 'type']
-          }
-        }
-      }
-    });
-
-    const jsonStr = cleanJson(response.text || "[]");
-    const rawQuestions = JSON.parse(jsonStr);
+    const results = await Promise.all(aiPromises);
+    const rawQuestions = results.flat();
     
-    if (!Array.isArray(rawQuestions)) return [];
+    if (rawQuestions.length === 0) return officialPYQs;
 
     const aiPYQs = rawQuestions.map((q: any, index: number) => ({
       id: generateId(`pyq-${year}-${index}`),
@@ -218,7 +241,7 @@ export const generatePYQList = async (
       options: q.options || [],
       optionsHindi: q.options_hi || [],
       correctIndex: q.correctIndex ?? -1,
-      answer: q.answer, // For non-MCQs
+      answer: q.answer, 
       explanation: q.explanation, 
       explanationHindi: q.explanation_hi,
       source: QuestionSource.PYQ_AI,
@@ -235,7 +258,7 @@ export const generatePYQList = async (
 
   } catch (error) {
     console.error("PYQ generation failed:", error);
-    return officialPYQs; // Fallback to whatever official we have
+    return officialPYQs;
   }
 };
 
@@ -243,18 +266,16 @@ export const generateCurrentAffairs = async (
   exam: string,
   count: number = 10
 ): Promise<Question[]> => {
-  // Hybrid: Check Official News converted to Questions? 
-  // For now, let's stick to AI generation as NewsItems -> Questions conversion is complex.
-  // Ideally, Admin would upload Questions tagged 'Current Affairs' directly.
-  
-  const officialCA = getOfficialQuestions(exam, 'Current Affairs', count);
+  const officialCA = await getOfficialQuestions(exam, 'Current Affairs', count);
   if (officialCA.length >= count) return officialCA;
   
   const remaining = count - officialCA.length;
-
   if (!apiKey || apiKey.trim() === '') return [];
 
   const ai = new GoogleGenAI({ apiKey });
+  const BATCH_SIZE = 5;
+  const numBatches = Math.ceil(remaining / BATCH_SIZE);
+  const aiPromises = [];
   
   const focuses = [
       "National News, Government Schemes, Polity",
@@ -263,48 +284,52 @@ export const generateCurrentAffairs = async (
       "Science & Tech, Defence, Space Missions",
       "Economy, Budget, Indices & Reports"
   ];
-  const randomFocus = focuses[Math.floor(Math.random() * focuses.length)];
 
-  const prompt = `
-    Act as an expert exam setter for ${exam}.
-    TASK: Generate ${remaining} UNIQUE Current Affairs MCQs based on events from the LAST 12 MONTHS.
-    
-    BATCH FOCUS: ${randomFocus}. (Ensure questions are primarily from this domain to ensure depth).
-    
-    EXPLANATION STYLE: detailed background info on the news event.
-    
-    REQUIREMENT: Provide content in BOTH English and Hindi.
-    IMPORTANT: Return raw JSON only.
-  `;
+  for (let i = 0; i < numBatches; i++) {
+      const currentBatchCount = Math.min(BATCH_SIZE, remaining - (i * BATCH_SIZE));
+      const randomFocus = focuses[i % focuses.length]; // Rotate focus per batch
+
+      const prompt = `
+        Act as an expert exam setter for ${exam}.
+        TASK: Generate ${currentBatchCount} UNIQUE Current Affairs MCQs based on events from the LAST 12 MONTHS.
+        BATCH FOCUS: ${randomFocus}.
+        
+        EXPLANATION STYLE: detailed background info on the news event.
+        REQUIREMENT: Provide content in BOTH English and Hindi.
+        IMPORTANT: Return raw JSON only.
+      `;
+      
+      aiPromises.push(
+          ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: prompt,
+              config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      text: { type: Type.STRING },
+                      text_hi: { type: Type.STRING },
+                      options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                      options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
+                      correctIndex: { type: Type.INTEGER },
+                      explanation: { type: Type.STRING },
+                      explanation_hi: { type: Type.STRING },
+                      tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    },
+                    required: ['text', 'options', 'correctIndex', 'explanation']
+                  }
+                }
+              }
+          }).then(res => JSON.parse(cleanJson(res.text || "[]"))).catch(e => [])
+      );
+  }
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              text: { type: Type.STRING },
-              text_hi: { type: Type.STRING },
-              options: { type: Type.ARRAY, items: { type: Type.STRING } },
-              options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
-              correctIndex: { type: Type.INTEGER },
-              explanation: { type: Type.STRING },
-              explanation_hi: { type: Type.STRING },
-              tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ['text', 'options', 'correctIndex', 'explanation']
-          }
-        }
-      }
-    });
-
-    const jsonStr = cleanJson(response.text || "[]");
-    const rawQuestions = JSON.parse(jsonStr);
+    const results = await Promise.all(aiPromises);
+    const rawQuestions = results.flat();
     
     const aiQuestions = rawQuestions.map((q: any, index: number) => ({
       id: generateId(`ca-q${index}`),
@@ -337,13 +362,7 @@ export const generateNews = async (
   year?: number,
   category?: string
 ): Promise<NewsItem[]> => {
-  // --- HYBRID LOGIC ---
-  // 1. Check for Admin Uploaded News first
-  const officialNews = getOfficialNews(category, month, year);
-  
-  // If we have enough news (e.g., > 3 items), prioritize them and maybe fetch fewer AI items
-  // For now, we prepend them to the AI list.
-  
+  const officialNews = await getOfficialNews(category, month, year);
   if (!apiKey || apiKey.trim() === '') return officialNews;
 
   const ai = new GoogleGenAI({ apiKey });
@@ -413,7 +432,6 @@ export const generateNews = async (
       tags: n.tags || []
     }));
 
-    // Return Official News FIRST, then AI
     return [...officialNews, ...aiNews];
 
   } catch (error) {
@@ -479,7 +497,7 @@ export const generateStudyNotes = async (
       summary: n.content,
       summaryHindi: n.content_hi,
       category: n.subject,
-      date: 'Key Concept', // Fallback for UI
+      date: 'Key Concept',
       tags: n.tags || []
     }));
   } catch (error) {
@@ -529,7 +547,6 @@ export const generateSingleQuestion = async (
     const jsonStr = cleanJson(response.text || "{}");
     const q = JSON.parse(jsonStr);
     
-    // Normalize keys
     return {
         text: q.text,
         textHindi: q.text_hi,
@@ -573,6 +590,7 @@ export const generateFullPaper = async (
   if (config.includeViva) nonMcqStructure.push({type:"Viva", count: 5, marks: 2});
 
   const mcqTotal = config.includeMCQ ? (config.mcqCount || 10) : 0;
+  // BATCH SIZE for Paper is larger as it is a single big task
   const BATCH_SIZE = 30;
   const mcqBatches = Math.ceil(mcqTotal / BATCH_SIZE);
 

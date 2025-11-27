@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { QuestionPaper, QuestionType, ExamResult } from '../types';
 import { Button } from './Button';
-import { saveExamResult, getExamHistory, getUser, saveOfflinePaper } from '../services/storageService';
+import { saveExamResult, getExamHistory, saveOfflinePaper } from '../services/storageService';
 import { 
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -12,6 +11,7 @@ interface PaperViewProps {
   onClose: () => void;
   language?: 'en' | 'hi';
   onToggleLanguage?: () => void;
+  userId: string;
 }
 
 interface SectionStat {
@@ -40,7 +40,8 @@ export const PaperView: React.FC<PaperViewProps> = ({
   paper, 
   onClose,
   language = 'en',
-  onToggleLanguage 
+  onToggleLanguage,
+  userId
 }) => {
   const [timeLeft, setTimeLeft] = useState(paper.durationMinutes * 60);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -82,9 +83,8 @@ export const PaperView: React.FC<PaperViewProps> = ({
   };
 
   const handleSaveOffline = () => {
-    const user = getUser();
-    if(user) {
-      saveOfflinePaper(user.id, paper);
+    if(userId) {
+      saveOfflinePaper(userId, paper);
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 2000);
     }
@@ -182,9 +182,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
 
   // Effect to Save Result & Fetch History on Submit
   useEffect(() => {
-    if (isSubmitted && resultStats) {
-      const user = getUser();
-      if (user) {
+    if (isSubmitted && resultStats && userId) {
         const result: ExamResult = {
           id: `res-${Date.now()}`,
           examType: paper.examType,
@@ -197,21 +195,21 @@ export const PaperView: React.FC<PaperViewProps> = ({
           topicAnalysis: resultStats.topicPerformance
         };
         
-        saveExamResult(user.id, result);
+        saveExamResult(userId, result);
         
         // Fetch history for trend graph
-        const history = getExamHistory(user.id);
-        const trendData = history
-          .filter(h => h.examType === paper.examType)
-          .map((h, idx) => ({
-             name: `Att. ${idx + 1}`,
-             accuracy: h.accuracy,
-             score: Math.round((h.score / h.totalMarks) * 100)
-          }));
-        setHistoricalTrend(trendData);
-      }
+        getExamHistory(userId).then(history => {
+           const trendData = history
+             .filter(h => h.examType === paper.examType)
+             .map((h, idx) => ({
+                name: `Att. ${idx + 1}`,
+                accuracy: h.accuracy,
+                score: Math.round((h.score / h.totalMarks) * 100)
+             }));
+           setHistoricalTrend(trendData);
+        });
     }
-  }, [isSubmitted, resultStats]);
+  }, [isSubmitted, resultStats, userId]);
 
   // Comparison Data (Simulated Average)
   const comparisonData = useMemo(() => {

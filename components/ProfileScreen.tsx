@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, UserStats, ExamType } from '../types';
 import { Button } from './Button';
@@ -42,8 +41,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   useEffect(() => {
     // Calculate total questions uploaded by user
-    const questions = getUserQuestions(user.id);
-    setNotesCount(questions.length);
+    const loadQuestions = async () => {
+        const questions = await getUserQuestions(user.id);
+        setNotesCount(questions.length);
+    };
+    loadQuestions();
   }, [user.id]);
 
   const handleSave = () => {
