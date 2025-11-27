@@ -119,7 +119,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  photoURL?: string;
+  photoURL?: string | null;
   educationLevel?: string;
   targetYear?: string;
   dailyGoal?: number;
