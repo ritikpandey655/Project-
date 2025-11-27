@@ -13,9 +13,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ user, onBack }) => {
   const [filter, setFilter] = useState<'Global' | 'Friends'>('Global');
 
   useEffect(() => {
-    // Simulate fetching
-    const data = getLeaderboardData(user);
-    setEntries(data);
+    const loadData = async () => {
+      const data = await getLeaderboardData(user);
+      setEntries(data);
+    };
+    loadData();
   }, [user]);
 
   return (

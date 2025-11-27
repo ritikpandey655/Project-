@@ -14,7 +14,11 @@ export const OfflinePapersList: React.FC<OfflinePapersListProps> = ({ userId, on
   const [papers, setPapers] = useState<QuestionPaper[]>([]);
 
   useEffect(() => {
-    setPapers(getOfflinePapers(userId));
+    const loadPapers = async () => {
+      const data = await getOfflinePapers(userId);
+      setPapers(data);
+    };
+    loadPapers();
   }, [userId]);
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
