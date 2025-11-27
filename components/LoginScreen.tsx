@@ -88,6 +88,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       onLogin(user);
     } catch (err: any) {
       console.error("Google Login Error:", err);
+      // Alert specifically for Google Login issues to help debug
+      alert(`Google Login Failed: ${err.message || 'Unknown Error'}`);
       setError(err.message || 'Google Sign In Failed');
     } finally {
       setIsLoading(false);

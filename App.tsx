@@ -136,6 +136,7 @@ const App: React.FC = () => {
           });
        }
     } else {
+       // CRITICAL: Navigate to onboarding if no exam selected
        navigateTo('onboarding');
     }
   };
@@ -490,6 +491,29 @@ const App: React.FC = () => {
 
         {state.view === 'forgotPassword' && (
           <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />
+        )}
+
+        {state.view === 'onboarding' && (
+          <div className="min-h-screen flex flex-col items-center justify-center animate-fade-in py-10">
+             <div className="text-center mb-8">
+                <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">Select Your Goal</h1>
+                <p className="text-slate-500 dark:text-slate-400">Choose the exam you want to master.</p>
+             </div>
+             
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-4xl px-4">
+               {Object.values(ExamType).map((exam) => (
+                 <button 
+                   key={exam} 
+                   onClick={() => { handleExamSelect(exam); navigateTo('tutorial'); }}
+                   className="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-purple hover:ring-2 hover:ring-brand-purple/20 transition-all text-left group"
+                 >
+                    <span className="text-2xl block mb-2 group-hover:scale-110 transition-transform duration-300">🎯</span>
+                    <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-brand-purple transition-colors">{exam}</h3>
+                    <p className="text-xs text-slate-500 mt-1">Start Preparation →</p>
+                 </button>
+               ))}
+             </div>
+          </div>
         )}
 
         {state.view === 'tutorial' && (
