@@ -242,26 +242,21 @@ const App: React.FC = () => {
     setPracticeConfig(config);
     
     // --- INSTANT START LOGIC ---
-    // 1. Try to fetch some "Official" questions synchronously from storage first
-    // This allows the user to start immediately while AI fetches the rest
     const initialBatch = await getOfficialQuestions(state.selectedExam, config.subject, 5);
     
     let initialQueue: Question[] = [];
     if (initialBatch.length > 0) {
-       // Start with what we have
        initialQueue = initialBatch;
        setPracticeQueue(initialQueue);
        setCurrentQIndex(0);
        navigateTo('practice'); // Navigate immediately!
        setIsLoading(false); 
        
-       // Background fetch for the rest
        generateExamQuestions(state.selectedExam, config.subject, config.count - initialQueue.length, 'Medium', config.topic ? [config.topic] : [])
        .then(moreQuestions => {
           setPracticeQueue(prev => [...prev, ...moreQuestions]);
        });
     } else {
-       // If no official questions, wait for AI (Standard Flow)
        const questions = await generateExamQuestions(
           state.selectedExam, 
           config.subject, 
@@ -280,7 +275,6 @@ const App: React.FC = () => {
     if (!state.user || !state.selectedExam) return;
     const nextIndex = currentQIndex + 1;
     
-    // Check if we need to fetch more (Endless mode or running low)
     if (practiceConfig.mode === 'endless' && nextIndex >= practiceQueue.length - 3 && !isFetchingMore) {
         setIsFetchingMore(true);
         const moreQs = await generateExamQuestions(state.selectedExam, practiceConfig.subject, 5, 'Medium', practiceConfig.topic ? [practiceConfig.topic] : []);
@@ -291,7 +285,6 @@ const App: React.FC = () => {
     if (nextIndex < practiceQueue.length) {
       setCurrentQIndex(nextIndex);
     } else {
-      // End of session
       navigateTo('stats');
     }
   };
@@ -301,7 +294,6 @@ const App: React.FC = () => {
     const currentQ = practiceQueue[currentQIndex];
     const subject = currentQ.subject || 'General';
     
-    // Optimistic Update
     const newStats = { ...state.stats };
     newStats.totalAttempted++;
     if (isCorrect) newStats.totalCorrect++;
@@ -311,23 +303,19 @@ const App: React.FC = () => {
     if (isCorrect) newStats.subjectPerformance[subject].correct++;
 
     setState(prev => ({ ...prev, stats: newStats }));
-    
-    // Async Save
     await updateStats(state.user.id, isCorrect, subject, state.selectedExam);
   };
 
   const handleCurrentAffairs = async () => {
     if (!state.user || !state.selectedExam) return;
     setIsLoading(true);
-    // Fetch 200 items in batches, start with 15
-    const questions = await generateCurrentAffairs(state.selectedExam, 20); // Initial batch
+    const questions = await generateCurrentAffairs(state.selectedExam, 20); 
     setPracticeQueue(questions);
     setCurrentQIndex(0);
-    setPracticeConfig({ mode: 'finite', count: 200, subject: 'Current Affairs' }); // Target 200
+    setPracticeConfig({ mode: 'finite', count: 200, subject: 'Current Affairs' }); 
     setIsLoading(false);
     navigateTo('practice');
     
-    // Background fetch more
     generateCurrentAffairs(state.selectedExam, 30).then(more => {
        setPracticeQueue(prev => [...prev, ...more]);
     });
@@ -346,46 +334,11 @@ const App: React.FC = () => {
 
   const handleFetchNotes = () => {
      if (!state.user || !state.selectedExam) return;
-     // Initial fetch for notes with default subject
      const defaultSubject = EXAM_SUBJECTS[state.selectedExam][0];
      generateStudyNotes(state.selectedExam, defaultSubject).then(items => {
         setState(prev => ({ ...prev, newsFeed: items }));
         navigateTo('news');
      });
-  }
-
-  // --- RENDER ---
-  
-  if (isAppInitializing) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-slate-900 text-white relative overflow-hidden">
-         {/* Sand Timer Loading Screen */}
-         <div className="flex flex-col items-center z-10 p-6 text-center">
-            <div className="relative w-24 h-24 mb-6">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={`w-full h-full text-brand-purple ${!initError && 'animate-spin-slow'}`}>
-                    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
-                </svg>
-                <div className={`absolute inset-0 flex items-center justify-center text-4xl ${!initError && 'animate-bounce'}`}>
-                   {initError ? '⚠️' : '⏳'}
-                </div>
-            </div>
-            <h2 className="text-2xl font-bold font-display tracking-tight">PYQverse</h2>
-            
-            {initError ? (
-               <div className="mt-4 bg-red-500/10 border border-red-500/50 p-4 rounded-xl max-w-xs animate-pop-in">
-                  <p className="text-red-200 text-sm whitespace-pre-wrap">{initError}</p>
-                  <button onClick={() => window.location.reload()} className="mt-3 px-4 py-2 bg-red-600 rounded-lg text-sm font-bold hover:bg-red-700 transition-colors">
-                     Retry Connection
-                  </button>
-               </div>
-            ) : (
-               <p className="text-indigo-300 text-sm mt-2 animate-pulse">Initializing Universe...</p>
-            )}
-         </div>
-         {/* Background Effect */}
-         <div className="absolute top-[-20%] left-[-20%] w-[600px] h-[600px] bg-brand-purple/20 rounded-full blur-[100px]"></div>
-      </div>
-    );
   }
 
   // Security Blackout Screen
@@ -402,6 +355,57 @@ const App: React.FC = () => {
     );
   }
 
+  // Handle Full-Screen Auth Views separate from Dashboard layout to prevent clipping/shrinking
+  if (state.view === 'login') {
+    return (
+      <LoginScreen 
+        onLogin={handleLogin} 
+        onNavigateToSignup={() => navigateTo('signup')} 
+        onForgotPassword={() => navigateTo('forgotPassword')}
+        isOnline={isOnline}
+        isInitializing={isAppInitializing}
+      />
+    );
+  }
+
+  if (state.view === 'signup') {
+    return (
+      <SignupScreen onSignup={handleSignup} onBackToLogin={() => navigateTo('login')} />
+    );
+  }
+
+  if (state.view === 'forgotPassword') {
+    return (
+      <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />
+    );
+  }
+
+  if (state.view === 'onboarding') {
+    return (
+      <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center animate-fade-in p-4">
+         <div className="text-center mb-8">
+            <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">Select Your Goal</h1>
+            <p className="text-slate-500 dark:text-slate-400">Choose the exam you want to master.</p>
+         </div>
+         
+         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-4xl">
+           {Object.values(ExamType).map((exam) => (
+             <button 
+               key={exam} 
+               onClick={() => { handleExamSelect(exam); navigateTo('tutorial'); }}
+               className="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-purple hover:ring-2 hover:ring-brand-purple/20 transition-all text-left group"
+             >
+                <span className="text-2xl block mb-2 group-hover:scale-110 transition-transform duration-300">🎯</span>
+                <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-brand-purple transition-colors">{exam}</h3>
+                <p className="text-xs text-slate-500 mt-1">Start Preparation →</p>
+             </button>
+           ))}
+         </div>
+      </div>
+    );
+  }
+
+  // --- Main App Layout ---
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200 select-none">
       {/* Global Watermark */}
@@ -445,7 +449,7 @@ const App: React.FC = () => {
         }}
       />
 
-      {state.view !== 'login' && state.view !== 'signup' && state.view !== 'forgotPassword' && state.view !== 'onboarding' && (
+      {state.view !== 'tutorial' && (
         <nav className="bg-white dark:bg-slate-900 p-4 flex justify-between items-center shadow-sm sticky top-0 z-30 transition-colors">
           <div className="flex items-center gap-3">
              {/* Simple Logo */}
@@ -458,7 +462,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             {state.showTimer && state.view === 'practice' && <Timer />}
             
-            {/* Profile/Menu Trigger (Right Side) */}
+            {/* Profile/Menu Trigger */}
             <button onClick={() => setIsSidebarOpen(true)} className="relative group">
                <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden border-2 border-transparent group-hover:border-brand-purple transition-all">
                   {state.user?.photoURL ? (
@@ -474,48 +478,8 @@ const App: React.FC = () => {
         </nav>
       )}
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-3 sm:py-6 relative z-10">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
         
-        {state.view === 'login' && (
-          <LoginScreen 
-            onLogin={handleLogin} 
-            onNavigateToSignup={() => navigateTo('signup')} 
-            onForgotPassword={() => navigateTo('forgotPassword')}
-            isOnline={isOnline}
-          />
-        )}
-
-        {state.view === 'signup' && (
-          <SignupScreen onSignup={handleSignup} onBackToLogin={() => navigateTo('login')} />
-        )}
-
-        {state.view === 'forgotPassword' && (
-          <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />
-        )}
-
-        {state.view === 'onboarding' && (
-          <div className="min-h-screen flex flex-col items-center justify-center animate-fade-in py-10">
-             <div className="text-center mb-8">
-                <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">Select Your Goal</h1>
-                <p className="text-slate-500 dark:text-slate-400">Choose the exam you want to master.</p>
-             </div>
-             
-             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-4xl px-4">
-               {Object.values(ExamType).map((exam) => (
-                 <button 
-                   key={exam} 
-                   onClick={() => { handleExamSelect(exam); navigateTo('tutorial'); }}
-                   className="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-purple hover:ring-2 hover:ring-brand-purple/20 transition-all text-left group"
-                 >
-                    <span className="text-2xl block mb-2 group-hover:scale-110 transition-transform duration-300">🎯</span>
-                    <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-brand-purple transition-colors">{exam}</h3>
-                    <p className="text-xs text-slate-500 mt-1">Start Preparation →</p>
-                 </button>
-               ))}
-             </div>
-          </div>
-        )}
-
         {state.view === 'tutorial' && (
           <Tutorial onComplete={() => {
              navigateTo('dashboard');
@@ -536,7 +500,6 @@ const App: React.FC = () => {
             onGeneratePaper={() => navigateTo('paperGenerator')}
             onStartCurrentAffairs={handleCurrentAffairs}
             onReadCurrentAffairs={() => {
-               // Default load news
                generateNews(state.selectedExam!, MONTHS[new Date().getMonth()], new Date().getFullYear()).then(items => {
                   setState(prev => ({ ...prev, newsFeed: items }));
                   navigateTo('news');
@@ -589,7 +552,6 @@ const App: React.FC = () => {
 
         {state.view === 'practice' && practiceQueue.length > 0 && (
           <div className="h-full flex flex-col justify-between max-w-2xl mx-auto">
-             {/* Progress Bar */}
              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 mb-6">
                 <div 
                   className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300" 
@@ -612,7 +574,6 @@ const App: React.FC = () => {
                onBookmarkToggle={async (q) => {
                   if(state.user) {
                      const added = await toggleBookmark(state.user.id, q);
-                     // Optimistic update
                      const updatedQ = { ...q, isBookmarked: added };
                      const newQueue = [...practiceQueue];
                      newQueue[currentQIndex] = updatedQ;
@@ -698,7 +659,7 @@ const App: React.FC = () => {
         {state.view === 'analytics' && state.user && (
            <SmartAnalytics 
               stats={state.stats} 
-              history={[]} // Need to fetch history
+              history={[]} 
               onBack={() => navigateTo('dashboard')}
            />
         )}
@@ -736,7 +697,6 @@ const App: React.FC = () => {
                  <button onClick={() => navigateTo('dashboard')} className="text-slate-500 hover:text-indigo-600 flex items-center gap-1">← Back</button>
                  <h2 className="text-2xl font-bold font-display dark:text-white">Bookmarks</h2>
               </div>
-              {/* Reuse PYQ Library view logic or create simple list */}
               <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl">
                  <p className="text-slate-500">Feature coming soon: Your saved questions will appear here.</p>
               </div>
@@ -745,7 +705,6 @@ const App: React.FC = () => {
 
       </main>
 
-      {/* Global Loaders / Modals */}
       {isLoading && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl flex flex-col items-center">
