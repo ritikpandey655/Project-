@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { User, ExamType } from '../types';
 import { Button } from './Button';
 import { auth, db } from '../src/firebaseConfig';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import * as firebaseAuth from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
 interface SignupScreenProps {
@@ -32,11 +32,11 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
 
     try {
       // 1. Create Auth User
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await firebaseAuth.createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
       // 2. Update Profile Display Name
-      await updateProfile(firebaseUser, { displayName: name });
+      await firebaseAuth.updateProfile(firebaseUser, { displayName: name });
 
       // 3. Create Firestore User Doc
       const newUser: User = {

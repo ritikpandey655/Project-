@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
-import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import * as firebaseAuth from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface LoginScreenProps {
@@ -51,7 +51,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     setIsLoading(true);
     setError('');
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await firebaseAuth.signInWithPopup(auth, googleProvider);
       const user = await syncUserToDB(result.user);
       onLogin(user);
     } catch (err: any) {
@@ -69,7 +69,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     setIsLoading(true);
     setError('');
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
+      const result = await firebaseAuth.signInWithEmailAndPassword(auth, email, password);
       const user = await syncUserToDB(result.user);
       onLogin(user);
     } catch (err: any) {
