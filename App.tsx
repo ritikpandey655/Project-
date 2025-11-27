@@ -245,13 +245,14 @@ const App: React.FC = () => {
   }, [state.user, applyTheme]);
 
   const startPracticeSession = useCallback(async (config: { subject: string; count: number; mode: 'finite' | 'endless'; topic?: string }) => {
-    if (!state.user || !state.selectedExam) return;
+    const exam = state.selectedExam;
+    if (!state.user || !exam) return;
     setShowPracticeConfig(false);
     setIsLoading(true);
     setPracticeConfig(config);
     
     // Quick Fetch from Cache/Admin
-    const initialBatch = await getOfficialQuestions(state.selectedExam, config.subject, 5);
+    const initialBatch = await getOfficialQuestions(exam, config.subject, 5);
     
     if (initialBatch.length > 0) {
        setPracticeQueue(initialBatch);
@@ -260,13 +261,13 @@ const App: React.FC = () => {
        navigateTo('practice'); 
        
        // Fetch rest in background
-       generateExamQuestions(state.selectedExam, config.subject, config.count - initialBatch.length, 'Medium', config.topic ? [config.topic] : [])
+       generateExamQuestions(exam, config.subject, config.count - initialBatch.length, 'Medium', config.topic ? [config.topic] : [])
        .then(moreQuestions => {
           setPracticeQueue(prev => [...prev, ...moreQuestions]);
        });
     } else {
        const questions = await generateExamQuestions(
-          state.selectedExam, 
+          exam, 
           config.subject, 
           config.count, 
           'Medium', 
@@ -280,12 +281,13 @@ const App: React.FC = () => {
   }, [state.user, state.selectedExam, navigateTo]);
 
   const handleNextQuestion = useCallback(async () => {
-    if (!state.user || !state.selectedExam) return;
+    const exam = state.selectedExam;
+    if (!state.user || !exam) return;
     const nextIndex = currentQIndex + 1;
     
     if (practiceConfig.mode === 'endless' && nextIndex >= practiceQueue.length - 3 && !isFetchingMore) {
         setIsFetchingMore(true);
-        generateExamQuestions(state.selectedExam, practiceConfig.subject, 5, 'Medium', practiceConfig.topic ? [practiceConfig.topic] : [])
+        generateExamQuestions(exam, practiceConfig.subject, 5, 'Medium', practiceConfig.topic ? [practiceConfig.topic] : [])
         .then(moreQs => {
             setPracticeQueue(prev => [...prev, ...moreQs]);
             setIsFetchingMore(false);
@@ -300,7 +302,10 @@ const App: React.FC = () => {
   }, [currentQIndex, practiceConfig, practiceQueue.length, isFetchingMore, state.user, state.selectedExam, navigateTo]);
 
   const handleAnswer = useCallback(async (isCorrect: boolean) => {
-    if (!state.user || !state.selectedExam) return;
+    const exam = state.selectedExam;
+    const user = state.user;
+    if (!user || !exam) return;
+    
     const currentQ = practiceQueue[currentQIndex];
     const subject = currentQ.subject || 'General';
     
@@ -316,35 +321,37 @@ const App: React.FC = () => {
     });
 
     // Fire and forget DB update
-    updateStats(state.user.id, isCorrect, subject, state.selectedExam);
+    updateStats(user.id, isCorrect, subject, exam);
   }, [practiceQueue, currentQIndex, state.user, state.selectedExam]);
 
   const handleCurrentAffairs = useCallback(async () => {
-    if (!state.user || !state.selectedExam) return;
+    const exam = state.selectedExam;
+    if (!state.user || !exam) return;
     setIsLoading(true);
     // Optimistically fetch small batch
-    generateCurrentAffairs(state.selectedExam, 10).then(questions => {
+    generateCurrentAffairs(exam, 10).then(questions => {
         setPracticeQueue(questions);
         setCurrentQIndex(0);
         setPracticeConfig({ mode: 'finite', count: 200, subject: 'Current Affairs' }); 
         setIsLoading(false);
         navigateTo('practice');
         // Backfill
-        generateCurrentAffairs(state.selectedExam, 30).then(more => {
+        generateCurrentAffairs(exam, 30).then(more => {
            setPracticeQueue(prev => [...prev, ...more]);
         });
     });
   }, [state.user, state.selectedExam, navigateTo]);
 
   const handleNewsFilterChange = useCallback(async (filters: { month?: string; year?: number; category?: string; subject?: string }, isLoadMore: boolean = false) => {
-    if (!state.user || !state.selectedExam) return;
+    const exam = state.selectedExam;
+    if (!state.user || !exam) return;
     
     // Don't set loading here to prevent UI flicker, handle in child
     let items;
     if (filters.subject) {
-       items = await generateStudyNotes(state.selectedExam, filters.subject);
+       items = await generateStudyNotes(exam, filters.subject);
     } else {
-       items = await generateNews(state.selectedExam, filters.month, filters.year, filters.category);
+       items = await generateNews(exam, filters.month, filters.year, filters.category);
     }
     
     setState(prev => ({ 
@@ -354,10 +361,11 @@ const App: React.FC = () => {
   }, [state.user, state.selectedExam]);
 
   const handleFetchNotes = useCallback(async () => {
-     if (!state.user || !state.selectedExam) return;
+     const exam = state.selectedExam;
+     if (!state.user || !exam) return;
      setIsLoading(true); 
-     const defaultSubject = (state.examConfig as any)[state.selectedExam]?.[0] || 'General';
-     generateStudyNotes(state.selectedExam, defaultSubject).then(items => {
+     const defaultSubject = (state.examConfig as any)[exam]?.[0] || 'General';
+     generateStudyNotes(exam, defaultSubject).then(items => {
        setState(prev => ({ ...prev, newsFeed: items }));
        setIsLoading(false);
        navigateTo('news');
@@ -382,8 +390,9 @@ const App: React.FC = () => {
   const handleUpgradeClick = useCallback(() => setShowPaymentModal(true), []);
   const handleInstallClick = useCallback(() => installPrompt?.prompt(), [installPrompt]);
   const handleReadCurrentAffairs = useCallback(() => {
-     if(!state.selectedExam) return;
-     generateNews(state.selectedExam, MONTHS[new Date().getMonth()], new Date().getFullYear()).then(items => {
+     const exam = state.selectedExam;
+     if(!exam) return;
+     generateNews(exam, MONTHS[new Date().getMonth()], new Date().getFullYear()).then(items => {
         setState(prev => ({ ...prev, newsFeed: items }));
         navigateTo('news');
      });
