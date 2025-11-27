@@ -16,6 +16,8 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedExam, setSelectedExam] = useState<ExamType>(ExamType.UPSC);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -39,12 +41,17 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
       await updateProfile(firebaseUser, { displayName: name });
 
       // 3. Create Firestore User Doc
+      // Allow Admin access if email matches specific ID OR if Name contains "Admin"
+      const isAdmin = email === 'admin@pyqverse.com' || 
+                      email === 'ritikpandey655@gmail.com' ||
+                      name.toLowerCase().includes('admin');
+
       const newUser: User = {
         id: firebaseUser.uid,
         name: name,
         email: email,
         photoURL: undefined, // Or default
-        isAdmin: email === 'admin@pyqverse.com' // Auto-grant admin rights to this email
+        isAdmin: isAdmin 
       };
 
       await setDoc(doc(db, "users", firebaseUser.uid), newUser);
@@ -78,7 +85,8 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-indigo-200 mb-1 ml-1">Full Name</label>
-              <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-purple text-sm" placeholder="John Doe" />
+              <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-purple text-sm" placeholder="e.g. Admin Rahul (for Admin Access)" />
+              <p className="text-[10px] text-indigo-300 ml-1 mt-1">Tip: Include "Admin" in name to get Admin Panel access.</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-indigo-200 mb-1 ml-1">Email Address</label>
@@ -87,11 +95,35 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-indigo-200 mb-1 ml-1">Password</label>
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-purple text-sm" placeholder="••••" />
+                <div className="relative">
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    required 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)} 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-purple text-sm pr-8" 
+                    placeholder="••••" 
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-white">
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-indigo-200 mb-1 ml-1">Confirm</label>
-                <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-purple text-sm" placeholder="••••" />
+                <div className="relative">
+                  <input 
+                    type={showConfirmPassword ? "text" : "password"} 
+                    required 
+                    value={confirmPassword} 
+                    onChange={(e) => setConfirmPassword(e.target.value)} 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-brand-purple text-sm pr-8" 
+                    placeholder="••••" 
+                  />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-white">
+                    {showConfirmPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
               </div>
             </div>
             <div>

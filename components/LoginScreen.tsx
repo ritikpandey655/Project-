@@ -17,6 +17,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
   const [showLoginOptions, setShowLoginOptions] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   const handleStartPrep = () => {
@@ -31,16 +32,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     const userRef = doc(db, "users", firebaseUser.uid);
     const userSnap = await getDoc(userRef);
     
+    // Check for Admin rights in Name or Email
+    const nameToCheck = firebaseUser.displayName || email.split('@')[0];
+    const emailToCheck = firebaseUser.email || '';
+    
+    // Explicitly check for your email
+    const isAdmin = emailToCheck === 'admin@pyqverse.com' || 
+                    emailToCheck === 'ritikpandey655@gmail.com' ||
+                    nameToCheck.toLowerCase().includes('admin') ||
+                    emailToCheck.toLowerCase().includes('admin');
+
     let userData: User;
     if (userSnap.exists()) {
       userData = userSnap.data() as User;
+      // Update admin status if it has changed
+      if (isAdmin && !userData.isAdmin) {
+         userData.isAdmin = true;
+         await setDoc(userRef, { isAdmin: true }, { merge: true });
+      }
     } else {
       userData = {
         id: firebaseUser.uid,
-        name: firebaseUser.displayName || email.split('@')[0],
-        email: firebaseUser.email || '',
+        name: nameToCheck,
+        email: emailToCheck,
         photoURL: firebaseUser.photoURL || undefined,
-        isAdmin: firebaseUser.email === 'admin@pyqverse.com' // Basic Check
+        isAdmin: isAdmin
       };
       await setDoc(userRef, userData);
     }
@@ -87,7 +103,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         @keyframes orbit { from { transform: rotate(0deg) translateX(30px) rotate(0deg); } to { transform: rotate(360deg) translateX(30px) rotate(-360deg); } }
         @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .animate-spin-slow { animation: orbit 8s linear infinite; }
         .animate-float { animation: float 6s ease-in-out infinite; }
         .animate-fade-in { animation: fadeInUp 0.8s ease-out forwards; }
@@ -129,7 +144,40 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
                 <form onSubmit={handleEmailLogin} className="space-y-3">
                   <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-indigo-200/50 outline-none focus:border-brand-purple text-sm" />
-                  <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-indigo-200/50 outline-none focus:border-brand-purple text-sm" />
+                  
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="Password" 
+                      value={password} 
+                      onChange={e => setPassword(e.target.value)} 
+                      required 
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-indigo-200/50 outline-none focus:border-brand-purple text-sm pr-10" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-white"
+                    >
+                      {showPassword ? (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      )}
+                    </button>
+                  </div>
+                  
+                  {/* Forgot Password Link */}
+                  <div className="flex justify-end">
+                    <button 
+                      type="button" 
+                      onClick={onForgotPassword}
+                      className="text-xs text-indigo-300 hover:text-white transition-colors"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+
                   <button type="submit" disabled={isLoading} className="w-full bg-brand-purple hover:bg-[#4a25cf] text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-lg mt-2">
                     {isLoading ? "Signing In..." : "Sign In"}
                   </button>
@@ -137,7 +185,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
                 <div className="flex items-center gap-3 my-4"><div className="h-px bg-white/10 flex-1"></div><span className="text-[10px] text-indigo-200 font-bold">OR</span><div className="h-px bg-white/10 flex-1"></div></div>
 
-                <button onClick={handleGoogleLogin} disabled={isLoading} className="w-full flex items-center justify-center gap-3 bg-white hover:bg-indigo-50 text-slate-800 font-bold py-3 rounded-xl transition-all active:scale-95 text-sm">
+                <button 
+                  type="button" 
+                  onClick={handleGoogleLogin} 
+                  disabled={isLoading} 
+                  className="w-full flex items-center justify-center gap-3 bg-white hover:bg-indigo-50 text-slate-800 font-bold py-3 rounded-xl transition-all active:scale-95 text-sm"
+                >
+                  <img src="https://www.google.com/favicon.ico" alt="G" className="w-4 h-4" />
                   <span>Sign in with Google</span>
                 </button>
 

@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
 import { Button } from './Button';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../src/firebaseConfig';
 
 interface ForgotPasswordScreenProps {
   onBackToLogin: () => void;
@@ -10,17 +12,28 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    setError('');
+    
+    try {
+      await sendPasswordResetEmail(auth, email);
       setIsSent(true);
-    }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/user-not-found') {
+        setError("No account found with this email.");
+      } else {
+        setError(err.message || "Failed to send reset link.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -44,6 +57,8 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
               <h2 className="text-2xl font-bold text-white mb-2">Forgot Password?</h2>
               <p className="text-indigo-200 text-sm">Enter your email address and we'll send you a link to reset your password.</p>
             </div>
+
+            {error && <p className="text-red-400 text-sm text-center mb-4 bg-red-900/30 p-2 rounded">{error}</p>}
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
@@ -101,7 +116,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
             </Button>
             
             <p className="text-xs text-indigo-300 mt-6">
-              Didn't receive the email? <button onClick={() => setIsSent(false)} className="text-white hover:underline">Click to resend</button>
+              Didn't receive the email? <button onClick={() => { setIsSent(false); handleSubmit({ preventDefault: ()=>{} } as any); }} className="text-white hover:underline">Click to resend</button>
             </p>
           </div>
         )}
