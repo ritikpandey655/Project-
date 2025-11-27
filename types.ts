@@ -41,7 +41,7 @@ export interface Question {
   explanation?: string;
   explanationHindi?: string;
   source: QuestionSource;
-  examType: ExamType;
+  examType: ExamType | string; // Allow string for dynamic exams
   subject?: string;
   createdAt: number;
   tags?: string[];
@@ -80,7 +80,7 @@ export interface PaperSection {
 export interface QuestionPaper {
   id: string;
   title: string;
-  examType: ExamType;
+  examType: ExamType | string;
   subject: string;
   difficulty: string;
   totalMarks: number;
@@ -91,7 +91,7 @@ export interface QuestionPaper {
 
 export interface ExamResult {
   id: string;
-  examType: ExamType;
+  examType: ExamType | string;
   paperTitle: string;
   score: number;
   totalMarks: number;
@@ -132,6 +132,17 @@ export interface User {
   isAdmin?: boolean; // Admin Flag
 }
 
+export interface Transaction {
+  id: string;
+  userId: string;
+  userName: string;
+  amount: number;
+  planId: string;
+  status: 'SUCCESS' | 'FAILED' | 'PENDING';
+  date: number;
+  method: string;
+}
+
 export interface SubscriptionPlan {
   id: string;
   name: string;
@@ -165,4 +176,5 @@ export interface AppState {
   theme: string;
   qotd?: Question | null;
   newsFeed?: NewsItem[];
+  examConfig?: Record<string, string[]>; // Dynamic Exams
 }

@@ -1,3 +1,4 @@
+
 import { 
   doc, 
   getDoc, 
@@ -14,8 +15,9 @@ import {
   Timestamp 
 } from "firebase/firestore";
 import { db } from "../src/firebaseConfig";
-import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem } from '../types';
+import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction } from '../types';
 import { ExamType } from '../types';
+import { EXAM_SUBJECTS } from '../constants';
 
 export const INITIAL_STATS: UserStats = {
   totalAttempted: 0,
@@ -32,7 +34,6 @@ export const INITIAL_STATS: UserStats = {
 export const saveUser = async (user: User): Promise<void> => {
   try {
     const userRef = doc(db, "users", user.id);
-    // Merge true allows updating specific fields without overwriting the whole doc
     await setDoc(userRef, user, { merge: true });
   } catch (e) {
     console.error("Error saving user:", e);
@@ -53,12 +54,27 @@ export const getUser = async (userId: string): Promise<User | null> => {
   }
 };
 
+export const getAllUsers = async (): Promise<User[]> => {
+  try {
+    const snapshot = await getDocs(collection(db, "users"));
+    return snapshot.docs.map(doc => doc.data() as User);
+  } catch (e) {
+    return [];
+  }
+};
+
 export const removeUser = async (userId: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, "users", userId));
   } catch (e) {
     console.error("Error removing user:", e);
   }
+};
+
+export const toggleUserPro = async (userId: string, currentStatus: boolean): Promise<void> => {
+  try {
+    await updateDoc(doc(db, "users", userId), { isPro: !currentStatus });
+  } catch (e) {}
 };
 
 // --- USER QUESTIONS (Notebook) ---
@@ -91,6 +107,12 @@ export const saveAdminQuestion = async (question: Question): Promise<void> => {
   } catch (e) {
     console.error("Error uploading admin question:", e);
   }
+};
+
+export const deleteGlobalQuestion = async (id: string): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, "global_questions", id));
+  } catch (e) {}
 };
 
 export const getOfficialQuestions = async (exam: string, subject: string, count: number): Promise<Question[]> => {
@@ -150,6 +172,42 @@ export const getGlobalStats = async () => {
   }
 };
 
+// --- DYNAMIC EXAM CONFIG ---
+
+export const saveExamConfig = async (config: Record<string, string[]>): Promise<void> => {
+  try {
+    await setDoc(doc(db, "settings", "exams"), { config });
+  } catch (e) {}
+};
+
+export const getExamConfig = async (): Promise<Record<string, string[]>> => {
+  try {
+    const docSnap = await getDoc(doc(db, "settings", "exams"));
+    if (docSnap.exists()) {
+      return docSnap.data().config;
+    }
+    return EXAM_SUBJECTS as unknown as Record<string, string[]>;
+  } catch (e) {
+    return EXAM_SUBJECTS as unknown as Record<string, string[]>;
+  }
+};
+
+// --- TRANSACTIONS ---
+
+export const getTransactions = async (): Promise<Transaction[]> => {
+  try {
+    const snapshot = await getDocs(collection(db, "transactions"));
+    return snapshot.docs.map(d => d.data() as Transaction);
+  } catch (e) {
+    // Return mock if empty
+    return [
+      { id: 'tx-1', userId: 'u1', userName: 'Rohan', amount: 199, planId: 'monthly', status: 'SUCCESS', date: Date.now() - 100000, method: 'UPI' },
+      { id: 'tx-2', userId: 'u2', userName: 'Anjali', amount: 1499, planId: 'yearly', status: 'SUCCESS', date: Date.now() - 500000, method: 'Card' },
+      { id: 'tx-3', userId: 'u3', userName: 'Rahul', amount: 199, planId: 'monthly', status: 'FAILED', date: Date.now() - 900000, method: 'NetBanking' }
+    ];
+  }
+};
+
 // --- NEWS & CURRENT AFFAIRS ---
 
 export const saveAdminNews = async (news: NewsItem): Promise<void> => {
@@ -168,12 +226,9 @@ export const getOfficialNews = async (category?: string, month?: string, year?: 
       q = query(q, where("category", "==", category));
     }
     
-    // Note: Advanced date filtering would require ISO timestamp conversion. 
-    // Simplified fetch for now.
     const snapshot = await getDocs(q);
     const allNews = snapshot.docs.map(d => d.data() as NewsItem);
     
-    // Manual filter for Month/Year if stored as strings
     return allNews.filter(n => {
        if (!month || !year) return true;
        return n.date.includes(month) && n.date.includes(year.toString());

@@ -33,6 +33,64 @@ const cleanJson = (text: string) => {
 // Helper for unique IDs - Added random suffix to strictly prevent collisions
 const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+export const parseSmartInput = async (
+  input: string,
+  type: 'text' | 'image',
+  examContext: string
+): Promise<any> => {
+  if (!apiKey || apiKey.trim() === '') return null;
+  const ai = new GoogleGenAI({ apiKey });
+
+  const prompt = `
+    Act as a data entry assistant for the ${examContext} exam.
+    Analyze the provided ${type} and extract the Multiple Choice Question details accurately.
+    
+    TASK:
+    1. Extract the Question Text (English).
+    2. Extract Hindi translation if present in input.
+    3. Extract Options.
+    4. Solve the question to find the Correct Index (0-3).
+    5. Write a detailed Explanation for the answer.
+    6. Guess the Subject based on content.
+    
+    OUTPUT JSON FORMAT:
+    {
+      "text": "Question string",
+      "text_hi": "Hindi string or null",
+      "options": ["A", "B", "C", "D"],
+      "options_hi": ["A Hindi", ... ] or null,
+      "correct_index": Integer (0-3),
+      "explanation": "String",
+      "subject": "String (e.g. History, Physics)"
+    }
+    
+    CLEANING RULES:
+    - Remove question numbers (e.g. "Q1.", "5.") from text.
+    - Remove option labels (e.g. "(a)", "A.") from options.
+  `;
+
+  try {
+    const parts: any[] = [];
+    if (type === 'image') {
+        parts.push({ inlineData: { mimeType: 'image/jpeg', data: input } });
+        parts.push({ text: prompt });
+    } else {
+        parts.push({ text: `${prompt}\n\nRAW INPUT:\n${input}` });
+    }
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts },
+        config: { responseMimeType: "application/json" }
+    });
+
+    return JSON.parse(cleanJson(response.text || "{}"));
+  } catch (error) {
+    console.error("Smart extraction failed:", error);
+    return null;
+  }
+};
+
 export const generateExamQuestions = async (
   exam: string,
   subject: string,
@@ -279,7 +337,6 @@ export const generateCurrentAffairs = async (
   const numBatches = Math.ceil(remaining / BATCH_SIZE);
   const aiPromises = [];
   
-  // Use Static GK topics mixed with News to ensure accuracy when exact recent news is unavailable to AI
   const focuses = [
       "Recent Awards & Honours (Verified)",
       "Important Government Schemes",

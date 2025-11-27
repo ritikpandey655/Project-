@@ -17,7 +17,8 @@ import {
   getStoredQOTD,
   saveQOTD,
   getExamHistory,
-  getOfficialQuestions
+  getOfficialQuestions,
+  getExamConfig
 } from './services/storageService';
 import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion, generateNews, generateStudyNotes } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
@@ -57,7 +58,8 @@ const App: React.FC = () => {
     language: 'en',
     theme: 'PYQverse Prime',
     qotd: null,
-    newsFeed: []
+    newsFeed: [],
+    examConfig: EXAM_SUBJECTS as unknown as Record<string, string[]> // Default to static
   });
 
   const [practiceQueue, setPracticeQueue] = useState<Question[]>([]);
@@ -102,8 +104,9 @@ const App: React.FC = () => {
     const prefsPromise = getUserPref(userId);
     const statsPromise = getStats(userId);
     const qotdPromise = getStoredQOTD(userId);
+    const examsPromise = getExamConfig(); // Load dynamic exams
 
-    const [prefs, stats, qotd] = await Promise.all([prefsPromise, statsPromise, qotdPromise]);
+    const [prefs, stats, qotd, dynamicExams] = await Promise.all([prefsPromise, statsPromise, qotdPromise, examsPromise]);
 
     // Set Theme/Mode immediately
     if (prefs.darkMode) document.documentElement.classList.add('dark');
@@ -119,7 +122,8 @@ const App: React.FC = () => {
       darkMode: prefs.darkMode,
       language: prefs.language,
       theme: prefs.theme,
-      qotd: qotd
+      qotd: qotd,
+      examConfig: dynamicExams
     }));
 
     // Restore view
@@ -132,7 +136,7 @@ const App: React.FC = () => {
        }
        // Generate QOTD if missing
        if (!qotd && navigator.onLine) {
-          generateSingleQuestion(prefs.selectedExam, EXAM_SUBJECTS[prefs.selectedExam][0], 'QOTD').then(q => {
+          generateSingleQuestion(prefs.selectedExam, (dynamicExams as any)[prefs.selectedExam]?.[0] || 'General', 'QOTD').then(q => {
              if(q) saveQOTD(userId, { id: `qotd-${Date.now()}`, ...q, examType: prefs.selectedExam!, subject: 'QOTD', source: 'PYQ_AI', correctIndex: q.correctIndex || 0, options: q.options || [], text: q.text || '', createdAt: Date.now() } as Question);
           });
        }
@@ -352,13 +356,13 @@ const App: React.FC = () => {
   const handleFetchNotes = useCallback(async () => {
      if (!state.user || !state.selectedExam) return;
      setIsLoading(true); 
-     const defaultSubject = EXAM_SUBJECTS[state.selectedExam][0];
+     const defaultSubject = (state.examConfig as any)[state.selectedExam]?.[0] || 'General';
      generateStudyNotes(state.selectedExam, defaultSubject).then(items => {
        setState(prev => ({ ...prev, newsFeed: items }));
        setIsLoading(false);
        navigateTo('news');
      });
-  }, [state.user, state.selectedExam, navigateTo]);
+  }, [state.user, state.selectedExam, navigateTo, state.examConfig]);
 
   const handleOpenQOTD = useCallback(() => {
      if(state.qotd) {
@@ -419,8 +423,8 @@ const App: React.FC = () => {
             <p className="text-slate-500 dark:text-slate-400">Choose the exam you want to master.</p>
          </div>
          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-4xl">
-           {Object.values(ExamType).map((exam) => (
-             <button key={exam} onClick={() => { handleExamSelect(exam); navigateTo('tutorial'); }} className="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-purple hover:ring-2 hover:ring-brand-purple/20 transition-all text-left group">
+           {Object.keys(state.examConfig || EXAM_SUBJECTS).map((exam) => (
+             <button key={exam} onClick={() => { handleExamSelect(exam as ExamType); navigateTo('tutorial'); }} className="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-purple hover:ring-2 hover:ring-brand-purple/20 transition-all text-left group">
                 <span className="text-2xl block mb-2 group-hover:scale-110 transition-transform duration-300">🎯</span>
                 <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-brand-purple transition-colors">{exam}</h3>
                 <p className="text-xs text-slate-500 mt-1">Start Preparation →</p>
