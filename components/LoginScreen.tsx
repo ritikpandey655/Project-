@@ -29,41 +29,54 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
   };
 
   const syncUserToDB = async (firebaseUser: any) => {
-    const userRef = doc(db, "users", firebaseUser.uid);
-    const userSnap = await getDoc(userRef);
-    
-    // Robust name extraction: Use DisplayName -> Email prefix -> 'User'
-    const userEmail = firebaseUser.email || email || '';
-    const nameToCheck = (firebaseUser.displayName || userEmail.split('@')[0] || 'User').toLowerCase();
-    const emailToCheck = userEmail.toLowerCase();
-    
-    // Explicitly check for your email or "admin" substring
-    const isAdmin = emailToCheck === 'admin@pyqverse.com' || 
-                    emailToCheck === 'ritikpandey655@gmail.com' ||
-                    nameToCheck.includes('admin') ||
-                    emailToCheck.includes('admin');
+    try {
+      const userRef = doc(db, "users", firebaseUser.uid);
+      const userSnap = await getDoc(userRef);
+      
+      // Robust Data Extraction
+      const userEmail = firebaseUser.email || email || "";
+      const rawName = firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : "User");
+      
+      const nameToCheck = rawName.toLowerCase();
+      const emailToCheck = userEmail.toLowerCase();
+      
+      // Explicitly check for your email or "admin" substring
+      const isAdmin = emailToCheck === 'admin@pyqverse.com' || 
+                      emailToCheck === 'ritikpandey655@gmail.com' ||
+                      nameToCheck.includes('admin') ||
+                      emailToCheck.includes('admin');
 
-    let userData: User;
-    if (userSnap.exists()) {
-      userData = userSnap.data() as User;
-      // Update admin status if it has changed
-      if (isAdmin && !userData.isAdmin) {
-         userData.isAdmin = true;
-         await setDoc(userRef, { isAdmin: true }, { merge: true });
-      }
-    } else {
-      // Create new user doc if missing
-      userData = {
+      // Sanitize Data for Firestore (Undefined causes crashes)
+      const safeData = {
         id: firebaseUser.uid,
-        name: firebaseUser.displayName || (userEmail.split('@')[0]) || "User",
-        email: firebaseUser.email || userEmail,
-        // CRITICAL: Ensure this is null, NOT undefined
-        photoURL: firebaseUser.photoURL || null,
-        isAdmin: isAdmin
+        name: rawName || "User", // Fallback to string "User" if empty
+        email: userEmail || "no-email", 
+        photoURL: firebaseUser.photoURL || null, // Must be null, not undefined
+        isAdmin: !!isAdmin // Force boolean
       };
-      await setDoc(userRef, userData);
+
+      let userData: User;
+      
+      if (userSnap.exists()) {
+        const existingData = userSnap.data() as User;
+        userData = existingData;
+        
+        // Update admin status if it has changed locally but not in DB
+        if (isAdmin && !existingData.isAdmin) {
+           userData.isAdmin = true;
+           await setDoc(userRef, { isAdmin: true }, { merge: true });
+        }
+      } else {
+        // Create new user doc
+        // We explicitly cast to User to satisfy TS, knowing safeData matches structure
+        userData = safeData as User;
+        await setDoc(userRef, safeData);
+      }
+      return userData;
+    } catch (dbError: any) {
+      console.error("Database Sync Error:", dbError);
+      throw new Error("Failed to save user data. " + dbError.message);
     }
-    return userData;
   };
 
   const handleGoogleLogin = async () => {
@@ -74,7 +87,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       const user = await syncUserToDB(result.user);
       onLogin(user);
     } catch (err: any) {
-      console.error(err);
+      console.error("Google Login Error:", err);
       setError(err.message || 'Google Sign In Failed');
     } finally {
       setIsLoading(false);
@@ -92,12 +105,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       const user = await syncUserToDB(result.user);
       onLogin(user);
     } catch (err: any) {
-      console.error(err);
-      // Give more descriptive errors
+      console.error("Login Error Details:", err);
+      
+      // More descriptive error handling
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
          setError('Invalid Email or Password');
+      } else if (err.code === 'auth/user-not-found') {
+         setError('No account found with this email.');
+      } else if (err.code === 'auth/network-request-failed') {
+         setError('Network error. Check your connection.');
+      } else if (err.code === 'auth/too-many-requests') {
+         setError('Too many failed attempts. Try again later.');
       } else {
-         setError(err.message || 'Login Failed');
+         // Show the actual error for debugging
+         setError(`Error: ${err.message}`);
       }
     } finally {
       setIsLoading(false);
@@ -148,7 +169,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                   <p className="text-indigo-200 text-xs sm:text-sm">Sign in to sync your progress</p>
                 </div>
                 
-                {error && <p className="text-red-400 text-xs text-center mb-3 bg-red-900/20 p-2 rounded">{error}</p>}
+                {error && <p className="text-red-200 text-xs text-center mb-3 bg-red-900/40 border border-red-500/30 p-2 rounded">{error}</p>}
 
                 <form onSubmit={handleEmailLogin} className="space-y-3">
                   <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-indigo-200/50 outline-none focus:border-brand-purple text-sm" />

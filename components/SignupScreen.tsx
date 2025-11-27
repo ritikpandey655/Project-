@@ -53,8 +53,8 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
         id: firebaseUser.uid,
         name: name,
         email: email,
-        // CRITICAL FIX: Firestore throws error on 'undefined'. Use 'null' for optional fields.
-        photoURL: null as any, 
+        // CRITICAL FIX: Ensure this is null, NOT undefined. Firestore crashes on undefined.
+        photoURL: null, 
         isAdmin: isAdmin 
       };
 
@@ -67,6 +67,8 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {
         setError('Email already exists. Please login.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password should be at least 6 characters.');
       } else {
         setError(err.message || 'Registration failed');
       }
