@@ -9,7 +9,7 @@ interface CurrentAffairsFeedProps {
   onBack: () => void;
   onTakeQuiz: () => void;
   language?: 'en' | 'hi';
-  onFilterChange?: (filters: { month?: string; year?: number; category?: string; subject?: string }) => Promise<void>;
+  onFilterChange?: (filters: { month?: string; year?: number; category?: string; subject?: string }, isLoadMore?: boolean) => Promise<void>;
   mode?: 'news' | 'notes';
   examType?: ExamType;
 }
@@ -28,11 +28,12 @@ export const CurrentAffairsFeed: React.FC<CurrentAffairsFeedProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedSubject, setSelectedSubject] = useState<string>('Mixed');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const handleApplyFilter = async () => {
     if (!onFilterChange) return;
     setIsRefreshing(true);
-    // Immediate timeout to allow UI to render spinner before async op starts holding thread (if any)
+    // Immediate timeout to allow UI to render spinner before async op starts holding thread
     setTimeout(async () => {
       try {
         if (mode === 'news') {
@@ -44,6 +45,20 @@ export const CurrentAffairsFeed: React.FC<CurrentAffairsFeedProps> = ({
         setIsRefreshing(false);
       }
     }, 10);
+  };
+
+  const handleLoadMore = async () => {
+    if (!onFilterChange) return;
+    setIsLoadingMore(true);
+    try {
+        if (mode === 'news') {
+          await onFilterChange({ month: selectedMonth, year: selectedYear, category: selectedCategory }, true);
+        } else {
+          await onFilterChange({ subject: selectedSubject === 'Mixed' ? undefined : selectedSubject }, true);
+        }
+    } finally {
+        setIsLoadingMore(false);
+    }
   };
 
   return (
@@ -151,48 +166,57 @@ export const CurrentAffairsFeed: React.FC<CurrentAffairsFeedProps> = ({
                 <p className="text-slate-500 dark:text-slate-400">No content found.</p>
              </div>
           ) : (
-            news.map((item, index) => {
-              const headline = (language === 'hi' && item.headlineHindi) ? item.headlineHindi : item.headline;
-              const summary = (language === 'hi' && item.summaryHindi) ? item.summaryHindi : item.summary;
+            <>
+                {news.map((item, index) => {
+                const headline = (language === 'hi' && item.headlineHindi) ? item.headlineHindi : item.headline;
+                const summary = (language === 'hi' && item.summaryHindi) ? item.summaryHindi : item.summary;
 
-              return (
-                <div key={item.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${mode === 'news' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'}`}>
-                        {item.category}
-                      </span>
-                      {mode === 'news' && (
-                        <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
-                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                           </svg>
-                           <span className="text-xs font-bold">{item.date || `${selectedMonth} ${selectedYear}`}</span>
+                return (
+                    <div key={item.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-slide-up" style={{ animationDelay: `${index * 50}ms` }}>
+                    <div className="p-6">
+                        <div className="flex justify-between items-start mb-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${mode === 'news' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'}`}>
+                            {item.category}
+                        </span>
+                        {mode === 'news' && (
+                            <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-xs font-bold">{item.date || `${selectedMonth} ${selectedYear}`}</span>
+                            </div>
+                        )}
                         </div>
-                      )}
-                    </div>
-                    
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 leading-snug">
-                      {headline}
-                    </h3>
-                    
-                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm sm:text-base whitespace-pre-wrap">
-                      {summary}
-                    </p>
+                        
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 leading-snug">
+                        {headline}
+                        </h3>
+                        
+                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm sm:text-base whitespace-pre-wrap">
+                        {summary}
+                        </p>
 
-                    {item.tags.length > 0 && (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {item.tags.map(tag => (
-                          <span key={tag} className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                        {item.tags.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            {item.tags.map(tag => (
+                            <span key={tag} className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                                #{tag}
+                            </span>
+                            ))}
+                        </div>
+                        )}
+                    </div>
+                    </div>
+                );
+                })}
+                
+                {/* Load More Button */}
+                <div className="flex justify-center pt-4 pb-8">
+                    <Button onClick={handleLoadMore} isLoading={isLoadingMore} variant="secondary" className="shadow-sm">
+                        {isLoadingMore ? 'Loading...' : 'Load More'}
+                    </Button>
                 </div>
-              );
-            })
+            </>
           )}
         </div>
       )}

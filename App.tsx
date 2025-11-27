@@ -321,7 +321,7 @@ const App: React.FC = () => {
     });
   };
 
-  const handleNewsFilterChange = async (filters: { month?: string; year?: number; category?: string; subject?: string }) => {
+  const handleNewsFilterChange = async (filters: { month?: string; year?: number; category?: string; subject?: string }, isLoadMore: boolean = false) => {
     if (!state.user || !state.selectedExam) return;
     let items;
     if (filters.subject) {
@@ -329,16 +329,26 @@ const App: React.FC = () => {
     } else {
        items = await generateNews(state.selectedExam, filters.month, filters.year, filters.category);
     }
-    setState(prev => ({ ...prev, newsFeed: items }));
+    
+    setState(prev => ({ 
+        ...prev, 
+        newsFeed: isLoadMore ? [...(prev.newsFeed || []), ...items] : items 
+    }));
   };
 
-  const handleFetchNotes = () => {
+  const handleFetchNotes = async () => {
      if (!state.user || !state.selectedExam) return;
+     setIsLoading(true); // Immediate Feedback
      const defaultSubject = EXAM_SUBJECTS[state.selectedExam][0];
-     generateStudyNotes(state.selectedExam, defaultSubject).then(items => {
-        setState(prev => ({ ...prev, newsFeed: items }));
-        navigateTo('news');
-     });
+     try {
+       const items = await generateStudyNotes(state.selectedExam, defaultSubject);
+       setState(prev => ({ ...prev, newsFeed: items }));
+       navigateTo('news');
+     } catch(e) {
+        console.error(e);
+     } finally {
+        setIsLoading(false);
+     }
   }
 
   // Security Blackout Screen
@@ -708,8 +718,14 @@ const App: React.FC = () => {
       {isLoading && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl flex flex-col items-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-600 mb-2"></div>
-              <p className="text-slate-700 dark:text-white font-bold">Loading Universe...</p>
+              {/* Sand Timer Animation */}
+              <div className="relative w-16 h-16 mb-4">
+                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-indigo-500 animate-spin-slow">
+                    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
+                 </svg>
+                 <div className="absolute inset-0 flex items-center justify-center text-2xl animate-bounce">⏳</div>
+              </div>
+              <p className="text-slate-700 dark:text-white font-bold">Loading...</p>
            </div>
         </div>
       )}

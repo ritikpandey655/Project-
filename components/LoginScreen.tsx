@@ -82,8 +82,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       onLogin(user);
     } catch (err: any) {
       console.error("Google Login Error:", err);
-      alert(`Google Login Failed: ${err.message || 'Unknown Error'}`);
-      setError(err.message || 'Google Sign In Failed');
+      if (err.code === 'auth/unauthorized-domain') {
+         const domain = window.location.hostname;
+         alert(`🚫 Authorization Error\n\nYour current domain (${domain}) is not authorized in Firebase.\n\nFIX:\n1. Go to Firebase Console > Authentication > Settings > Authorized Domains\n2. Add this domain: ${domain}`);
+      } else if (err.code === 'auth/popup-closed-by-user') {
+         setError('Sign in cancelled');
+      } else {
+         alert(`Google Login Failed: ${err.message || 'Unknown Error'}`);
+         setError(err.message || 'Google Sign In Failed');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
@@ -14,11 +15,19 @@ if (typeof window !== 'undefined' && !apiKey) {
 const cleanJson = (text: string) => {
   // First, try to match a JSON block
   const match = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-  if (match) {
-      return match[0];
+  let cleaned = match ? match[0] : text;
+  
+  // Basic cleanup
+  cleaned = cleaned.replace(/```json/g, '').replace(/```/g, '').trim();
+  
+  // Find first [ or {
+  const firstOpen = cleaned.search(/[\{\[]/);
+  const lastClose = cleaned.search(/[\]\}][^\]\}]*$/);
+  
+  if (firstOpen !== -1 && lastClose !== -1) {
+    cleaned = cleaned.substring(firstOpen, lastClose + 1);
   }
-  // Fallback cleanup
-  return text.replace(/```json/g, '').replace(/```/g, '').trim();
+  return cleaned;
 };
 
 // Helper for unique IDs - Added random suffix to strictly prevent collisions
@@ -69,27 +78,13 @@ export const generateExamQuestions = async (
     const currentBatchCount = Math.min(BATCH_SIZE, remainingCount - (i * BATCH_SIZE));
     
     const prompt = `
-      Act as an expert exam setter for the Indian Competitive Exam: "${exam}".
-      Subject: "${subject}".
-      Difficulty Level: "${difficulty}".
-      ${topics.length > 0 ? `CRITICAL: STRICTLY generate questions ONLY related to these specific topics: "${topics.join(', ')}".` : ''}
+      Create ${currentBatchCount} unique multiple-choice questions for ${exam} (${subject}).
+      Difficulty: ${difficulty}.
+      ${topics.length > 0 ? `Topics: ${topics.join(', ')}` : ''}
+      Batch: ${i + 1}
       
-      TASK: Generate ${currentBatchCount} high-quality multiple-choice questions.
-      Batch Context: Part ${i + 1} of a larger set. Ensure variety.
-      
-      CRITICAL INSTRUCTION FOR EXPLANATIONS:
-      - For Physics/Maths/Chemistry (NEET/JEE): The explanation MUST be Step-by-Step. Include 'Given', 'Formula Used', 'Calculation', and 'Final Result'.
-      - For General Studies/Theory: Provide detailed reasoning, covering why the correct option is right AND why others are wrong.
-      
-      REQUIREMENT: Provide content in BOTH English and Hindi (Devanagari script).
-      IMPORTANT: Return raw JSON only. Do not use Markdown formatting.
-      
-      Output a JSON array of objects with keys: 
-      text (English), text_hi (Hindi), 
-      options (English Array), options_hi (Hindi Array), 
-      correctIndex, 
-      explanation (English - Structured with line breaks), explanation_hi (Hindi), 
-      tags.
+      Output strictly JSON array.
+      Include 'text', 'text_hi' (Hindi), 'options', 'options_hi', 'correctIndex', 'explanation', 'explanation_hi'.
     `;
 
     aiPromises.push(
@@ -183,19 +178,12 @@ export const generatePYQList = async (
 
   for (let i = 0; i < numBatches; i++) {
     const prompt = `
-      Act as an exam expert. Create ${BATCH_SIZE} high-quality practice questions that strictly follow the pattern, difficulty, and topics found in the:
-      Exam: ${exam}
-      Year: ${year}
-      Subject: ${subject}
-      ${topic ? `Topic/Chapter Focus: ${topic}` : ''}
+      Create ${BATCH_SIZE} questions simulating ${year} ${exam} PYQs for ${subject}.
+      ${topic ? `Topic: ${topic}` : ''}
+      Batch: ${i + 1}
       
-      Batch: ${i + 1} (Generate diverse questions).
-      
-      Mix of Question Types: Mostly MCQs, but include 1 Numerical/Short Answer if applicable.
-      
-      REQUIREMENT: English and Hindi.
-      EXPLANATION: Detailed solution.
-      IMPORTANT: Return raw JSON only.
+      Output strictly JSON array.
+      Mix MCQs and 1 short answer.
     `;
 
     aiPromises.push(
@@ -278,25 +266,22 @@ export const generateCurrentAffairs = async (
   const aiPromises = [];
   
   const focuses = [
-      "National News, Government Schemes, Polity",
-      "International Relations, Geopolitics, Summits",
-      "Sports, Awards, Books & Authors",
-      "Science & Tech, Defence, Space Missions",
-      "Economy, Budget, Indices & Reports"
+      "National News",
+      "International Relations",
+      "Sports & Awards",
+      "Science & Tech",
+      "Economy"
   ];
 
   for (let i = 0; i < numBatches; i++) {
       const currentBatchCount = Math.min(BATCH_SIZE, remaining - (i * BATCH_SIZE));
-      const randomFocus = focuses[i % focuses.length]; // Rotate focus per batch
+      const randomFocus = focuses[i % focuses.length]; 
 
       const prompt = `
-        Act as an expert exam setter for ${exam}.
-        TASK: Generate ${currentBatchCount} UNIQUE Current Affairs MCQs based on events from the LAST 12 MONTHS.
-        BATCH FOCUS: ${randomFocus}.
-        
-        EXPLANATION STYLE: detailed background info on the news event.
-        REQUIREMENT: Provide content in BOTH English and Hindi.
-        IMPORTANT: Return raw JSON only.
+        Generate ${currentBatchCount} Current Affairs MCQs for ${exam}.
+        Focus: ${randomFocus} (Last 12 Months).
+        Include English & Hindi content.
+        Output strictly JSON array.
       `;
       
       aiPromises.push(
@@ -368,29 +353,18 @@ export const generateNews = async (
   const ai = new GoogleGenAI({ apiKey });
   
   const timeContext = month && year 
-      ? `specifically ONLY for the period of ${month} ${year}.` 
-      : 'recently (Last 24-48 hours)';
+      ? `Period: ${month} ${year}` 
+      : 'Recent (Last 48h)';
   
   const categoryContext = category && category !== 'All' 
-      ? `Focus specifically on "${category}" news.` 
-      : 'Cover major categories: National, International, Sports, Awards, Science.';
+      ? `Category: ${category}` 
+      : 'General News';
 
   const prompt = `
-    Act as a news curator for ${exam} aspirants.
-    
-    TASK: Generate 8-10 concise Current Affairs flashcards for events that occurred ${timeContext}.
-    ${categoryContext}
-    
-    CRITICAL DATE INSTRUCTION:
-    - You MUST provide the EXACT date for every single event in "DD Month YYYY" format (e.g., 12 November 2023).
-    - If the user asked for a specific month/year, ensure ALL events fall strictly within that timeline.
-    
-    REQUIREMENT: 
-    1. Headline and Summary in English AND Hindi.
-    2. Category (e.g., National, Sports).
-    3. Precise Date field (REQUIRED).
-    
-    IMPORTANT: Return raw JSON only.
+    Generate 8 Current Affairs flashcards for ${exam}.
+    ${timeContext}. ${categoryContext}.
+    REQUIRED: Exact date (DD Month YYYY).
+    Output strictly JSON array.
   `;
 
   try {
@@ -449,18 +423,10 @@ export const generateStudyNotes = async (
   const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
-    Act as a expert tutor for ${exam}.
-    Target Subject: ${subject || 'Important Topics'}.
-    
-    TASK: Generate 8-10 "Short Trick" or "Important Formula" cards.
-    Content should be things students often forget or need for quick revision (e.g., a Physics formula, a Math shortcut, a Chemical reaction mechanism).
-    
-    REQUIREMENT: 
-    1. Title (Topic Name) in English & Hindi.
-    2. Content (The Formula/Trick) in English & Hindi.
-    3. Category (Subject Name).
-    
-    IMPORTANT: Return raw JSON only.
+    Generate 8 Study Notes/Formulas for ${exam}.
+    Subject: ${subject || 'Key Concepts'}.
+    Include English & Hindi.
+    Output strictly JSON array.
   `;
 
   try {
@@ -515,10 +481,8 @@ export const generateSingleQuestion = async (
   
   const ai = new GoogleGenAI({ apiKey });
   const prompt = `
-    Generate 1 high-quality multiple-choice question for ${exam}, Subject: ${subject}, Topic: ${topic}. 
-    Provide English and Hindi. 
-    EXPLANATION: Must be step-by-step with clear reasoning and formula usage if applicable.
-    Output JSON.
+    Generate 1 MCQ for ${exam}. Subject: ${subject}, Topic: ${topic}.
+    Output strictly JSON.
   `;
 
   try {
