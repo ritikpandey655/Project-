@@ -17,7 +17,7 @@ interface DashboardProps {
   onGeneratePaper: () => void;
   onStartCurrentAffairs: () => void;
   onReadCurrentAffairs: () => void;
-  onReadNotes: () => void; // New prop for Formulas
+  onReadNotes: () => void; 
   onEnableNotifications: () => void;
   language?: 'en' | 'hi';
   onToggleLanguage?: () => void;
@@ -36,7 +36,7 @@ interface DashboardProps {
   selectedExam: ExamType | null;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ 
+export const Dashboard: React.FC<DashboardProps> = React.memo(({ 
   stats, 
   user,
   onStartPractice, 
@@ -120,7 +120,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
        return;
     }
     if (isTechnical) {
-       onReadNotes(); // Direct action for Formulas
+       onReadNotes(); 
     } else {
        setShowCAMenu(!showCAMenu);
     }
@@ -150,7 +150,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <p className="text-[10px] sm:text-xs text-brand-yellow font-bold uppercase tracking-wide mt-1">{t.tagline}</p>
             </div>
             {isPro ? (
-              <span className="bg-brand-yellow text-slate-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm animate-pulse-glow self-start">
+              <span className="bg-brand-yellow text-slate-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm self-start">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                 Pro Member
               </span>
@@ -220,8 +220,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
         {/* Decorative circles */}
-        <div className="absolute -right-10 -top-10 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-pulse-glow"></div>
-        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-brand-blue/30 rounded-full blur-2xl animate-float"></div>
+        <div className="absolute -right-10 -top-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-brand-blue/30 rounded-full blur-2xl"></div>
       </div>
 
       {/* Quick Actions Grid */}
@@ -430,4 +430,4 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
     </div>
   );
-};
+});

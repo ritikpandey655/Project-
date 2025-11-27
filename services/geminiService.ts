@@ -77,14 +77,22 @@ export const generateExamQuestions = async (
   for (let i = 0; i < numBatches; i++) {
     const currentBatchCount = Math.min(BATCH_SIZE, remainingCount - (i * BATCH_SIZE));
     
+    // STRICT PROMPT FOR ACCURACY
     const prompt = `
-      Create ${currentBatchCount} unique multiple-choice questions for ${exam} (${subject}).
-      Difficulty: ${difficulty}.
-      ${topics.length > 0 ? `Topics: ${topics.join(', ')}` : ''}
-      Batch: ${i + 1}
+      You are an expert examiner for ${exam}. 
+      Generate ${currentBatchCount} HIGH-ACCURACY multiple-choice questions for subject: ${subject}.
+      Difficulty Level: ${difficulty}.
+      ${topics.length > 0 ? `Focus Topics: ${topics.join(', ')}` : 'Topics: Standard Syllabus Coverage'}
+      
+      STRICT RULES:
+      1. SOURCE OF TRUTH: Questions must be based on standard textbooks (NCERT/Standard Reference). NO made-up scenarios.
+      2. MATH/SCIENCE: Use integers or simple fractions. Ensure the calculation leads to a clean, exact answer. No complex decimals unless standard for the exam.
+      3. HISTORY/GK: Only use verified historical dates and facts.
+      4. OPTIONS: Must be distinct and unambiguous.
+      5. Batch: ${i + 1} (Ensure variety).
       
       Output strictly JSON array.
-      Include 'text', 'text_hi' (Hindi), 'options', 'options_hi', 'correctIndex', 'explanation', 'explanation_hi'.
+      Include 'text', 'text_hi' (Hindi translation), 'options', 'options_hi', 'correctIndex', 'explanation' (Step-by-step verification), 'explanation_hi'.
     `;
 
     aiPromises.push(
@@ -178,9 +186,15 @@ export const generatePYQList = async (
 
   for (let i = 0; i < numBatches; i++) {
     const prompt = `
-      Create ${BATCH_SIZE} questions simulating ${year} ${exam} PYQs for ${subject}.
-      ${topic ? `Topic: ${topic}` : ''}
+      Simulate ${BATCH_SIZE} high-yield questions based on the ${year} ${exam} exam pattern for ${subject}.
+      ${topic ? `Focus Topic: ${topic}` : ''}
       Batch: ${i + 1}
+      
+      STRICT ACCURACY RULES:
+      1. If exact PYQ text is copyright-restricted, generate a 'Concept Twin': Use the EXACT same logic/formula/concept but change the values/entities slightly.
+      2. Maintain the exact difficulty level of ${year}.
+      3. For Numerical: Ensure calculations are solvable without a calculator (Integer/Clean Fractions).
+      4. FACT CHECK: Verify the answer before generating explanation.
       
       Output strictly JSON array.
       Mix MCQs and 1 short answer.
@@ -265,12 +279,13 @@ export const generateCurrentAffairs = async (
   const numBatches = Math.ceil(remaining / BATCH_SIZE);
   const aiPromises = [];
   
+  // Use Static GK topics mixed with News to ensure accuracy when exact recent news is unavailable to AI
   const focuses = [
-      "National News",
-      "International Relations",
-      "Sports & Awards",
-      "Science & Tech",
-      "Economy"
+      "Recent Awards & Honours (Verified)",
+      "Important Government Schemes",
+      "Major Sports Events (Olympics/World Cups)",
+      "Constitutional Articles (Static GK)",
+      "Scientific Discoveries (Verified)"
   ];
 
   for (let i = 0; i < numBatches; i++) {
@@ -278,9 +293,15 @@ export const generateCurrentAffairs = async (
       const randomFocus = focuses[i % focuses.length]; 
 
       const prompt = `
-        Generate ${currentBatchCount} Current Affairs MCQs for ${exam}.
-        Focus: ${randomFocus} (Last 12 Months).
-        Include English & Hindi content.
+        Generate ${currentBatchCount} High-Quality MCQs for ${exam}.
+        Focus Area: ${randomFocus}.
+        
+        CRITICAL INSTRUCTIONS:
+        1. DO NOT HALLUCINATE. Only ask about events that definitively happened.
+        2. If asking about dates, use well-known historical or major recent dates.
+        3. Include 'Static GK' questions if recent news is ambiguous or uncertain.
+        4. Include English & Hindi content.
+        
         Output strictly JSON array.
       `;
       
@@ -354,16 +375,22 @@ export const generateNews = async (
   
   const timeContext = month && year 
       ? `Period: ${month} ${year}` 
-      : 'Recent (Last 48h)';
+      : 'Recent (Last 1 Year)';
   
   const categoryContext = category && category !== 'All' 
       ? `Category: ${category}` 
       : 'General News';
 
+  // Strict prompt to avoid fake dates
   const prompt = `
-    Generate 8 Current Affairs flashcards for ${exam}.
+    Retrieve 8 REAL, VERIFIED Current Affairs events for ${exam} preparation.
     ${timeContext}. ${categoryContext}.
-    REQUIRED: Exact date (DD Month YYYY).
+    
+    STRICT RULES:
+    1. NO FAKE NEWS. If you do not have specific data for ${month} ${year}, provide "Static General Knowledge" or "Historical Facts" related to ${category || 'India'} instead.
+    2. REQUIRED: Exact date (DD Month YYYY) if known, otherwise write "General Fact" or "Static GK".
+    3. Focus on: Appointments, Awards, Summits, Schemes.
+    
     Output strictly JSON array.
   `;
 
@@ -423,9 +450,14 @@ export const generateStudyNotes = async (
   const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
-    Generate 8 Study Notes/Formulas for ${exam}.
+    Generate 8 High-Yield Study Notes/Formulas for ${exam}.
     Subject: ${subject || 'Key Concepts'}.
     Include English & Hindi.
+    
+    Format:
+    - Title: Name of the Concept/Theorem.
+    - Content: The Formula, Definition, or Key Fact.
+    
     Output strictly JSON array.
   `;
 
@@ -481,7 +513,8 @@ export const generateSingleQuestion = async (
   
   const ai = new GoogleGenAI({ apiKey });
   const prompt = `
-    Generate 1 MCQ for ${exam}. Subject: ${subject}, Topic: ${topic}.
+    Generate 1 High-Quality MCQ for ${exam}. Subject: ${subject}, Topic: ${topic}.
+    Ensure the question is FACTUALLY CORRECT and unambiguous.
     Output strictly JSON.
   `;
 
@@ -625,7 +658,12 @@ export const generateFullPaper = async (
            Batch: ${i + 1}/${mcqBatches}.
            Context: ${seedData}.
            Start Q#: ${startNum}.
-           EXPLANATION REQ: Detailed, Step-by-Step, Formula-based where needed.
+           
+           STRICT ACCURACY:
+           1. Questions must be technically correct and solvable.
+           2. Options must be distinct.
+           3. Explanation must be step-by-step verified.
+           
            REQUIREMENT: English and Hindi.
         `;
 

@@ -33,18 +33,16 @@ export const CurrentAffairsFeed: React.FC<CurrentAffairsFeedProps> = ({
   const handleApplyFilter = async () => {
     if (!onFilterChange) return;
     setIsRefreshing(true);
-    // Immediate timeout to allow UI to render spinner before async op starts holding thread
-    setTimeout(async () => {
-      try {
-        if (mode === 'news') {
-          await onFilterChange({ month: selectedMonth, year: selectedYear, category: selectedCategory });
-        } else {
-          await onFilterChange({ subject: selectedSubject === 'Mixed' ? undefined : selectedSubject });
-        }
-      } finally {
-        setIsRefreshing(false);
+    // Removed setTimeout to allow immediate execution
+    try {
+      if (mode === 'news') {
+        await onFilterChange({ month: selectedMonth, year: selectedYear, category: selectedCategory });
+      } else {
+        await onFilterChange({ subject: selectedSubject === 'Mixed' ? undefined : selectedSubject });
       }
-    }, 10);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleLoadMore = async () => {

@@ -24,7 +24,7 @@ interface SidebarProps {
   onEnableNotifications: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
+export const Sidebar: React.FC<SidebarProps> = React.memo(({
   isOpen,
   onClose,
   user,
@@ -213,4 +213,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
     </>
   );
-};
+});
