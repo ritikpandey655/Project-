@@ -32,11 +32,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     const userRef = doc(db, "users", firebaseUser.uid);
     const userSnap = await getDoc(userRef);
     
-    // Check for Admin rights in Name or Email (Case Insensitive)
-    const nameToCheck = (firebaseUser.displayName || email.split('@')[0] || '').toLowerCase();
-    const emailToCheck = (firebaseUser.email || '').toLowerCase();
+    // Robust name extraction: Use DisplayName -> Email prefix -> 'User'
+    const userEmail = firebaseUser.email || email || '';
+    const nameToCheck = (firebaseUser.displayName || userEmail.split('@')[0] || 'User').toLowerCase();
+    const emailToCheck = userEmail.toLowerCase();
     
-    // Explicitly check for your email
+    // Explicitly check for your email or "admin" substring
     const isAdmin = emailToCheck === 'admin@pyqverse.com' || 
                     emailToCheck === 'ritikpandey655@gmail.com' ||
                     nameToCheck.includes('admin') ||
@@ -51,11 +52,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
          await setDoc(userRef, { isAdmin: true }, { merge: true });
       }
     } else {
+      // Create new user doc if missing
       userData = {
         id: firebaseUser.uid,
-        name: firebaseUser.displayName || nameToCheck,
-        email: firebaseUser.email || emailToCheck,
-        // CRITICAL FIX: Use null for missing photoURL to avoid Firestore 'undefined' error
+        name: firebaseUser.displayName || (userEmail.split('@')[0]) || "User",
+        email: firebaseUser.email || userEmail,
+        // CRITICAL: Ensure this is null, NOT undefined
         photoURL: firebaseUser.photoURL || null,
         isAdmin: isAdmin
       };
@@ -91,7 +93,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       onLogin(user);
     } catch (err: any) {
       console.error(err);
-      setError('Invalid Email or Password');
+      // Give more descriptive errors
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+         setError('Invalid Email or Password');
+      } else {
+         setError(err.message || 'Login Failed');
+      }
     } finally {
       setIsLoading(false);
     }
