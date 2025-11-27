@@ -32,15 +32,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     const userRef = doc(db, "users", firebaseUser.uid);
     const userSnap = await getDoc(userRef);
     
-    // Check for Admin rights in Name or Email
-    const nameToCheck = firebaseUser.displayName || email.split('@')[0];
-    const emailToCheck = firebaseUser.email || '';
+    // Check for Admin rights in Name or Email (Case Insensitive)
+    const nameToCheck = (firebaseUser.displayName || email.split('@')[0] || '').toLowerCase();
+    const emailToCheck = (firebaseUser.email || '').toLowerCase();
     
     // Explicitly check for your email
     const isAdmin = emailToCheck === 'admin@pyqverse.com' || 
                     emailToCheck === 'ritikpandey655@gmail.com' ||
-                    nameToCheck.toLowerCase().includes('admin') ||
-                    emailToCheck.toLowerCase().includes('admin');
+                    nameToCheck.includes('admin') ||
+                    emailToCheck.includes('admin');
 
     let userData: User;
     if (userSnap.exists()) {
@@ -53,9 +53,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     } else {
       userData = {
         id: firebaseUser.uid,
-        name: nameToCheck,
-        email: emailToCheck,
-        photoURL: firebaseUser.photoURL || undefined,
+        name: firebaseUser.displayName || nameToCheck,
+        email: firebaseUser.email || emailToCheck,
+        // CRITICAL FIX: Use null for missing photoURL to avoid Firestore 'undefined' error
+        photoURL: firebaseUser.photoURL || null,
         isAdmin: isAdmin
       };
       await setDoc(userRef, userData);

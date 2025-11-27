@@ -41,16 +41,20 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
       await updateProfile(firebaseUser, { displayName: name });
 
       // 3. Create Firestore User Doc
-      // Allow Admin access if email matches specific ID OR if Name contains "Admin"
-      const isAdmin = email === 'admin@pyqverse.com' || 
-                      email === 'ritikpandey655@gmail.com' ||
-                      name.toLowerCase().includes('admin');
+      // Allow Admin access if email matches specific ID OR if Name contains "Admin" (Case Insensitive)
+      const lowerEmail = email.toLowerCase().trim();
+      const lowerName = name.toLowerCase().trim();
+      
+      const isAdmin = lowerEmail === 'admin@pyqverse.com' || 
+                      lowerEmail === 'ritikpandey655@gmail.com' ||
+                      lowerName.includes('admin');
 
       const newUser: User = {
         id: firebaseUser.uid,
         name: name,
         email: email,
-        photoURL: undefined, // Or default
+        // CRITICAL FIX: Firestore throws error on 'undefined'. Use 'null' for optional fields.
+        photoURL: null as any, 
         isAdmin: isAdmin 
       };
 
@@ -72,16 +76,16 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#111827] flex items-center justify-center p-4 font-sans relative overflow-hidden overflow-y-auto">
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl relative z-10 animate-fade-in my-8">
-        <div className="text-center mb-8">
+    <div className="min-h-screen w-full bg-[#111827] flex items-center justify-center p-0 sm:p-4 font-sans relative overflow-hidden overflow-y-auto">
+      <div className="w-full max-w-md bg-white/10 backdrop-blur-xl border-0 sm:border border-white/10 sm:rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 animate-fade-in min-h-screen sm:min-h-0 flex flex-col justify-center">
+        <div className="text-center mb-6 sm:mb-8">
           <h2 className="text-3xl font-display font-bold text-white mb-2">Create Account</h2>
           <p className="text-indigo-200 text-sm">Join the PYQverse</p>
         </div>
 
         {error && <p className="text-red-400 text-sm text-center mb-4 bg-red-900/30 p-2 rounded">{error}</p>}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-indigo-200 mb-1 ml-1">Full Name</label>
@@ -105,7 +109,11 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
                     placeholder="••••" 
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-white">
-                    {showPassword ? "Hide" : "Show"}
+                    {showPassword ? (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      )}
                   </button>
                 </div>
               </div>
@@ -121,7 +129,11 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
                     placeholder="••••" 
                   />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-300 hover:text-white">
-                    {showConfirmPassword ? "Hide" : "Show"}
+                    {showConfirmPassword ? (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      )}
                   </button>
                 </div>
               </div>
