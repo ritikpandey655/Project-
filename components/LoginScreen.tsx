@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
-import * as firebaseAuth from 'firebase/auth';
+import { signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface LoginScreenProps {
@@ -51,7 +51,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     setIsLoading(true);
     setError('');
     try {
-      const result = await firebaseAuth.signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
       const user = await syncUserToDB(result.user);
       onLogin(user);
     } catch (err: any) {
@@ -69,7 +69,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     setIsLoading(true);
     setError('');
     try {
-      const result = await firebaseAuth.signInWithEmailAndPassword(auth, email, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
       const user = await syncUserToDB(result.user);
       onLogin(user);
     } catch (err: any) {
@@ -99,7 +99,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       </div>
 
       <div className="relative z-10 flex flex-col min-h-screen w-full max-w-md mx-auto px-6 pt-8 pb-6 sm:pt-12 sm:pb-8">
-        <div className={`flex flex-col items-center text-center transition-all duration-700 ${showLoginOptions ? 'mt-2 scale-90 origin-top' : 'mt-6 sm:mt-20'}`}>
+        <div className={`flex flex-col items-center text-center transition-all duration-700 ${showLoginOptions ? 'mt-4 sm:mt-10' : 'mt-6 sm:mt-20'}`}>
           <div className="mb-6 sm:mb-8 relative">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border border-white/10 flex items-center justify-center relative backdrop-blur-md bg-white/5">
                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-brand-purple to-brand-blue flex items-center justify-center shadow-lg shadow-brand-purple/50 z-10 font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tighter">PV</div>

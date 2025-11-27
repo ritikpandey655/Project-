@@ -41,7 +41,7 @@ import { Leaderboard } from './components/Leaderboard';
 import { CurrentAffairsFeed } from './components/CurrentAffairsFeed';
 import { PYQLibrary } from './components/PYQLibrary';
 import { auth } from './src/firebaseConfig';
-import * as firebaseAuth from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 
@@ -149,7 +149,7 @@ const App: React.FC = () => {
     }, 8000);
 
     // FIREBASE AUTH LISTENER
-    const unsubscribe = firebaseAuth.onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       clearTimeout(timeoutId); // Clear timeout on response
       if (currentUser) {
         // User is signed in
@@ -208,7 +208,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await firebaseAuth.signOut(auth);
+    await signOut(auth);
     // Listener will redirect to login
   };
 
@@ -473,7 +473,7 @@ const App: React.FC = () => {
         </nav>
       )}
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-3 sm:py-6 relative z-10">
         
         {state.view === 'login' && (
           <LoginScreen 
