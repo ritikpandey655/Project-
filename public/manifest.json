@@ -13,6 +13,22 @@
   "description": "PYQverse is the ultimate AI-powered exam preparation platform. Practice Previous Year Questions (PYQs), take smart Mock Tests, and stay updated with daily Current Affairs for UPSC, SSC, NEET, JEE, and more.",
   "lang": "en",
   "dir": "ltr",
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": ["focus-existing", "auto"]
+  },
+  "share_target": {
+    "action": "/?action=share",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "icons": [
     {
       "src": "https://via.placeholder.com/192x192.png?text=PV",
@@ -48,6 +64,13 @@
       "label": "Smart Dashboard"
     },
     {
+      "src": "https://via.placeholder.com/1080x1920/ffffff/5B2EFF?text=AI+Question+Mode",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "AI Practice"
+    },
+    {
       "src": "https://via.placeholder.com/1920x1080/111827/5B2EFF?text=Desktop+Experience",
       "sizes": "1920x1080",
       "type": "image/png",
@@ -62,6 +85,13 @@
       "description": "Start a new session",
       "url": "/?action=practice",
       "icons": [{ "src": "https://via.placeholder.com/192x192.png?text=P", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Current Affairs",
+      "short_name": "News",
+      "description": "Daily Updates",
+      "url": "/?action=news",
+      "icons": [{ "src": "https://via.placeholder.com/192x192.png?text=N", "sizes": "192x192", "type": "image/png" }]
     }
   ],
   "prefer_related_applications": false

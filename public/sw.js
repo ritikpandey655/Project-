@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'pyqverse-v1';
+const CACHE_NAME = 'pyqverse-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -33,16 +33,18 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Navigation requests (HTML)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .catch(() => {
-          return caches.match('/index.html');
+          return caches.match('/index.html') || caches.match('/');
         })
     );
     return;
   }
 
+  // Stale-while-revalidate for others
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
@@ -66,8 +68,8 @@ self.addEventListener('message', (event) => {
      setTimeout(() => {
         self.registration.showNotification("Time to Study! 📚", {
           body: "Keep your streak alive. Do a quick 5-min session now.",
-          icon: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamPilot',
-          badge: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamPilot'
+          icon: 'https://via.placeholder.com/192x192.png?text=PV',
+          badge: 'https://via.placeholder.com/96x96.png?text=PV'
         });
      }, event.data.delay);
   }
