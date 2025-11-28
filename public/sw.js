@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'pyqverse-v5';
+const CACHE_NAME = 'pyqverse-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -33,6 +33,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Navigation requests: Network first, fall back to cache (index.html)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -43,9 +44,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Asset requests: Stale-while-revalidate
+  // This serves cached content immediately while updating the cache in the background
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
+        // Only cache valid responses
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -53,9 +57,8 @@ self.addEventListener('fetch', (event) => {
             });
         }
         return networkResponse;
-      }).catch((err) => {
-          // Network error (offline)
-          // If we have no cached response, we simply return undefined, which results in a browser error for this resource
+      }).catch(() => {
+        // Network failure, silently fail if not in cache (or return offline asset if you have one)
       });
 
       return cachedResponse || fetchPromise;
@@ -63,47 +66,17 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Background Sync Listener (Satisfies PWA Check)
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-data') {
-    // Placeholder for background data sync logic
-    console.log('Background sync triggered');
-  }
-});
+// --- PWA FEATURES SUPPORT ---
 
-// Periodic Background Sync Listener (Satisfies PWA Check)
-self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'daily-update') {
-    event.waitUntil(
-      // Logic to update content in background
-      console.log('Periodic sync triggered')
-    );
-  }
-});
-
-// Push Notification Listener (Satisfies PWA Check)
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   const title = data.title || 'PYQverse Update';
   const options = {
-    body: data.body || 'New content available!',
+    body: data.body || 'New study material available!',
     icon: 'https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV',
     badge: 'https://placehold.co/96x96/5B2EFF/ffffff.png?text=PV'
   };
   event.waitUntil(self.registration.showNotification(title, options));
-});
-
-// Local scheduled notifications
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SCHEDULE_REMINDER') {
-     setTimeout(() => {
-        self.registration.showNotification("Time to Study! 📚", {
-          body: "Keep your streak alive. Do a quick 5-min session now.",
-          icon: 'https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV',
-          badge: 'https://placehold.co/96x96/5B2EFF/ffffff.png?text=PV'
-        });
-     }, event.data.delay);
-  }
 });
 
 self.addEventListener('notificationclick', (event) => {
@@ -112,11 +85,7 @@ self.addEventListener('notificationclick', (event) => {
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       if (clientList.length > 0) {
         let client = clientList[0];
-        for (let i = 0; i < clientList.length; i++) {
-          if (clientList[i].focused) {
-            client = clientList[i];
-          }
-        }
+        if (client.focused) return client.focus();
         return client.focus();
       }
       return clients.openWindow('/');
