@@ -13,9 +13,12 @@ const firebaseConfig = {
   measurementId: "G-C8G91QQYCH"
 };
 
-// Initialize Firebase
-const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
+// Cast to any to bypass strict type checking issues with firebase/compat
+const fb = firebase as any;
 
-export const auth = firebase.auth();
-export const googleProvider = new firebase.auth.GoogleAuthProvider();
-export const db = firebase.firestore();
+// Initialize Firebase
+const app = !fb.apps.length ? fb.initializeApp(firebaseConfig) : fb.app();
+
+export const auth = fb.auth();
+export const googleProvider = new fb.auth.GoogleAuthProvider();
+export const db = fb.firestore();
