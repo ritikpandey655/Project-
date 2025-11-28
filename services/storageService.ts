@@ -40,7 +40,7 @@ export const getUser = async (userId: string): Promise<User | null> => {
 export const getAllUsers = async (): Promise<User[]> => {
   try {
     const snapshot = await db.collection("users").get();
-    return snapshot.docs.map((doc: any) => doc.data() as User);
+    return snapshot.docs.map(doc => doc.data() as User);
   } catch (e) {
     return [];
   }
@@ -73,7 +73,7 @@ export const saveUserQuestion = async (userId: string, question: Question): Prom
 export const getUserQuestions = async (userId: string): Promise<Question[]> => {
   try {
     const snapshot = await db.collection("users").doc(userId).collection("questions").get();
-    return snapshot.docs.map((doc: any) => doc.data() as Question);
+    return snapshot.docs.map(doc => doc.data() as Question);
   } catch (e) {
     console.error("Error fetching questions:", e);
     return [];
@@ -109,7 +109,7 @@ export const getOfficialQuestions = async (exam: string, subject: string, count:
     }
 
     const snapshot = await q.get();
-    const all = snapshot.docs.map((d: any) => d.data() as Question);
+    const all = snapshot.docs.map(d => d.data() as Question);
     
     // Shuffle client-side for randomness since Firestore random sort is complex
     return all.sort(() => 0.5 - Math.random()).slice(0, count);
@@ -122,7 +122,7 @@ export const getOfficialQuestions = async (exam: string, subject: string, count:
 export const getAdminQuestions = async (): Promise<Question[]> => {
   try {
     const snapshot = await db.collection("global_questions").get();
-    return snapshot.docs.map((d: any) => d.data() as Question);
+    return snapshot.docs.map(d => d.data() as Question);
   } catch (e) {
     console.error("Error fetching admin questions:", e);
     return [];
@@ -176,7 +176,7 @@ export const getExamConfig = async (): Promise<Record<string, string[]>> => {
 export const getTransactions = async (): Promise<Transaction[]> => {
   try {
     const snapshot = await db.collection("transactions").get();
-    return snapshot.docs.map((d: any) => d.data() as Transaction);
+    return snapshot.docs.map(d => d.data() as Transaction);
   } catch (e) {
     // Return mock if empty
     return [
@@ -245,7 +245,7 @@ export const toggleBookmark = async (userId: string, question: Question): Promis
 export const getBookmarks = async (userId: string): Promise<Question[]> => {
   try {
     const snapshot = await db.collection("users").doc(userId).collection("bookmarks").get();
-    return snapshot.docs.map((d: any) => d.data() as Question);
+    return snapshot.docs.map(d => d.data() as Question);
   } catch (e) {
     return [];
   }
@@ -371,7 +371,7 @@ export const saveOfflinePaper = async (userId: string, paper: QuestionPaper): Pr
 export const getOfflinePapers = async (userId: string): Promise<QuestionPaper[]> => {
   try {
     const snapshot = await db.collection("users").doc(userId).collection("offline_papers").get();
-    return snapshot.docs.map((d: any) => d.data() as QuestionPaper);
+    return snapshot.docs.map(d => d.data() as QuestionPaper);
   } catch (e) { return []; }
 };
 
@@ -392,7 +392,7 @@ export const saveExamResult = async (userId: string, result: ExamResult): Promis
 export const getExamHistory = async (userId: string): Promise<ExamResult[]> => {
   try {
     const snapshot = await db.collection("users").doc(userId).collection("history").limit(20).get();
-    return snapshot.docs.map((d: any) => d.data() as ExamResult);
+    return snapshot.docs.map(d => d.data() as ExamResult);
   } catch (e) { return []; }
 };
 

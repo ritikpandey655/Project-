@@ -151,7 +151,7 @@ const App: React.FC = () => {
       }
     }, 8000);
 
-    const unsubscribe = auth.onAuthStateChanged((currentUser: any) => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       clearTimeout(timeoutId);
       if (currentUser) {
         loadUserData(currentUser.uid).then(() => setIsAppInitializing(false));

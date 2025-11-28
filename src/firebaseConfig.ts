@@ -1,7 +1,7 @@
 
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
-import "firebase/compat/firestore";
+import firebase from "firebase/app";
+import "firebase/auth";
+import "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDJ48kwjfVfIm6Pi7v8Kc4fgd_PzZilZwY",
@@ -13,12 +13,9 @@ const firebaseConfig = {
   measurementId: "G-C8G91QQYCH"
 };
 
-// Cast to any to bypass strict type checking issues with firebase/compat
-const fb = firebase as any;
-
 // Initialize Firebase
-const app = !fb.apps.length ? fb.initializeApp(firebaseConfig) : fb.app();
+const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
 
-export const auth = fb.auth();
-export const googleProvider = new fb.auth.GoogleAuthProvider();
-export const db = fb.firestore();
+export const auth = firebase.auth();
+export const googleProvider = new firebase.auth.GoogleAuthProvider();
+export const db = firebase.firestore();
