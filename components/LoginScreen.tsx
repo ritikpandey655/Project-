@@ -121,23 +121,41 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
   return (
     <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-8 border border-slate-100 dark:border-slate-700 animate-fade-in">
+      <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-8 border border-slate-100 dark:border-slate-700 animate-fade-in flex flex-col items-center">
         
-        <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white text-2xl font-bold mb-4 shadow-lg shadow-indigo-500/30">
-               PV
+        {/* Orbit Style Logo - Restored */}
+        <div className="relative w-32 h-32 mb-6 flex items-center justify-center">
+            {/* Central Core */}
+            <div className="absolute w-16 h-16 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-full shadow-[0_0_30px_rgba(79,70,229,0.4)] flex items-center justify-center z-10 animate-pulse-glow">
+                <span className="text-2xl font-bold text-white font-display">PV</span>
             </div>
+            
+            {/* Orbit 1 */}
+            <div className="absolute w-full h-full border border-indigo-500/20 rounded-full animate-spin-slow">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
+            </div>
+            
+            {/* Orbit 2 */}
+            <div className="absolute w-[70%] h-[70%] border border-purple-500/20 rounded-full animate-spin-slow" style={{ animationDirection: 'reverse', animationDuration: '10s' }}>
+                <div className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 w-3 h-3 bg-purple-500 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.8)]"></div>
+            </div>
+
+            {/* Orbit 3 (Decoration) */}
+            <div className="absolute w-[140%] h-[140%] border border-indigo-500/10 rounded-full opacity-50 pointer-events-none"></div>
+        </div>
+
+        <div className="text-center mb-8">
             <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">Welcome Back</h1>
             <p className="text-slate-500 dark:text-slate-400">Sign in to your account</p>
         </div>
 
         {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 text-sm rounded-xl text-center font-medium border border-red-100 dark:border-red-900/50">
+            <div className="mb-6 p-4 w-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 text-sm rounded-xl text-center font-medium border border-red-100 dark:border-red-900/50">
                 {error}
             </div>
         )}
 
-        <form onSubmit={handleEmailLogin} className="space-y-5">
+        <form onSubmit={handleEmailLogin} className="space-y-5 w-full">
             <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Email Address</label>
                 <input 
@@ -182,7 +200,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
             </Button>
         </form>
 
-        <div className="relative my-8">
+        <div className="relative my-8 w-full">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-700"></div></div>
             <div className="relative flex justify-center text-sm"><span className="px-4 bg-white dark:bg-slate-800 text-slate-400 font-bold uppercase text-xs tracking-wider">Or continue with</span></div>
         </div>
