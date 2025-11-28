@@ -1,4 +1,3 @@
-
 {
   "name": "PYQverse",
   "short_name": "PYQverse",
@@ -44,6 +43,7 @@
   "file_handlers": [
     {
       "action": "/?action=open-file",
+      "name": "Open Question File",
       "accept": {
         "application/json": [".json"]
       },
@@ -69,8 +69,8 @@
       "description": "View the Question of the Day",
       "tag": "qotd-widget",
       "template": "qotd-template",
-      "ms_ac_template": "widgets/qotd.json",
-      "data": "widgets/qotd-data.json",
+      "ms_ac_template": "widget-template.json",
+      "data": "widget-data.json",
       "type": "application/json",
       "screenshots": [
         {
