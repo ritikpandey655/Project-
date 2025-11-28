@@ -11,6 +11,9 @@
   "orientation": "portrait",
   "categories": ["education", "productivity", "utilities"],
   "id": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV",
