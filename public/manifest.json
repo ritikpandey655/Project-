@@ -13,6 +13,8 @@
   "categories": ["education", "productivity", "utilities"],
   "lang": "en",
   "dir": "ltr",
+  "iarc_rating_id": "",
+  "handle_links": "preferred",
   "prefer_related_applications": false,
   "icons": [
     {
@@ -124,6 +126,11 @@
       "auth": false,
       "update": 86400,
       "icons": [
+        {
+          "src": "https://placehold.co/96x96/5B2EFF/ffffff.png?text=Q",
+          "sizes": "96x96",
+          "type": "image/png"
+        },
         {
           "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=Q",
           "sizes": "192x192",
