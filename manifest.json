@@ -12,13 +12,13 @@
       "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
       "sizes": "256×256",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
