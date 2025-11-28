@@ -42,7 +42,6 @@ import { Leaderboard } from './components/Leaderboard';
 import { CurrentAffairsFeed } from './components/CurrentAffairsFeed';
 import { PYQLibrary } from './components/PYQLibrary';
 import { auth } from './src/firebaseConfig';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 
@@ -152,7 +151,7 @@ const App: React.FC = () => {
       }
     }, 8000);
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       clearTimeout(timeoutId);
       if (currentUser) {
         loadUserData(currentUser.uid).then(() => setIsAppInitializing(false));
@@ -202,7 +201,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    await signOut(auth);
+    await auth.signOut();
   }, []);
 
   // Optimized Handlers with Callbacks

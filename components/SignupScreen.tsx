@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { User, ExamType } from '../types';
 import { Button } from './Button';
 import { auth, db } from '../src/firebaseConfig';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
 interface SignupScreenProps {
@@ -34,11 +33,13 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
 
     try {
       // 1. Create Auth User
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
       const firebaseUser = userCredential.user;
 
       // 2. Update Profile Display Name
-      await updateProfile(firebaseUser, { displayName: name });
+      if (firebaseUser) {
+          await firebaseUser.updateProfile({ displayName: name });
+      }
 
       // 3. Create Firestore User Doc
       // Allow Admin access if email matches specific ID OR if Name contains "Admin" (Case Insensitive)
@@ -50,15 +51,17 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
                       lowerName.includes('admin');
 
       const newUser: User = {
-        id: firebaseUser.uid,
+        id: firebaseUser ? firebaseUser.uid : 'temp-id',
         name: name,
         email: email,
         // CRITICAL FIX: Ensure this is null, NOT undefined. Firestore crashes on undefined.
         photoURL: null, 
         isAdmin: isAdmin 
       };
-
-      await setDoc(doc(db, "users", firebaseUser.uid), newUser);
+      
+      if (firebaseUser) {
+        await db.collection("users").doc(firebaseUser.uid).set(newUser);
+      }
 
       // 4. Save Preference immediately (handled in App.tsx typically, but safe to pass here)
       onSignup(newUser, selectedExam);

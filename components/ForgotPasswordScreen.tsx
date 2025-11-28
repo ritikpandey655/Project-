@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { Button } from './Button';
-import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../src/firebaseConfig';
 
 interface ForgotPasswordScreenProps {
@@ -22,7 +21,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
     setError('');
     
     try {
-      await sendPasswordResetEmail(auth, email);
+      await auth.sendPasswordResetEmail(email);
       setIsSent(true);
     } catch (err: any) {
       console.error(err);

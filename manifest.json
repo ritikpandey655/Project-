@@ -16,7 +16,7 @@
     },
     {
       "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
-      "sizes": "256×256",
+      "sizes": "512×512",
       "type": "image/png",
       "purpose": "any maskable"
     }

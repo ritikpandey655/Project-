@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
-import { signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Button } from './Button';
 
@@ -23,8 +22,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
-      const userRef = doc(db, "users", firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
+      const userRef = db.collection("users").doc(firebaseUser.uid);
+      const userSnap = await userRef.get();
       
       const userEmail = firebaseUser.email || email || "";
       const rawName = firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : "User");
@@ -47,16 +46,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
       let userData: User;
       
-      if (userSnap.exists()) {
+      if (userSnap.exists) {
         const existingData = userSnap.data() as User;
         userData = existingData;
         if (isAdmin && !existingData.isAdmin) {
            userData.isAdmin = true;
-           await setDoc(userRef, { isAdmin: true }, { merge: true });
+           await userRef.set({ isAdmin: true }, { merge: true });
         }
       } else {
         userData = safeData as User;
-        await setDoc(userRef, safeData);
+        await userRef.set(safeData);
       }
       return userData;
     } catch (dbError: any) {
@@ -73,7 +72,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     setIsLoading(true);
     setError('');
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await auth.signInWithPopup(googleProvider);
       const user = await syncUserToDB(result.user);
       onLogin(user);
     } catch (err: any) {
@@ -102,7 +101,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     setIsLoading(true);
     setError('');
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
+      const result = await auth.signInWithEmailAndPassword(email, password);
       const user = await syncUserToDB(result.user);
       onLogin(user);
     } catch (err: any) {
@@ -120,102 +119,113 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-8 border border-slate-100 dark:border-slate-700 animate-fade-in flex flex-col items-center">
+    <div className="min-h-screen w-full bg-gradient-to-b from-slate-900 via-[#111827] to-black flex items-center justify-center p-4 relative overflow-hidden">
+      
+      {/* Background Particles (Light Stars) */}
+      <div className="absolute inset-0 pointer-events-none">
+         <div className="absolute top-[10%] left-[20%] w-1 h-1 bg-white rounded-full opacity-40 animate-pulse"></div>
+         <div className="absolute top-[30%] right-[20%] w-1.5 h-1.5 bg-blue-300 rounded-full opacity-30 animate-pulse" style={{animationDelay: '1s'}}></div>
+         <div className="absolute bottom-[20%] left-[10%] w-1 h-1 bg-white rounded-full opacity-20 animate-pulse" style={{animationDelay: '2s'}}></div>
+         <div className="absolute top-[50%] right-[5%] w-1 h-1 bg-purple-300 rounded-full opacity-30 animate-pulse" style={{animationDelay: '1.5s'}}></div>
+      </div>
+
+      <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10 animate-fade-in flex flex-col items-center relative z-10">
         
-        {/* Orbit Style Logo - Restored */}
-        <div className="relative w-32 h-32 mb-6 flex items-center justify-center">
+        {/* Orbit Style Logo - Dark Navy Theme with Green/Yellow Orbits */}
+        <div className="relative w-36 h-36 mb-6 flex items-center justify-center">
             {/* Central Core */}
-            <div className="absolute w-16 h-16 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-full shadow-[0_0_30px_rgba(79,70,229,0.4)] flex items-center justify-center z-10 animate-pulse-glow">
-                <span className="text-2xl font-bold text-white font-display">PV</span>
+            <div className="absolute w-16 h-16 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-full shadow-[0_0_40px_rgba(79,70,229,0.5)] flex items-center justify-center z-10 animate-pulse-glow border border-white/20">
+                <span className="text-2xl font-bold text-white font-display tracking-tight">PV</span>
             </div>
             
-            {/* Orbit 1 */}
-            <div className="absolute w-full h-full border border-indigo-500/20 rounded-full animate-spin-slow">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
+            {/* Orbit 1 (Green) */}
+            <div className="absolute w-full h-full border border-emerald-500/20 rounded-full animate-spin-slow" style={{ animationDuration: '8s' }}>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-emerald-400 rounded-full shadow-[0_0_15px_rgba(52,211,153,0.8)]"></div>
             </div>
             
-            {/* Orbit 2 */}
-            <div className="absolute w-[70%] h-[70%] border border-purple-500/20 rounded-full animate-spin-slow" style={{ animationDirection: 'reverse', animationDuration: '10s' }}>
-                <div className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 w-3 h-3 bg-purple-500 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.8)]"></div>
+            {/* Orbit 2 (Yellow) */}
+            <div className="absolute w-[70%] h-[70%] border border-yellow-500/20 rounded-full animate-spin-slow" style={{ animationDirection: 'reverse', animationDuration: '6s' }}>
+                <div className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 w-3 h-3 bg-yellow-400 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.8)]"></div>
             </div>
 
-            {/* Orbit 3 (Decoration) */}
-            <div className="absolute w-[140%] h-[140%] border border-indigo-500/10 rounded-full opacity-50 pointer-events-none"></div>
+            {/* Orbit 3 (Subtle Glow Ring) */}
+            <div className="absolute w-[130%] h-[130%] border border-indigo-500/10 rounded-full opacity-50 pointer-events-none"></div>
         </div>
 
-        <div className="text-center mb-8">
-            <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">Welcome Back</h1>
-            <p className="text-slate-500 dark:text-slate-400">Sign in to your account</p>
+        <div className="text-center mb-8 animate-slide-up" style={{ animationDelay: '0.3s' }}>
+            <h1 className="text-3xl font-display font-bold mb-2">
+               <span className="text-white">PYQ</span><span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">verse</span>
+            </h1>
+            <p className="text-slate-400 text-sm font-medium tracking-wide">All exams ka pura universe.</p>
         </div>
 
         {error && (
-            <div className="mb-6 p-4 w-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 text-sm rounded-xl text-center font-medium border border-red-100 dark:border-red-900/50">
+            <div className="mb-6 p-4 w-full bg-red-900/30 text-red-200 text-sm rounded-xl text-center font-medium border border-red-500/30">
                 {error}
             </div>
         )}
 
         <form onSubmit={handleEmailLogin} className="space-y-5 w-full">
             <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Email Address</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Email Address</label>
                 <input 
                     type="email" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-3.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                    className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder-slate-600"
                     placeholder="name@example.com"
                     required
                 />
             </div>
             
             <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Password</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Password</label>
                 <div className="relative">
                     <input 
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full p-3.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium pr-12"
+                        className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium pr-12 placeholder-slate-600"
                         placeholder="••••••••"
                         required
                     />
                     <button 
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-500 text-sm font-bold"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-400 text-xs font-bold uppercase"
                     >
-                        {showPassword ? "HIDE" : "SHOW"}
+                        {showPassword ? "Hide" : "Show"}
                     </button>
                 </div>
             </div>
 
             <div className="flex justify-end">
-                <button type="button" onClick={onForgotPassword} className="text-sm font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 hover:underline">
+                <button type="button" onClick={onForgotPassword} className="text-xs font-bold text-indigo-400 hover:text-indigo-300 hover:underline">
                     Forgot Password?
                 </button>
             </div>
 
-            <Button type="submit" isLoading={isLoading} className="w-full py-4 text-lg shadow-xl shadow-indigo-500/20">
+            <Button type="submit" isLoading={isLoading} className="w-full py-4 text-lg font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/50 border-0">
                 Sign In
             </Button>
         </form>
 
         <div className="relative my-8 w-full">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-700"></div></div>
-            <div className="relative flex justify-center text-sm"><span className="px-4 bg-white dark:bg-slate-800 text-slate-400 font-bold uppercase text-xs tracking-wider">Or continue with</span></div>
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+            <div className="relative flex justify-center text-sm"><span className="px-4 bg-[#0f1420] text-slate-500 font-bold uppercase text-[10px] tracking-wider rounded">Or continue with</span></div>
         </div>
 
         <button 
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 p-3.5 rounded-xl border-2 border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all text-slate-700 dark:text-slate-200 font-bold group"
+            className="w-full flex items-center justify-center gap-3 p-3.5 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-slate-300 font-bold group bg-black/20"
         >
-            <img src="https://www.google.com/favicon.ico" alt="G" className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <img src="https://www.google.com/favicon.ico" alt="G" className="w-5 h-5 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" />
             <span>Google</span>
         </button>
 
-        <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
-            New to PYQverse? <button onClick={onNavigateToSignup} className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Create Account</button>
+        <p className="mt-8 text-center text-sm text-slate-500">
+            New to PYQverse? <button onClick={onNavigateToSignup} className="font-bold text-indigo-400 hover:text-white transition-colors">Create Account</button>
         </p>
 
       </div>
