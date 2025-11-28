@@ -15,25 +15,25 @@
   "dir": "ltr",
   "icons": [
     {
-      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&size=192",
+      "src": "https://via.placeholder.com/192x192.png?text=PV",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&size=192",
+      "src": "https://via.placeholder.com/192x192.png?text=PV",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&size=512",
+      "src": "https://via.placeholder.com/512x512.png?text=PYQverse",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&size=512",
+      "src": "https://via.placeholder.com/512x512.png?text=PYQverse",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -61,7 +61,7 @@
       "short_name": "Practice",
       "description": "Start a new session",
       "url": "/?action=practice",
-      "icons": [{ "src": "https://api.dicebear.com/9.x/initials/png?seed=P&backgroundColor=5B2EFF&size=192", "sizes": "192x192", "type": "image/png" }]
+      "icons": [{ "src": "https://via.placeholder.com/192x192.png?text=P", "sizes": "192x192", "type": "image/png" }]
     }
   ],
   "prefer_related_applications": false
