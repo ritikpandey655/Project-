@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PYQverse" />
     <meta name="description" content="PYQverse: All exams ka pura universe. AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep." />
-    <link rel="manifest" href="/manifest.json?v=3" />
+    <link rel="manifest" href="/manifest.json?v=5" />
     <title>PYQverse | All exams ka pura universe</title>
     
     <!-- Fonts: Poppins (Display) & Inter (Body) -->
@@ -117,84 +117,6 @@
         }
       }
     </script>
-    <style>
-      :root {
-        /* Default Theme: PYQverse Purple (#5B2EFF Base) */
-        --primary-50: #efebff;
-        --primary-100: #dcd0ff;
-        --primary-200: #bfa6ff;
-        --primary-300: #9e75ff;
-        --primary-400: #7d4bff;
-        --primary-500: #5B2EFF; /* Brand Base */
-        --primary-600: #491ecb;
-        --primary-700: #38159b;
-        --primary-800: #291070;
-        --primary-900: #1d0b4d;
-      }
-
-      /* Base typography settings */
-      body {
-        font-family: 'Inter', sans-serif;
-      }
-      h1, h2, h3, h4, h5, h6, button, .font-display {
-        font-family: 'Poppins', sans-serif;
-      }
-
-      /* Hide scrollbar for cleaner UI in cards */
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-      /* Prevent pull-to-refresh on mobile */
-      body {
-        overscroll-behavior-y: none;
-      }
-      /* Safe Area support for iPhone X+ */
-      .safe-top {
-        padding-top: env(safe-area-inset-top);
-      }
-      .safe-bottom {
-        padding-bottom: env(safe-area-inset-bottom);
-      }
-      /* Security features for Exam Mode */
-      .no-select {
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-      }
-      .secure-watermark {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none !important;
-        z-index: 50; 
-        opacity: 0.05;
-        display: flex;
-        flex-wrap: wrap;
-        overflow: hidden;
-        justify-content: space-around;
-        align-items: center;
-        font-size: 2rem;
-        transform: rotate(-45deg);
-        color: #64748b;
-        font-weight: bold;
-      }
-      
-      /* Disable Printing */
-      @media print {
-        html, body {
-          display: none !important;
-          height: 0 !important;
-          overflow: hidden !important;
-        }
-      }
-    </style>
 <script type="importmap">
 {
   "imports": {

@@ -83,8 +83,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     } catch (err: any) {
       console.error("Google Login Error:", err);
       if (err.code === 'auth/unauthorized-domain') {
-         const domain = window.location.hostname;
-         alert(`🚫 Authorization Error\n\nYour current domain (${domain}) is not authorized in Firebase.\n\nFIX:\n1. Go to Firebase Console > Authentication > Settings > Authorized Domains\n2. Add this domain: ${domain}`);
+         const currentDomain = window.location.hostname;
+         alert(
+            `⚠️ DOMAIN NOT AUTHORIZED\n\n` +
+            `Firebase blocked the login because this domain is not whitelisted.\n\n` +
+            `CURRENT DOMAIN: ${currentDomain}\n\n` +
+            `HOW TO FIX:\n` +
+            `1. Go to Firebase Console (console.firebase.google.com)\n` +
+            `2. Select project 'pyqverse'\n` +
+            `3. Go to Build > Authentication > Settings > Authorized Domains\n` +
+            `4. Click 'Add Domain' and paste: ${currentDomain}`
+         );
       } else if (err.code === 'auth/popup-closed-by-user') {
          setError('Sign in cancelled');
       } else {
