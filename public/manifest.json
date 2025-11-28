@@ -14,6 +14,7 @@
   "description": "PYQverse is the ultimate AI-powered exam preparation platform. Practice Previous Year Questions (PYQs), take smart Mock Tests, and stay updated with daily Current Affairs for UPSC, SSC, NEET, JEE, and more. Features offline mode and smart analytics.",
   "lang": "en",
   "dir": "ltr",
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce02a73d",
   "edge_side_panel": {
     "preferred_width": 400
   },
@@ -34,8 +35,70 @@
     {
       "protocol": "mailto",
       "url": "/?mail=%s"
+    },
+    {
+      "protocol": "web+pyqverse",
+      "url": "/?link=%s"
     }
   ],
+  "file_handlers": [
+    {
+      "action": "/?action=open-file",
+      "accept": {
+        "application/json": [".json"]
+      },
+      "icons": [
+        {
+          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=File",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ],
+      "launch_type": "single-client"
+    }
+  ],
+  "scope_extensions": [
+    {
+      "origin": "https://pyqverse.vercel.app"
+    }
+  ],
+  "widgets": [
+    {
+      "name": "Daily Question",
+      "short_name": "QOTD",
+      "description": "View the Question of the Day",
+      "tag": "qotd-widget",
+      "template": "qotd-template",
+      "ms_ac_template": "widgets/qotd.json",
+      "data": "widgets/qotd-data.json",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "https://placehold.co/400x200/5B2EFF/ffffff.png?text=Widget",
+          "sizes": "400x200",
+          "label": "Daily Question Widget"
+        }
+      ],
+      "icons": [
+        {
+          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=Q",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "note_taking": {
+    "new_note_url": "/?action=new-note"
+  },
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.pyqverse.app",
+      "id": "com.pyqverse.app"
+    }
+  ],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV",
@@ -100,6 +163,5 @@
       "url": "/?action=news",
       "icons": [{ "src": "https://placehold.co/192x192/10B981/ffffff.png?text=N", "sizes": "192x192", "type": "image/png" }]
     }
-  ],
-  "prefer_related_applications": false
+  ]
 }
