@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'pyqverse-v6';
+const CACHE_NAME = 'pyqverse-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -33,7 +33,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Navigation requests: Network first, fall back to cache (index.html)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -44,12 +43,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Asset requests: Stale-while-revalidate
-  // This serves cached content immediately while updating the cache in the background
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
-        // Only cache valid responses
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -57,16 +53,12 @@ self.addEventListener('fetch', (event) => {
             });
         }
         return networkResponse;
-      }).catch(() => {
-        // Network failure, silently fail if not in cache (or return offline asset if you have one)
-      });
+      }).catch(() => {});
 
       return cachedResponse || fetchPromise;
     })
   );
 });
-
-// --- PWA FEATURES SUPPORT ---
 
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
