@@ -200,7 +200,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
             </div>
 
             <div className="flex justify-end">
-                <button type="button" onClick={onForgotPassword} className="text-xs font-bold text-orange-400 hover:text-orange-300 hover:underline">
+                <button type="button" onClick={onForgotPassword} className="text-xs font-bold text-orange-500 hover:text-orange-400 hover:underline">
                     Forgot Password?
                 </button>
             </div>
