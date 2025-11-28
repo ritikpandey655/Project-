@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { QuestionPaper, QuestionType, ExamResult } from '../types';
 import { Button } from './Button';
@@ -388,10 +389,10 @@ export const PaperView: React.FC<PaperViewProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-white dark:bg-slate-900 overflow-y-auto no-scrollbar safe-top">
-      {/* Watermark Overlay */}
-      <div className="secure-watermark">
+      {/* Watermark Overlay - Subtle & Professional */}
+      <div className="fixed inset-0 z-[60] pointer-events-none flex flex-wrap content-center justify-center opacity-[0.03] overflow-hidden select-none">
         {watermarks.map((text, i) => (
-          <span key={i} className="m-12">{text}</span>
+          <span key={i} className="m-12 text-2xl font-bold -rotate-45 whitespace-nowrap dark:text-white text-slate-900">{text}</span>
         ))}
       </div>
 

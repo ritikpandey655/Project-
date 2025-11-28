@@ -397,15 +397,6 @@ const App: React.FC = () => {
      });
   }, [state.selectedExam, navigateTo]);
 
-  // Use Memo for Watermark to avoid re-render cost
-  const Watermark = useMemo(() => (
-    <div className="secure-watermark">
-        {Array(10).fill(`${state.user?.email || 'PYQverse'}`).map((text, i) => (
-          <span key={i} className="m-12">{text}</span>
-        ))}
-    </div>
-  ), [state.user?.email]);
-
   // Security Blackout Screen
   if (isSecurityBlackout) {
     return (
@@ -444,8 +435,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200 select-none">
-      {Watermark}
-
+      
       <Sidebar 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)}
