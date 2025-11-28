@@ -133,8 +133,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         
         {/* Orbit Style Logo - Dark Navy Theme with Green/Yellow Orbits */}
         <div className="relative w-36 h-36 mb-6 flex items-center justify-center">
-            {/* Central Core */}
-            <div className="absolute w-16 h-16 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-full shadow-[0_0_40px_rgba(79,70,229,0.5)] flex items-center justify-center z-10 animate-pulse-glow border border-white/20">
+            {/* Central Core - Sun Colors */}
+            <div className="absolute w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-full shadow-[0_0_40px_rgba(234,88,12,0.6)] flex items-center justify-center z-10 animate-pulse-glow border border-white/20">
                 <span className="text-2xl font-bold text-white font-display tracking-tight">PV</span>
             </div>
             
@@ -148,13 +148,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                 <div className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 w-3 h-3 bg-yellow-400 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.8)]"></div>
             </div>
 
-            {/* Orbit 3 (Subtle Glow Ring) */}
-            <div className="absolute w-[130%] h-[130%] border border-indigo-500/10 rounded-full opacity-50 pointer-events-none"></div>
+            {/* Orbit 3 (Subtle Glow Ring - Warm) */}
+            <div className="absolute w-[130%] h-[130%] border border-orange-500/10 rounded-full opacity-50 pointer-events-none"></div>
         </div>
 
         <div className="text-center mb-8 animate-slide-up" style={{ animationDelay: '0.3s' }}>
             <h1 className="text-3xl font-display font-bold mb-2">
-               <span className="text-white">PYQ</span><span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">verse</span>
+               <span className="text-white">PYQ</span><span className="bg-gradient-to-r from-orange-400 to-yellow-300 bg-clip-text text-transparent">verse</span>
             </h1>
             <p className="text-slate-400 text-sm font-medium tracking-wide">All exams ka pura universe.</p>
         </div>
@@ -172,7 +172,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                     type="email" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder-slate-600"
+                    className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600"
                     placeholder="name@example.com"
                     required
                 />
@@ -185,14 +185,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium pr-12 placeholder-slate-600"
+                        className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium pr-12 placeholder-slate-600"
                         placeholder="••••••••"
                         required
                     />
                     <button 
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-400 text-xs font-bold uppercase"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-orange-400 text-xs font-bold uppercase"
                     >
                         {showPassword ? "Hide" : "Show"}
                     </button>
@@ -200,12 +200,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
             </div>
 
             <div className="flex justify-end">
-                <button type="button" onClick={onForgotPassword} className="text-xs font-bold text-indigo-400 hover:text-indigo-300 hover:underline">
+                <button type="button" onClick={onForgotPassword} className="text-xs font-bold text-orange-400 hover:text-orange-300 hover:underline">
                     Forgot Password?
                 </button>
             </div>
 
-            <Button type="submit" isLoading={isLoading} className="w-full py-4 text-lg font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/50 border-0">
+            <Button type="submit" isLoading={isLoading} className="w-full py-4 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0">
                 Sign In
             </Button>
         </form>
@@ -225,7 +225,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         </button>
 
         <p className="mt-8 text-center text-sm text-slate-500">
-            New to PYQverse? <button onClick={onNavigateToSignup} className="font-bold text-indigo-400 hover:text-white transition-colors">Create Account</button>
+            New to PYQverse? <button onClick={onNavigateToSignup} className="font-bold text-orange-400 hover:text-white transition-colors">Create Account</button>
         </p>
 
       </div>
