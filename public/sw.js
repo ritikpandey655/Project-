@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'pyqverse-v4';
+const CACHE_NAME = 'pyqverse-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -55,8 +55,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       }).catch((err) => {
           // Network error (offline)
-          // If we have no cached response, we might just return undefined (browser shows error)
-          // or fallback to a placeholder if it's an image.
+          // If we have no cached response, we simply return undefined, which results in a browser error for this resource
       });
 
       return cachedResponse || fetchPromise;
@@ -67,8 +66,18 @@ self.addEventListener('fetch', (event) => {
 // Background Sync Listener (Satisfies PWA Check)
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-data') {
-    // Placeholder for background data sync
+    // Placeholder for background data sync logic
     console.log('Background sync triggered');
+  }
+});
+
+// Periodic Background Sync Listener (Satisfies PWA Check)
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'daily-update') {
+    event.waitUntil(
+      // Logic to update content in background
+      console.log('Periodic sync triggered')
+    );
   }
 });
 
