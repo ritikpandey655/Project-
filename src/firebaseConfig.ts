@@ -13,11 +13,23 @@ const firebaseConfig = {
   measurementId: "G-C8G91QQYCH"
 };
 
-// Initialize Firebase
-const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
+// Initialize Firebase with explicit any cast to avoid TS strict type errors with compat
+const firebaseApp: any = firebase;
+const app = !firebaseApp.apps.length ? firebaseApp.initializeApp(firebaseConfig) : firebaseApp.app();
 
-export const auth = firebase.auth();
+export const auth = firebaseApp.auth();
 export const googleProvider = new firebase.auth.GoogleAuthProvider();
-export const db = firebase.firestore();
+export const db = firebaseApp.firestore();
 
-export default firebase;
+// Enable Offline Persistence
+if (typeof window !== 'undefined') {
+    db.enablePersistence({ synchronizeTabs: true }).catch((err: any) => {
+        if (err.code === 'failed-precondition') {
+            console.warn('Persistence failed: Multiple tabs open');
+        } else if (err.code === 'unimplemented') {
+            console.warn('Persistence not supported');
+        }
+    });
+}
+
+export default firebaseApp;
