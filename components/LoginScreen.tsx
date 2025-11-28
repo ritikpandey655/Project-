@@ -129,7 +129,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
          <div className="absolute top-[50%] right-[5%] w-1 h-1 bg-purple-300 rounded-full opacity-30 animate-pulse" style={{animationDelay: '1.5s'}}></div>
       </div>
 
-      <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10 animate-fade-in flex flex-col items-center relative z-10">
+      <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10 animate-fade-in flex flex-col items-center relative z-10 transition-all duration-500">
         
         {/* Orbit Style Logo - Dark Navy Theme with Green/Yellow Orbits */}
         <div className="relative w-36 h-36 mb-6 flex items-center justify-center">
@@ -152,81 +152,92 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
             <div className="absolute w-[130%] h-[130%] border border-orange-500/10 rounded-full opacity-50 pointer-events-none"></div>
         </div>
 
-        <div className="text-center mb-8 animate-slide-up" style={{ animationDelay: '0.3s' }}>
+        <div className="text-center mb-6 animate-slide-up" style={{ animationDelay: '0.3s' }}>
             <h1 className="text-3xl font-display font-bold mb-2">
                <span className="text-white">PYQ</span><span className="bg-gradient-to-r from-orange-400 to-yellow-300 bg-clip-text text-transparent">verse</span>
             </h1>
             <p className="text-slate-400 text-sm font-medium tracking-wide">All exams ka pura universe.</p>
         </div>
 
-        {error && (
-            <div className="mb-6 p-4 w-full bg-red-900/30 text-red-200 text-sm rounded-xl text-center font-medium border border-red-500/30">
-                {error}
-            </div>
-        )}
+        {/* LOADING STATE (SPLASH SCREEN) */}
+        {isInitializing ? (
+           <div className="flex flex-col items-center animate-fade-in my-8">
+              <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-slate-500 text-xs font-medium uppercase tracking-widest">Loading Universe...</p>
+           </div>
+        ) : (
+           /* LOGIN FORM STATE */
+           <div className="w-full animate-fade-in">
+                {error && (
+                    <div className="mb-6 p-4 w-full bg-red-900/30 text-red-200 text-sm rounded-xl text-center font-medium border border-red-500/30">
+                        {error}
+                    </div>
+                )}
 
-        <form onSubmit={handleEmailLogin} className="space-y-5 w-full">
-            <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Email Address</label>
-                <input 
-                    type="email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600"
-                    placeholder="name@example.com"
-                    required
-                />
-            </div>
-            
-            <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Password</label>
-                <div className="relative">
-                    <input 
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium pr-12 placeholder-slate-600"
-                        placeholder="••••••••"
-                        required
-                    />
-                    <button 
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-orange-400 text-xs font-bold uppercase"
-                    >
-                        {showPassword ? "Hide" : "Show"}
-                    </button>
+                <form onSubmit={handleEmailLogin} className="space-y-5 w-full">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Email Address</label>
+                        <input 
+                            type="email" 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600"
+                            placeholder="name@example.com"
+                            required
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Password</label>
+                        <div className="relative">
+                            <input 
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium pr-12 placeholder-slate-600"
+                                placeholder="••••••••"
+                                required
+                            />
+                            <button 
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-orange-400 text-xs font-bold uppercase"
+                            >
+                                {showPassword ? "Hide" : "Show"}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                        <button type="button" onClick={onForgotPassword} className="text-xs font-bold text-orange-500 hover:text-orange-400 hover:underline">
+                            Forgot Password?
+                        </button>
+                    </div>
+
+                    <Button type="submit" isLoading={isLoading} className="w-full py-4 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0">
+                        Sign In
+                    </Button>
+                </form>
+
+                <div className="relative my-8 w-full">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+                    <div className="relative flex justify-center text-sm"><span className="px-4 bg-[#0f1420] text-slate-500 font-bold uppercase text-[10px] tracking-wider rounded">Or continue with</span></div>
                 </div>
-            </div>
 
-            <div className="flex justify-end">
-                <button type="button" onClick={onForgotPassword} className="text-xs font-bold text-orange-500 hover:text-orange-400 hover:underline">
-                    Forgot Password?
+                <button 
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-3 p-3.5 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-slate-300 font-bold group bg-black/20"
+                >
+                    <img src="https://www.google.com/favicon.ico" alt="G" className="w-5 h-5 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                    <span>Google</span>
                 </button>
-            </div>
 
-            <Button type="submit" isLoading={isLoading} className="w-full py-4 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0">
-                Sign In
-            </Button>
-        </form>
-
-        <div className="relative my-8 w-full">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-            <div className="relative flex justify-center text-sm"><span className="px-4 bg-[#0f1420] text-slate-500 font-bold uppercase text-[10px] tracking-wider rounded">Or continue with</span></div>
-        </div>
-
-        <button 
-            onClick={handleGoogleLogin}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-3 p-3.5 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-slate-300 font-bold group bg-black/20"
-        >
-            <img src="https://www.google.com/favicon.ico" alt="G" className="w-5 h-5 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" />
-            <span>Google</span>
-        </button>
-
-        <p className="mt-8 text-center text-sm text-slate-500">
-            New to PYQverse? <button onClick={onNavigateToSignup} className="font-bold text-orange-400 hover:text-white transition-colors">Create Account</button>
-        </p>
+                <p className="mt-8 text-center text-sm text-slate-500">
+                    New to PYQverse? <button onClick={onNavigateToSignup} className="font-bold text-orange-400 hover:text-white transition-colors">Create Account</button>
+                </p>
+           </div>
+        )}
 
       </div>
     </div>
