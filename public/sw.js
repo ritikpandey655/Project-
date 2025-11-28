@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'pyqverse-v3';
+const CACHE_NAME = 'pyqverse-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -53,7 +53,11 @@ self.addEventListener('fetch', (event) => {
             });
         }
         return networkResponse;
-      }).catch(() => {});
+      }).catch((err) => {
+          // Network error (offline)
+          // If we have no cached response, we might just return undefined (browser shows error)
+          // or fallback to a placeholder if it's an image.
+      });
 
       return cachedResponse || fetchPromise;
     })
@@ -74,8 +78,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'PYQverse Update';
   const options = {
     body: data.body || 'New content available!',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png'
+    icon: 'https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV',
+    badge: 'https://placehold.co/96x96/5B2EFF/ffffff.png?text=PV'
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
