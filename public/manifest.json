@@ -1,8 +1,8 @@
 {
+  "id": "pyqverse-app",
   "name": "PYQverse",
   "short_name": "PYQverse",
   "description": "PYQverse: All exams ka pura universe. AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep for UPSC, SSC, NEET, JEE, and more.",
-  "id": "pyqverse-app",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
@@ -11,6 +11,22 @@
     "window-controls-overlay",
     "standalone",
     "minimal-ui"
+  ],
+  "iarc_rating_id": "",
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://pyqverse.vercel.app/manifest.json",
+      "id": "pyqverse-app"
+    }
+  ],
+  "scope_extensions": [
+    {
+      "origin": "https://pyqverse.vercel.app"
+    },
+    {
+      "origin": "*.pyqverse.vercel.app"
+    }
   ],
   "background_color": "#111827",
   "theme_color": "#5B2EFF",
@@ -37,19 +53,6 @@
     "scope": "/",
     "use_cache": false
   },
-  "iarc_rating_id": "",
-  "related_applications": [
-    {
-      "platform": "webapp",
-      "url": "https://pyqverse.vercel.app/manifest.json",
-      "id": "pyqverse-app"
-    }
-  ],
-  "scope_extensions": [
-    {
-      "origin": "https://pyqverse.vercel.app"
-    }
-  ],
   "note_taking": {
     "new_note_url": "/?action=new-note"
   },

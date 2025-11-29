@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'pyqverse-v16';
+const CACHE_NAME = 'pyqverse-v18';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

@@ -282,8 +282,8 @@ export const PaperView: React.FC<PaperViewProps> = ({
 
   if (isSubmitted && resultStats) {
     return (
-      <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 overflow-y-auto safe-top animate-fade-in">
-        <div className="max-w-5xl mx-auto p-4 sm:p-6">
+      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-900 overflow-y-auto safe-top animate-fade-in">
+        <div className="max-w-5xl mx-auto p-4 sm:p-6 pb-20">
           <div className="flex justify-between items-center mb-8">
             <div>
                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Exam Analytics</h1>
@@ -390,30 +390,35 @@ export const PaperView: React.FC<PaperViewProps> = ({
 
   // --- Exam Taking View ---
   return (
-    <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 flex flex-col safe-top animate-fade-in no-select">
-      {/* Header - Fixed at top via Flexbox */}
-      <div className="bg-white dark:bg-slate-800 shadow-md z-40 px-4 py-3 flex justify-between items-center border-b border-slate-200 dark:border-slate-700 flex-shrink-0 relative">
+    <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-900 flex flex-col animate-fade-in no-select">
+      {/* 1. Header (Fixed Top) - Title & Timer */}
+      <div className="bg-white dark:bg-slate-800 shadow-md z-50 px-4 py-3 flex justify-between items-center border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
           <div className="flex-1 min-w-0 mr-4">
-            <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate leading-tight">{paper.title}</h1>
-            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{paper.totalMarks} Marks • {paper.durationMinutes} Mins</p>
+            <h1 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">{paper.title}</h1>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+               {paper.totalMarks} Marks • {paper.durationMinutes} Mins
+            </p>
           </div>
           
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className={`text-base sm:text-xl font-mono font-bold tabular-nums px-2 py-1 rounded bg-slate-100 dark:bg-slate-900/50 ${timeLeft < 300 ? 'text-red-500 animate-pulse' : 'text-indigo-600 dark:text-indigo-400'}`}>
+          <div className="flex-shrink-0">
+            <div className={`text-base font-mono font-bold tabular-nums px-3 py-1.5 rounded-lg border ${
+                timeLeft < 300 
+                ? 'bg-red-50 text-red-600 border-red-200 animate-pulse dark:bg-red-900/20 dark:border-red-800' 
+                : 'bg-slate-100 text-indigo-600 border-slate-200 dark:bg-slate-900 dark:text-indigo-400 dark:border-slate-700'
+            }`}>
                 {formatTime(timeLeft)}
             </div>
-            <Button onClick={() => setShowSubmitConfirm(true)} variant="primary" size="sm" className="whitespace-nowrap px-4 shadow-lg shadow-indigo-200/50">Submit</Button>
           </div>
       </div>
 
-      {/* Question List - Scrollable Area */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 scroll-smooth">
-          <div className="max-w-4xl mx-auto space-y-6 pb-20">
+      {/* 2. Scrollable Body */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 pb-24 scroll-smooth">
+          <div className="max-w-4xl mx-auto space-y-6">
               {paper.sections.map((section) => (
                 <div key={section.id} className="space-y-4">
-                    <div className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
-                      <h3 className="font-bold text-indigo-900 dark:text-indigo-100">{section.title}</h3>
-                      <span className="text-xs font-bold uppercase text-indigo-500">{section.questions.length} Questions</span>
+                    <div className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800 sticky top-0 z-10 shadow-sm backdrop-blur-md bg-opacity-90">
+                      <h3 className="font-bold text-indigo-900 dark:text-indigo-100 text-sm sm:text-base">{section.title}</h3>
+                      <span className="text-[10px] sm:text-xs font-bold uppercase text-indigo-500">{section.questions.length} Qs</span>
                     </div>
                     
                     {section.questions.map((q, idx) => {
@@ -421,11 +426,11 @@ export const PaperView: React.FC<PaperViewProps> = ({
                         const displayOptions = (localLang === 'hi' && q.optionsHindi) ? q.optionsHindi : q.options;
 
                         return (
-                          <div key={q.id} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                          <div key={q.id} className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
                               <div className="flex gap-3 mb-4">
                                 <span className="font-bold text-slate-400">{idx+1}.</span>
                                 <div className="flex-1">
-                                    <p className="font-medium text-slate-900 dark:text-white text-lg">{displayText}</p>
+                                    <p className="font-medium text-slate-900 dark:text-white text-base sm:text-lg">{displayText}</p>
                                     <div className="flex gap-2 mt-2">
                                       <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded font-bold uppercase">
                                           {q.marks || section.marksPerQuestion} Marks
@@ -438,7 +443,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
                               </div>
 
                               {q.type === QuestionType.MCQ ? (
-                                <div className="space-y-2 ml-8">
+                                <div className="space-y-2 ml-6 sm:ml-8">
                                     {displayOptions.map((opt, i) => (
                                       <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${answers[q.id] === opt ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                                           <input 
@@ -446,15 +451,15 @@ export const PaperView: React.FC<PaperViewProps> = ({
                                             name={q.id} 
                                             checked={answers[q.id] === opt} 
                                             onChange={() => handleAnswerChange(q.id, opt)}
-                                            className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                            className="text-indigo-600 focus:ring-indigo-500 w-4 h-4 accent-indigo-600"
                                           />
-                                          <span className="text-slate-700 dark:text-slate-300">{opt}</span>
+                                          <span className="text-sm sm:text-base text-slate-700 dark:text-slate-300">{opt}</span>
                                       </label>
                                     ))}
                                 </div>
                               ) : (
                                 <textarea 
-                                    className="w-full ml-8 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full ml-6 sm:ml-8 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
                                     rows={3}
                                     placeholder="Type your answer here..."
                                     value={answers[q.id] || ''}
@@ -469,10 +474,24 @@ export const PaperView: React.FC<PaperViewProps> = ({
           </div>
       </div>
 
+      {/* 3. Footer (Fixed Bottom) - Submit Button */}
+      <div className="bg-white dark:bg-slate-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 px-4 py-3 border-t border-slate-200 dark:border-slate-700 safe-bottom">
+         <div className="max-w-4xl mx-auto flex gap-4">
+             <div className="flex-1 hidden sm:block"></div>
+             <Button 
+               onClick={() => setShowSubmitConfirm(true)} 
+               variant="primary" 
+               className="w-full sm:w-auto px-8 py-3 text-lg font-bold shadow-lg shadow-indigo-500/30"
+             >
+               Submit Exam
+             </Button>
+         </div>
+      </div>
+
       {/* Submit Confirmation Modal */}
       {showSubmitConfirm && (
-          <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-pop-in">
+          <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-pop-in border border-slate-200 dark:border-slate-700">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Submit Exam?</h3>
                 <p className="text-slate-500 dark:text-slate-400 mb-6">Are you sure you want to finish? You cannot change answers after submitting.</p>
                 <div className="flex gap-3">
@@ -485,16 +504,16 @@ export const PaperView: React.FC<PaperViewProps> = ({
 
       {/* Warning Modal */}
       {showWarning && (
-          <div className="fixed inset-0 z-[70] bg-red-900/20 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[120] bg-red-900/40 backdrop-blur-md flex items-center justify-center p-4">
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl border-2 border-red-500 animate-shake">
-                  <div className="text-4xl mb-2">⚠️</div>
-                  <h3 className="text-xl font-bold text-red-600 mb-2">Warning Issued</h3>
-                  <p className="text-slate-700 dark:text-slate-300 mb-4">
+                  <div className="text-4xl mb-2 text-center">⚠️</div>
+                  <h3 className="text-xl font-bold text-red-600 mb-2 text-center">Warning Issued</h3>
+                  <p className="text-slate-700 dark:text-slate-300 mb-6 text-center text-sm">
                     Tab switching is detected. This incident has been recorded.
                     <br/>
-                    <span className="font-bold mt-2 block">Warning {warningCount}/3</span>
+                    <span className="font-bold mt-2 block text-lg">Warning {warningCount}/3</span>
                   </p>
-                  <Button onClick={() => setShowWarning(false)} className="w-full bg-red-600 hover:bg-red-700 text-white">I Understand</Button>
+                  <Button onClick={() => setShowWarning(false)} className="w-full bg-red-600 hover:bg-red-700 text-white border-0">I Understand</Button>
               </div>
           </div>
       )}
