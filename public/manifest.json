@@ -22,6 +22,22 @@
   "lang": "en",
   "dir": "ltr",
   "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "iarc_rating_id": "",
+  "related_applications": [],
+  "scope_extensions": [
+    {
+      "origin": "https://pyqverse.vercel.app"
+    }
+  ],
+  "note_taking": {
+    "new_note_url": "/?action=new-note"
+  },
   "icons": [
     {
       "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV",
