@@ -14,6 +14,7 @@
   "prefer_related_applications": false,
   "iarc_rating_id": "e84b786c-4567-4e78-9012-345678901234",
   "display_override": [
+    "tabbed",
     "window-controls-overlay",
     "standalone",
     "minimal-ui"
@@ -27,13 +28,25 @@
       "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&rounded=true&bold=true&format=png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&rounded=true&bold=true&format=png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=512&rounded=true&bold=true&format=png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=512&rounded=true&bold=true&format=png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
@@ -102,6 +115,9 @@
     }
   ],
   "scope_extensions": [
+    {
+      "origin": "https://pyqverse.vercel.app"
+    },
     {
       "origin": "https://*.pyqverse.vercel.app"
     }
