@@ -1,70 +1,50 @@
 {
-  "id": "pyqverse-app",
+  "id": "/?source=pwa",
   "name": "PYQverse",
   "short_name": "PYQverse",
   "description": "PYQverse: All exams ka pura universe. AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#111827",
+  "theme_color": "#5B2EFF",
+  "lang": "en",
+  "dir": "ltr",
+  "iarc_rating_id": "e84b786c-4567-4e78-9012-345678901234",
   "display_override": [
-    "tabbed",
     "window-controls-overlay",
     "standalone",
     "minimal-ui"
   ],
-  "iarc_rating_id": "e84b786c-4567-4e78-9012-345678901234",
-  "related_applications": [
-    {
-      "platform": "webapp",
-      "url": "https://pyqverse.vercel.app/manifest.json",
-      "id": "pyqverse-app"
-    }
-  ],
-  "scope_extensions": [
-    {
-      "origin": "https://pyqverse.vercel.app"
-    }
-  ],
-  "background_color": "#111827",
-  "theme_color": "#5B2EFF",
-  "orientation": "portrait",
   "categories": [
     "education",
-    "productivity",
-    "utilities"
+    "productivity"
   ],
-  "lang": "en",
-  "dir": "ltr",
-  "prefer_related_applications": false,
-  "launch_handler": {
-    "client_mode": "focus-existing"
-  },
-  "handle_links": "preferred",
-  "capture_links": "existing-client-navigate",
-  "run_on_os_login": "allowed",
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "serviceworker": {
-    "src": "/sw.js",
-    "scope": "/",
-    "use_cache": false
-  },
-  "note_taking": {
-    "new_note_url": "/?action=new-note"
-  },
   "icons": [
     {
-      "src": "https://res.cloudinary.com/demo/image/fetch/w_192,h_192,c_fill/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120&size=512",
+      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://res.cloudinary.com/demo/image/fetch/w_512,h_512,c_fill/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120&size=512",
+      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_512,h_512,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_512,h_512,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
@@ -74,13 +54,6 @@
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Smart Dashboard"
-    },
-    {
-      "src": "https://placehold.co/1080x1920/ffffff/5B2EFF.png?text=AI+Practice",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "AI Practice Questions"
     },
     {
       "src": "https://placehold.co/1920x1080/111827/5B2EFF.png?text=Desktop+Experience",
@@ -94,25 +67,10 @@
     {
       "name": "Start Practice",
       "short_name": "Practice",
-      "description": "Start a new practice session",
       "url": "/?action=practice",
       "icons": [
         {
-          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=P",
-          "sizes": "192x192",
-          "type": "image/png",
-          "purpose": "any"
-        }
-      ]
-    },
-    {
-      "name": "Current Affairs",
-      "short_name": "News",
-      "description": "Check daily updates",
-      "url": "/?action=news",
-      "icons": [
-        {
-          "src": "https://placehold.co/192x192/10B981/ffffff.png?text=N",
+          "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://placehold.co/192x192/5B2EFF/ffffff.png?text=P",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
@@ -120,49 +78,30 @@
       ]
     }
   ],
-  "share_target": {
-    "action": "/?action=share",
-    "method": "GET",
-    "enctype": "application/x-www-form-urlencoded",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url"
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://pyqverse.vercel.app/manifest.json",
+      "id": "pyqverse-app"
     }
+  ],
+  "scope_extensions": [
+    {
+      "origin": "https://pyqverse.vercel.app"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
   },
-  "file_handlers": [
-    {
-      "action": "/?action=open-file",
-      "name": "PYQverse Notes",
-      "accept": {
-        "text/plain": [
-          ".txt",
-          ".note",
-          ".json"
-        ]
-      },
-      "icons": [
-        {
-          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=File",
-          "sizes": "192x192",
-          "type": "image/png",
-          "purpose": "any"
-        }
-      ],
-      "launch_type": "single-client"
-    }
-  ],
-  "protocol_handlers": [
-    {
-      "protocol": "web+pyqverse",
-      "url": "/?action=%s"
-    }
-  ],
+  "handle_links": "preferred",
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
   "widgets": [
     {
       "name": "Question of the Day",
       "short_name": "QOTD",
-      "description": "See the daily challenge question",
+      "description": "Daily Challenge",
       "tag": "qotd",
       "template": "/widget-template.json",
       "data": "/widget-data.json",
@@ -171,13 +110,7 @@
       "update": 86400,
       "icons": [
         {
-          "src": "https://placehold.co/96x96/5B2EFF/ffffff.png?text=Q",
-          "sizes": "96x96",
-          "type": "image/png",
-          "purpose": "any"
-        },
-        {
-          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=Q",
+          "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://placehold.co/192x192/5B2EFF/ffffff.png?text=Q",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
