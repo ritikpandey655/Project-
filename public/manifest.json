@@ -23,25 +23,25 @@
   ],
   "icons": [
     {
-      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
+      "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV&font=roboto",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
+      "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV&font=roboto",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_512,h_512,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
+      "src": "https://placehold.co/512x512/5B2EFF/ffffff.png?text=PV&font=roboto",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_512,h_512,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
+      "src": "https://placehold.co/512x512/5B2EFF/ffffff.png?text=PV&font=roboto",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -70,7 +70,7 @@
       "url": "/?action=practice",
       "icons": [
         {
-          "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://placehold.co/192x192/5B2EFF/ffffff.png?text=P",
+          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=P",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
@@ -110,7 +110,7 @@
       "update": 86400,
       "icons": [
         {
-          "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://placehold.co/192x192/5B2EFF/ffffff.png?text=Q",
+          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=Q",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
