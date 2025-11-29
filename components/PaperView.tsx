@@ -4,7 +4,7 @@ import { QuestionPaper, QuestionType, ExamResult } from '../types';
 import { Button } from './Button';
 import { saveExamResult, getExamHistory, saveOfflinePaper } from '../services/storageService';
 import { 
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, ResponsiveContainer
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
 
 interface PaperViewProps {
@@ -106,6 +106,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
     });
     setScore(calculatedScore);
     setIsSubmitted(true);
+    setShowSubmitConfirm(false);
   };
 
   // Calculate Stats when submitted
@@ -332,8 +333,8 @@ export const PaperView: React.FC<PaperViewProps> = ({
              {/* Charts Container */}
              <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-xl border border-slate-200 dark:border-slate-700">
                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Performance vs Average</h3>
-               <div className="h-56 w-full">
-                 <ResponsiveContainer width="100%" height="100%">
+               <div className="h-56 w-full min-w-0" style={{ width: '100%', height: '100%' }}>
+                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <RadarChart cx="50%" cy="50%" outerRadius="80%" data={comparisonData}>
                        <PolarGrid stroke="#e2e8f0" />
                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 12 }} />
@@ -387,178 +388,115 @@ export const PaperView: React.FC<PaperViewProps> = ({
     );
   }
 
+  // --- Exam Taking View ---
   return (
-    <div className="fixed inset-0 z-50 bg-white dark:bg-slate-900 overflow-y-auto no-scrollbar safe-top">
-      {/* Watermark Overlay - Subtle & Professional */}
-      <div className="fixed inset-0 z-[60] pointer-events-none flex flex-wrap content-center justify-center opacity-[0.03] overflow-hidden select-none">
-        {watermarks.map((text, i) => (
-          <span key={i} className="m-12 text-2xl font-bold -rotate-45 whitespace-nowrap dark:text-white text-slate-900">{text}</span>
-        ))}
-      </div>
-
-      {/* Tab Switch Warning Modal */}
-      {showWarning && !isSubmitted && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
-          <div className="bg-red-50 dark:bg-red-900/90 p-6 rounded-2xl max-w-sm text-center shadow-2xl border-2 border-red-500">
-            <div className="text-4xl mb-4">⚠️</div>
-            <h2 className="text-xl font-bold text-red-700 dark:text-red-100 mb-2">Warning: Tab Switch Detected</h2>
-            <p className="text-red-600 dark:text-red-200 mb-4">
-              Switching tabs or minimizing the app is not allowed during the exam. 
-              <br/><strong>Strike {warningCount}/3</strong>
-            </p>
-            <Button onClick={() => setShowWarning(false)} variant="danger" className="w-full">
-              I Understand
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Submit Confirmation Modal */}
-      {showSubmitConfirm && !isSubmitted && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4 animate-fade-in">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-200 dark:border-slate-700 relative">
-            <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600 dark:text-indigo-400">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Submit Exam?</h2>
-            <p className="text-slate-600 dark:text-slate-300 mb-6 text-sm">
-              You are about to submit your answers. You won't be able to change them afterwards.
-            </p>
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => setShowSubmitConfirm(false)} className="flex-1 dark:text-slate-300">Cancel</Button>
-              <Button variant="primary" onClick={() => { handleSubmit(); setShowSubmitConfirm(false); }} className="flex-1">Yes, Submit</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Header Toolbar */}
-      <div className="sticky top-0 z-40 bg-slate-900 text-white p-4 shadow-md flex justify-between items-center">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="hidden sm:block">
-            <h1 className="font-bold text-lg max-w-[200px] truncate">{paper.title}</h1>
-            <span className="text-xs text-slate-300">Mock Exam</span>
+    <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 overflow-y-auto safe-top animate-fade-in no-select">
+      {/* Header - Fixed to ensure visibility */}
+      <div className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-40 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-700 gap-2">
+          <div className="flex-1 min-w-0 mr-2">
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate">{paper.title}</h1>
+            <p className="text-xs text-slate-500 truncate">{paper.totalMarks} Marks • {paper.durationMinutes} Mins</p>
           </div>
           
-          <div className="flex gap-2">
-            <button
-                onClick={handleToggle}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1
-                  bg-slate-700 text-white border-slate-500 hover:bg-slate-600"
-            >
-              <span>{localLang === 'en' ? 'ENG' : 'HIN'}</span>
-            </button>
-            <button
-                onClick={handleSaveOffline}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1
-                  ${isSaved ? 'bg-green-600 border-green-500 text-white' : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-500'}`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  {isSaved ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />}
-              </svg>
-              <span className="hidden sm:inline">{isSaved ? 'Saved' : 'Save Offline'}</span>
-            </button>
+          <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+            <div className={`text-lg sm:text-2xl font-mono font-bold ${timeLeft < 300 ? 'text-red-500 animate-pulse' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                {formatTime(timeLeft)}
+            </div>
+            <Button onClick={() => setShowSubmitConfirm(true)} variant="primary" size="sm" className="sm:px-5">Submit</Button>
           </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-           <div className={`font-mono text-xl font-bold px-4 py-1 rounded-lg ${timeLeft < 300 ? 'bg-red-600 animate-pulse' : 'bg-slate-800'}`}>
-             {formatTime(timeLeft)}
-           </div>
-
-           <Button size="sm" variant="primary" onClick={() => setShowSubmitConfirm(true)}>
-             Submit
-           </Button>
-        </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto p-6 pb-24 relative z-10">
-        <div className="space-y-12">
+      {/* Question List */}
+      <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20 space-y-8">
           {paper.sections.map((section) => (
-            <div key={section.id}>
-              <div className="border-b-2 border-slate-200 dark:border-slate-700 pb-2 mb-6">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-white uppercase">{section.title}</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{section.instructions}</p>
-              </div>
-
-              <div className="space-y-8">
+            <div key={section.id} className="space-y-4">
+                <div className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                  <h3 className="font-bold text-indigo-900 dark:text-indigo-100">{section.title}</h3>
+                  <span className="text-xs font-bold uppercase text-indigo-500">{section.questions.length} Questions</span>
+                </div>
+                
                 {section.questions.map((q, idx) => {
-                  const displayText = (localLang === 'hi' && q.textHindi) ? q.textHindi : q.text;
-                  const displayOptions = (localLang === 'hi' && q.optionsHindi && q.optionsHindi.length === q.options.length) 
-                        ? q.optionsHindi : q.options;
+                    const displayText = (localLang === 'hi' && q.textHindi) ? q.textHindi : q.text;
+                    const displayOptions = (localLang === 'hi' && q.optionsHindi) ? q.optionsHindi : q.options;
 
-                  return (
-                    <div key={q.id} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-                      <div className="flex justify-between gap-4 mb-4">
-                        <div className="flex gap-3">
-                            <span className="font-bold text-slate-500 dark:text-slate-400 select-none">{idx + 1}.</span>
-                            <h3 className="text-lg font-medium text-slate-900 dark:text-white leading-relaxed">{displayText}</h3>
-                        </div>
-                        <span className="text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded h-fit whitespace-nowrap">
-                          {q.marks || section.marksPerQuestion} Marks
-                        </span>
-                      </div>
-
-                      <div className="ml-0 sm:ml-8">
-                        {q.type === QuestionType.MCQ ? (
-                          <div className="grid grid-cols-1 gap-3">
-                            {displayOptions.map((opt, oIdx) => {
-                              const isSelected = answers[q.id] === q.options[oIdx];
-                              let containerClass = "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700";
-                              if (isSelected) {
-                                  containerClass = "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 ring-1 ring-indigo-500";
-                              }
-                              return (
-                                <label key={oIdx} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${containerClass}`}>
-                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-indigo-600' : 'border-slate-400'}`}>
-                                    {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
-                                  </div>
-                                  <input 
-                                     type="radio" 
-                                     name={q.id} 
-                                     value={q.options[oIdx]} 
-                                     checked={isSelected} 
-                                     onChange={() => handleAnswerChange(q.id, q.options[oIdx])} 
-                                     className="hidden" 
-                                  />
-                                  <span className="text-slate-800 dark:text-slate-200">{opt}</span>
-                                </label>
-                              );
-                            })}
+                    return (
+                      <div key={q.id} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                          <div className="flex gap-3 mb-4">
+                            <span className="font-bold text-slate-400">{idx+1}.</span>
+                            <div className="flex-1">
+                                <p className="font-medium text-slate-900 dark:text-white text-lg">{displayText}</p>
+                                <div className="flex gap-2 mt-2">
+                                  <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded font-bold uppercase">
+                                      {q.marks || section.marksPerQuestion} Marks
+                                  </span>
+                                  {q.type === QuestionType.MCQ && (
+                                      <span className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-bold uppercase">MCQ</span>
+                                  )}
+                                </div>
+                            </div>
                           </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <textarea
-                              value={answers[q.id] || ''}
-                              onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                              placeholder="Type your answer here..."
-                              className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none min-h-[120px] resize-y"
+
+                          {q.type === QuestionType.MCQ ? (
+                            <div className="space-y-2 ml-8">
+                                {displayOptions.map((opt, i) => (
+                                  <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${answers[q.id] === opt ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                                      <input 
+                                        type="radio" 
+                                        name={q.id} 
+                                        checked={answers[q.id] === opt} 
+                                        onChange={() => handleAnswerChange(q.id, opt)}
+                                        className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                      />
+                                      <span className="text-slate-700 dark:text-slate-300">{opt}</span>
+                                  </label>
+                                ))}
+                            </div>
+                          ) : (
+                            <textarea 
+                                className="w-full ml-8 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                rows={3}
+                                placeholder="Type your answer here..."
+                                value={answers[q.id] || ''}
+                                onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                             />
-                          </div>
-                        )}
+                          )}
                       </div>
-                    </div>
-                  );
+                    );
                 })}
-              </div>
             </div>
           ))}
-
-           {/* Finish Exam Button (Bottom) */}
-           <div className="flex justify-center pt-8">
-             <Button 
-                size="lg" 
-                onClick={() => setShowSubmitConfirm(true)}
-                className="w-full sm:w-auto px-12 shadow-lg shadow-indigo-500/20"
-             >
-               Finish & Submit Exam
-             </Button>
-           </div>
-        </div>
       </div>
+
+      {/* Submit Confirmation Modal */}
+      {showSubmitConfirm && (
+          <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-pop-in">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Submit Exam?</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-6">Are you sure you want to finish? You cannot change answers after submitting.</p>
+                <div className="flex gap-3">
+                  <Button variant="secondary" onClick={() => setShowSubmitConfirm(false)} className="flex-1">Cancel</Button>
+                  <Button variant="primary" onClick={handleSubmit} className="flex-1">Yes, Submit</Button>
+                </div>
+            </div>
+          </div>
+      )}
+
+      {/* Warning Modal */}
+      {showWarning && (
+          <div className="fixed inset-0 z-[70] bg-red-900/20 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl border-2 border-red-500 animate-shake">
+                  <div className="text-4xl mb-2">⚠️</div>
+                  <h3 className="text-xl font-bold text-red-600 mb-2">Warning Issued</h3>
+                  <p className="text-slate-700 dark:text-slate-300 mb-4">
+                    Tab switching is detected. This incident has been recorded.
+                    <br/>
+                    <span className="font-bold mt-2 block">Warning {warningCount}/3</span>
+                  </p>
+                  <Button onClick={() => setShowWarning(false)} className="w-full bg-red-600 hover:bg-red-700 text-white">I Understand</Button>
+              </div>
+          </div>
+      )}
     </div>
   );
 };
+    

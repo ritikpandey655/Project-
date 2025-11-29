@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PYQverse" />
     <meta name="description" content="PYQverse: All exams ka pura universe. AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep." />
-    <link rel="manifest" href="/manifest.json?v=24" />
+    <link rel="manifest" href="/manifest.json?v=25" />
     <title>PYQverse | All exams ka pura universe</title>
     
     <!-- Fonts: Poppins (Display) & Inter (Body) -->
@@ -139,9 +139,16 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
+          // Use relative path to avoid origin mismatch issues in preview environments
           navigator.serviceWorker.register('/sw.js')
             .then(reg => console.log('SW Registered'))
-            .catch(err => console.log('SW Registration failed', err));
+            .catch(err => {
+              // Suppress cross-origin frame errors common in web containers
+              const msg = err.message ? err.message.toLowerCase() : '';
+              if (!msg.includes('origin') && !msg.includes('scripturl') && !msg.includes('failed to register')) {
+                console.log('SW Registration failed', err);
+              }
+            });
         });
       }
     </script>

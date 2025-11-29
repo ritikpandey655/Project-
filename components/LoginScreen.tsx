@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
@@ -105,12 +104,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       const user = await syncUserToDB(result.user);
       onLogin(user);
     } catch (err: any) {
-      console.error("Login Error:", err);
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-         setError('Invalid Email or Password');
-      } else if (err.code === 'auth/user-not-found') {
-         setError('No account found with this email.');
+      if (['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-login-credentials'].includes(err.code)) {
+         setError('Account not found or incorrect password. Please Sign Up if you are new.');
+         // Do not log error to console for expected user mistakes to avoid noise
+      } else if (err.code === 'auth/too-many-requests') {
+         setError('Too many failed attempts. Try again later.');
       } else {
+         console.error("Login Error:", err);
          setError(`Error: ${err.message}`);
       }
     } finally {
@@ -169,7 +169,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
            /* LOGIN FORM STATE */
            <div className="w-full animate-fade-in">
                 {error && (
-                    <div className="mb-6 p-4 w-full bg-red-900/30 text-red-200 text-sm rounded-xl text-center font-medium border border-red-500/30">
+                    <div className="mb-6 p-4 w-full bg-red-900/30 text-red-200 text-sm rounded-xl text-center font-medium border border-red-500/30 animate-pulse">
                         {error}
                     </div>
                 )}
@@ -180,7 +180,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                         <input 
                             type="email" 
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            onChange={(e) => { setEmail(e.target.value); setError(''); }}
                             className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600"
                             placeholder="name@example.com"
                             required
@@ -193,7 +193,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                             <input 
                                 type={showPassword ? "text" : "password"}
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) => { setPassword(e.target.value); setError(''); }}
                                 className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium pr-12 placeholder-slate-600"
                                 placeholder="••••••••"
                                 required

@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { UserStats, ExamResult } from '../types';
 import { 
@@ -113,8 +112,8 @@ export const SmartAnalytics: React.FC<SmartAnalyticsProps> = ({ stats, history, 
         {/* Daily Progress Graph */}
         <div className="md:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700">
            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Daily Progress (Accuracy %)</h3>
-           <div className="h-48 w-full">
-             <ResponsiveContainer width="100%" height="100%">
+           <div className="h-48 w-full min-w-0" style={{ width: '100%', height: '100%' }}>
+             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                <LineChart data={dailyProgress}>
                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
@@ -167,8 +166,8 @@ export const SmartAnalytics: React.FC<SmartAnalyticsProps> = ({ stats, history, 
         {/* Accuracy Chart */}
         <div className="md:col-span-1 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col items-center">
             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 self-start">Overall Accuracy</h3>
-            <div className="w-full h-48">
-               <ResponsiveContainer width="100%" height="100%">
+            <div className="w-full h-48 min-w-0" style={{ width: '100%', height: '100%' }}>
+               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                  <PieChart>
                     <Pie
                       data={[

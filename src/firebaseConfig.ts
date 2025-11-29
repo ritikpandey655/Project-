@@ -2,6 +2,7 @@
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDJ48kwjfVfIm6Pi7v8Kc4fgd_PzZilZwY",
@@ -19,17 +20,19 @@ const app = !firebaseApp.apps.length ? firebaseApp.initializeApp(firebaseConfig)
 
 export const auth = firebaseApp.auth();
 export const googleProvider = new firebase.auth.GoogleAuthProvider();
-export const db = firebaseApp.firestore();
 
-// Enable Offline Persistence
-if (typeof window !== 'undefined') {
-    db.enablePersistence({ synchronizeTabs: true }).catch((err: any) => {
-        if (err.code === 'failed-precondition') {
-            console.warn('Persistence failed: Multiple tabs open');
-        } else if (err.code === 'unimplemented') {
-            console.warn('Persistence not supported');
-        }
-    });
+// Initialize Firestore with modern persistence settings
+// This replaces db.enablePersistence() and fixes the deprecation warning
+try {
+  initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+} catch (err) {
+  // Ignore error if Firestore is already initialized (hot reload)
 }
+
+export const db = firebaseApp.firestore();
 
 export default firebaseApp;

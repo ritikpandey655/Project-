@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { UserStats, ExamType, User, Question } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -351,8 +350,8 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
               <h3 className="text-base sm:text-lg font-bold font-display text-slate-800 dark:text-white mb-4 sm:mb-6 flex justify-between">
                 <span>Subject Performance (%)</span>
               </h3>
-              <div className="h-[200px] sm:h-[240px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-[200px] sm:h-[240px] w-full min-w-0" style={{ width: '100%', height: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
                     <XAxis type="number" domain={[0, 100]} hide />
                     <YAxis 
