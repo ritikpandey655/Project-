@@ -7,6 +7,7 @@
   "scope": "/",
   "display": "standalone",
   "display_override": [
+    "tabbed",
     "window-controls-overlay",
     "standalone",
     "minimal-ui"
@@ -37,7 +38,13 @@
     "use_cache": false
   },
   "iarc_rating_id": "",
-  "related_applications": [],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://pyqverse.vercel.app/manifest.json",
+      "id": "pyqverse-app"
+    }
+  ],
   "scope_extensions": [
     {
       "origin": "https://pyqverse.vercel.app"
