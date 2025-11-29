@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'pyqverse-v40';
+const CACHE_NAME = 'pyqverse-v42';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -65,8 +65,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'PYQverse Update';
   const options = {
     body: data.body || 'New study material available!',
-    icon: 'https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&length=2',
-    badge: 'https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=96&length=2'
+    icon: 'https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV',
+    badge: 'https://placehold.co/96x96/5B2EFF/ffffff.png?text=PV'
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

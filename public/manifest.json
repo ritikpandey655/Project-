@@ -24,28 +24,16 @@
   ],
   "icons": [
     {
-      "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&length=2",
+      "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&length=2",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=512&length=2",
+      "src": "https://placehold.co/512x512/5B2EFF/ffffff.png?text=PV",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=512&length=2",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "screenshots": [
@@ -71,10 +59,10 @@
       "url": "/?action=practice",
       "icons": [
         {
-          "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&length=2",
+          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV",
           "sizes": "192x192",
           "type": "image/png",
-          "purpose": "any"
+          "purpose": "any maskable"
         }
       ]
     }
@@ -131,23 +119,23 @@
       "short_name": "QOTD",
       "description": "Daily Challenge",
       "tag": "qotd",
-      "template": "widget-template.json",
-      "data": "widget-data.json",
+      "template": "/widget-template.json",
+      "data": "/widget-data.json",
       "type": "application/json",
       "auth": false,
       "update": 86400,
       "multiple": false,
       "icons": [
         {
-          "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&length=2",
+          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV",
           "sizes": "192x192",
           "type": "image/png",
-          "purpose": "any"
+          "purpose": "any maskable"
         }
       ],
       "screenshots": [
         {
-          "src": "https://ui-avatars.com/api/?name=QOTD&background=5B2EFF&color=fff&size=512&length=4&font-size=0.3",
+          "src": "https://placehold.co/512x512/5B2EFF/ffffff.png?text=QOTD",
           "sizes": "512x512",
           "type": "image/png",
           "label": "Widget Preview"
