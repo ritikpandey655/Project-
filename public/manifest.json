@@ -6,15 +6,21 @@
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
   "background_color": "#111827",
   "theme_color": "#5B2EFF",
   "orientation": "portrait",
-  "categories": ["education", "productivity", "utilities"],
+  "categories": [
+    "education",
+    "productivity",
+    "utilities"
+  ],
   "lang": "en",
   "dir": "ltr",
-  "iarc_rating_id": "",
-  "handle_links": "preferred",
   "prefer_related_applications": false,
   "icons": [
     {
@@ -71,14 +77,26 @@
       "short_name": "Practice",
       "description": "Start a new practice session",
       "url": "/?action=practice",
-      "icons": [{ "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=P", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=P",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Current Affairs",
       "short_name": "News",
       "description": "Check daily updates",
       "url": "/?action=news",
-      "icons": [{ "src": "https://placehold.co/192x192/10B981/ffffff.png?text=N", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "https://placehold.co/192x192/10B981/ffffff.png?text=N",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ],
   "share_target": {
@@ -96,7 +114,11 @@
       "action": "/?action=open-file",
       "name": "PYQverse Notes",
       "accept": {
-        "text/plain": [".txt", ".note", ".json"]
+        "text/plain": [
+          ".txt",
+          ".note",
+          ".json"
+        ]
       },
       "icons": [
         {
@@ -138,20 +160,5 @@
         }
       ]
     }
-  ],
-  "note_taking": {
-    "new_note_url": "/?action=upload"
-  },
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "scope_extensions": [
-    {
-      "origin": "https://pyqverse.vercel.app"
-    }
-  ],
-  "related_applications": [],
-  "launch_handler": {
-    "client_mode": ["focus-existing", "auto"]
-  }
+  ]
 }
