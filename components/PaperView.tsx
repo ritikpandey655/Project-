@@ -390,81 +390,83 @@ export const PaperView: React.FC<PaperViewProps> = ({
 
   // --- Exam Taking View ---
   return (
-    <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 overflow-y-auto safe-top animate-fade-in no-select">
-      {/* Header - Fixed to ensure visibility */}
-      <div className="bg-white dark:bg-slate-800 shadow-sm sticky top-0 z-40 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-700 gap-2">
-          <div className="flex-1 min-w-0 mr-2">
-            <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate">{paper.title}</h1>
-            <p className="text-xs text-slate-500 truncate">{paper.totalMarks} Marks • {paper.durationMinutes} Mins</p>
+    <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 flex flex-col safe-top animate-fade-in no-select">
+      {/* Header - Fixed at top via Flexbox */}
+      <div className="bg-white dark:bg-slate-800 shadow-md z-40 px-4 py-3 flex justify-between items-center border-b border-slate-200 dark:border-slate-700 flex-shrink-0 relative">
+          <div className="flex-1 min-w-0 mr-4">
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate leading-tight">{paper.title}</h1>
+            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{paper.totalMarks} Marks • {paper.durationMinutes} Mins</p>
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-            <div className={`text-lg sm:text-2xl font-mono font-bold ${timeLeft < 300 ? 'text-red-500 animate-pulse' : 'text-indigo-600 dark:text-indigo-400'}`}>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className={`text-base sm:text-xl font-mono font-bold tabular-nums px-2 py-1 rounded bg-slate-100 dark:bg-slate-900/50 ${timeLeft < 300 ? 'text-red-500 animate-pulse' : 'text-indigo-600 dark:text-indigo-400'}`}>
                 {formatTime(timeLeft)}
             </div>
-            <Button onClick={() => setShowSubmitConfirm(true)} variant="primary" size="sm" className="sm:px-5">Submit</Button>
+            <Button onClick={() => setShowSubmitConfirm(true)} variant="primary" size="sm" className="whitespace-nowrap px-4 shadow-lg shadow-indigo-200/50">Submit</Button>
           </div>
       </div>
 
-      {/* Question List */}
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-20 space-y-8">
-          {paper.sections.map((section) => (
-            <div key={section.id} className="space-y-4">
-                <div className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
-                  <h3 className="font-bold text-indigo-900 dark:text-indigo-100">{section.title}</h3>
-                  <span className="text-xs font-bold uppercase text-indigo-500">{section.questions.length} Questions</span>
-                </div>
-                
-                {section.questions.map((q, idx) => {
-                    const displayText = (localLang === 'hi' && q.textHindi) ? q.textHindi : q.text;
-                    const displayOptions = (localLang === 'hi' && q.optionsHindi) ? q.optionsHindi : q.options;
+      {/* Question List - Scrollable Area */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 scroll-smooth">
+          <div className="max-w-4xl mx-auto space-y-6 pb-20">
+              {paper.sections.map((section) => (
+                <div key={section.id} className="space-y-4">
+                    <div className="flex items-center justify-between bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                      <h3 className="font-bold text-indigo-900 dark:text-indigo-100">{section.title}</h3>
+                      <span className="text-xs font-bold uppercase text-indigo-500">{section.questions.length} Questions</span>
+                    </div>
+                    
+                    {section.questions.map((q, idx) => {
+                        const displayText = (localLang === 'hi' && q.textHindi) ? q.textHindi : q.text;
+                        const displayOptions = (localLang === 'hi' && q.optionsHindi) ? q.optionsHindi : q.options;
 
-                    return (
-                      <div key={q.id} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-                          <div className="flex gap-3 mb-4">
-                            <span className="font-bold text-slate-400">{idx+1}.</span>
-                            <div className="flex-1">
-                                <p className="font-medium text-slate-900 dark:text-white text-lg">{displayText}</p>
-                                <div className="flex gap-2 mt-2">
-                                  <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded font-bold uppercase">
-                                      {q.marks || section.marksPerQuestion} Marks
-                                  </span>
-                                  {q.type === QuestionType.MCQ && (
-                                      <span className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-bold uppercase">MCQ</span>
-                                  )}
+                        return (
+                          <div key={q.id} className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                              <div className="flex gap-3 mb-4">
+                                <span className="font-bold text-slate-400">{idx+1}.</span>
+                                <div className="flex-1">
+                                    <p className="font-medium text-slate-900 dark:text-white text-lg">{displayText}</p>
+                                    <div className="flex gap-2 mt-2">
+                                      <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-2 py-0.5 rounded font-bold uppercase">
+                                          {q.marks || section.marksPerQuestion} Marks
+                                      </span>
+                                      {q.type === QuestionType.MCQ && (
+                                          <span className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded font-bold uppercase">MCQ</span>
+                                      )}
+                                    </div>
                                 </div>
-                            </div>
-                          </div>
+                              </div>
 
-                          {q.type === QuestionType.MCQ ? (
-                            <div className="space-y-2 ml-8">
-                                {displayOptions.map((opt, i) => (
-                                  <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${answers[q.id] === opt ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                                      <input 
-                                        type="radio" 
-                                        name={q.id} 
-                                        checked={answers[q.id] === opt} 
-                                        onChange={() => handleAnswerChange(q.id, opt)}
-                                        className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                                      />
-                                      <span className="text-slate-700 dark:text-slate-300">{opt}</span>
-                                  </label>
-                                ))}
-                            </div>
-                          ) : (
-                            <textarea 
-                                className="w-full ml-8 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                                rows={3}
-                                placeholder="Type your answer here..."
-                                value={answers[q.id] || ''}
-                                onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                            />
-                          )}
-                      </div>
-                    );
-                })}
-            </div>
-          ))}
+                              {q.type === QuestionType.MCQ ? (
+                                <div className="space-y-2 ml-8">
+                                    {displayOptions.map((opt, i) => (
+                                      <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${answers[q.id] === opt ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                                          <input 
+                                            type="radio" 
+                                            name={q.id} 
+                                            checked={answers[q.id] === opt} 
+                                            onChange={() => handleAnswerChange(q.id, opt)}
+                                            className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                          />
+                                          <span className="text-slate-700 dark:text-slate-300">{opt}</span>
+                                      </label>
+                                    ))}
+                                </div>
+                              ) : (
+                                <textarea 
+                                    className="w-full ml-8 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    rows={3}
+                                    placeholder="Type your answer here..."
+                                    value={answers[q.id] || ''}
+                                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                                />
+                              )}
+                          </div>
+                        );
+                    })}
+                </div>
+              ))}
+          </div>
       </div>
 
       {/* Submit Confirmation Modal */}
@@ -499,4 +501,3 @@ export const PaperView: React.FC<PaperViewProps> = ({
     </div>
   );
 };
-    
