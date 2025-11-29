@@ -55,8 +55,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [smartMode, setSmartMode] = useState<'Manual' | 'SmartPaste' | 'Image'>('Manual');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isReviewing, setIsReviewing] = useState(false); // New state to track if we are in "Review Mode"
+  const [isReviewing, setIsReviewing] = useState(false); 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Bulk Upload Queue
+  const [bulkQueue, setBulkQueue] = useState<any[]>([]);
+  const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
   
   const [newsHeadline, setNewsHeadline] = useState('');
   const [newsSummary, setNewsSummary] = useState('');
@@ -129,20 +133,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   // --- SMART IMPORT LOGIC ---
 
+  const populateFormWithData = (data: any) => {
+    setQText(data.text || '');
+    setQTextHindi(data.text_hi || '');
+    if (Array.isArray(data.options)) setQOptions(data.options.slice(0, 4));
+    if (Array.isArray(data.options_hi)) setQOptionsHindi(data.options_hi.slice(0, 4));
+    setQCorrect(data.correct_index || 0);
+    setQExplanation(data.explanation || '');
+    if (data.subject) setUploadSubject(data.subject);
+  };
+
   const handleSmartAnalyze = async (inputType: 'text' | 'image', data: string) => {
     setIsAnalyzing(true);
     try {
-        const result = await parseSmartInput(data, inputType, uploadExam);
-        if (result) {
-            setQText(result.text || '');
-            setQTextHindi(result.text_hi || '');
-            if (Array.isArray(result.options)) setQOptions(result.options.slice(0, 4));
-            if (Array.isArray(result.options_hi)) setQOptionsHindi(result.options_hi.slice(0, 4));
-            setQCorrect(result.correct_index || 0);
-            setQExplanation(result.explanation || '');
-            if (result.subject) setUploadSubject(result.subject);
-            
-            // Switch to Review Mode automatically
+        // service now returns an ARRAY
+        const results = await parseSmartInput(data, inputType, uploadExam);
+        if (results && results.length > 0) {
+            setBulkQueue(results);
+            setCurrentQueueIndex(0);
+            populateFormWithData(results[0]);
             setIsReviewing(true); 
         } else {
             alert("Could not extract data. Try manually.");
@@ -172,7 +181,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
-    setIsReviewing(false); // Go back to import mode
+    setIsReviewing(false);
+    setBulkQueue([]);
+    setCurrentQueueIndex(0);
+  };
+
+  const handleSkipQuestion = () => {
+    const nextIdx = currentQueueIndex + 1;
+    if (nextIdx < bulkQueue.length) {
+        setCurrentQueueIndex(nextIdx);
+        populateFormWithData(bulkQueue[nextIdx]);
+    } else {
+        alert("End of queue.");
+        handleResetForm();
+    }
   };
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
@@ -196,8 +218,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             moderationStatus: 'APPROVED'
         };
         await saveAdminQuestion(newQ);
-        alert("Question Uploaded Successfully!");
-        handleResetForm(); // Reset everything
+        
+        // Handle Bulk Queue
+        if (bulkQueue.length > 0) {
+            const nextIdx = currentQueueIndex + 1;
+            if (nextIdx < bulkQueue.length) {
+                setCurrentQueueIndex(nextIdx);
+                populateFormWithData(bulkQueue[nextIdx]);
+                // Removed alert to speed up workflow
+            } else {
+                alert("All questions in queue saved!");
+                handleResetForm();
+            }
+        } else {
+            alert("Question Uploaded Successfully!");
+            handleResetForm();
+        }
     } else {
         const newNews: NewsItem = {
             id: `admin-news-${Date.now()}`,
@@ -244,8 +280,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Upload Resource</h2>
                   <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
-                     <button onClick={() => setUploadType('Question')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${uploadType === 'Question' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>Question</button>
-                     <button onClick={() => setUploadType('News')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${uploadType === 'News' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>News</button>
+                     <button type="button" onClick={() => setUploadType('Question')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${uploadType === 'Question' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>Question</button>
+                     <button type="button" onClick={() => setUploadType('News')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${uploadType === 'News' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>News</button>
                   </div>
                </div>
 
@@ -253,14 +289,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                  <div className="mb-8 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-900/50 text-center">
                     <h3 className="text-lg font-bold text-indigo-800 dark:text-indigo-300 mb-4">✨ AI Smart Import</h3>
                     <div className="flex justify-center gap-4 mb-4">
-                        <button onClick={() => setSmartMode('SmartPaste')} className={`px-4 py-2 rounded-lg font-bold ${smartMode === 'SmartPaste' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Paste Text</button>
-                        <button onClick={() => setSmartMode('Image')} className={`px-4 py-2 rounded-lg font-bold ${smartMode === 'Image' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Upload Image</button>
+                        <button type="button" onClick={() => setSmartMode('SmartPaste')} className={`px-4 py-2 rounded-lg font-bold ${smartMode === 'SmartPaste' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Paste Text</button>
+                        <button type="button" onClick={() => setSmartMode('Image')} className={`px-4 py-2 rounded-lg font-bold ${smartMode === 'Image' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Upload Image</button>
                     </div>
 
                     {smartMode === 'SmartPaste' && (
                        <div className="space-y-4">
-                          <textarea value={smartInput} onChange={(e) => setSmartInput(e.target.value)} placeholder="Paste raw question here (e.g. '1. What is force? (a) push (b) pull...')" className="w-full h-32 p-4 rounded-xl border text-sm dark:bg-slate-900 dark:text-white" />
-                          <Button onClick={() => handleSmartAnalyze('text', smartInput)} isLoading={isAnalyzing} className="w-full">Analyze & Extract</Button>
+                          <textarea value={smartInput} onChange={(e) => setSmartInput(e.target.value)} placeholder="Paste raw questions here..." className="w-full h-32 p-4 rounded-xl border text-sm dark:bg-slate-900 dark:text-white" />
+                          <Button type="button" onClick={() => handleSmartAnalyze('text', smartInput)} isLoading={isAnalyzing} className="w-full">Analyze & Extract</Button>
                        </div>
                     )}
 
@@ -275,20 +311,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         </div>
                     )}
                     <div className="mt-4 text-xs text-slate-400">Or skip this and fill the form manually below ↓</div>
-                    <Button variant="ghost" size="sm" onClick={() => setIsReviewing(true)} className="mt-2">Skip to Manual Entry</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setIsReviewing(true)} className="mt-2">Skip to Manual Entry</Button>
                  </div>
                )}
 
                {/* REVIEW & EDIT FORM */}
                {(isReviewing || uploadType === 'News') && (
                    <form onSubmit={handleUploadSubmit} className="space-y-6 animate-slide-up">
-                     {uploadType === 'Question' && (
+                     
+                     {/* BULK QUEUE NAVIGATION UI */}
+                     {uploadType === 'Question' && bulkQueue.length > 0 && (
+                        <div className="bg-indigo-100 dark:bg-indigo-900/30 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 mb-4 flex justify-between items-center sticky top-0 z-10 backdrop-blur-md">
+                            <div>
+                                <h3 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm uppercase tracking-wide">
+                                    Reviewing {currentQueueIndex + 1} of {bulkQueue.length}
+                                </h3>
+                                <div className="w-full bg-indigo-200 h-1 mt-2 rounded-full overflow-hidden">
+                                    <div className="bg-indigo-600 h-full transition-all" style={{ width: `${((currentQueueIndex + 1) / bulkQueue.length) * 100}%` }}></div>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button type="button" variant="secondary" size="sm" onClick={handleSkipQuestion}>Skip</Button>
+                                <Button type="button" variant="danger" size="sm" onClick={handleResetForm}>Cancel All</Button>
+                            </div>
+                        </div>
+                     )}
+
+                     {uploadType === 'Question' && bulkQueue.length === 0 && (
                         <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-xl border border-green-200 dark:border-green-800 mb-4 flex justify-between items-center">
                             <div>
-                                <h3 className="font-bold text-green-800 dark:text-green-300">✅ Draft Ready for Review</h3>
-                                <p className="text-xs text-green-700 dark:text-green-400">The AI has rearranged your input. Please verify before uploading.</p>
+                                <h3 className="font-bold text-green-800 dark:text-green-300">✅ Draft Ready</h3>
+                                <p className="text-xs text-green-700 dark:text-green-400">Review details before saving.</p>
                             </div>
-                            <Button variant="danger" size="sm" onClick={handleResetForm}>Discard / New</Button>
+                            <Button type="button" variant="danger" size="sm" onClick={handleResetForm}>Discard</Button>
                         </div>
                      )}
 
@@ -324,7 +379,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                      
                      <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
                         <Button type="submit" isLoading={isSubmitting} className="w-full text-lg font-bold shadow-xl">
-                            {uploadType === 'Question' ? 'Confirm & Upload Question' : 'Publish News'}
+                            {uploadType === 'Question' 
+                                ? (bulkQueue.length > 0 ? 'Save & Next Question →' : 'Confirm & Upload Question') 
+                                : 'Publish News'}
                         </Button>
                      </div>
                    </form>
@@ -415,10 +472,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         </div>
         <div className="flex gap-2 text-sm overflow-x-auto">
           {['dashboard', 'users', 'exams', 'questions', 'upload', 'payments'].map((tab) => (
-             <button key={tab} onClick={() => setActiveTab(tab as any)} className={`px-3 py-1 rounded-lg capitalize ${activeTab === tab ? 'bg-white/20 text-white' : 'text-slate-400 hover:text-white'}`}>{tab}</button>
+             <button type="button" key={tab} onClick={() => setActiveTab(tab as any)} className={`px-3 py-1 rounded-lg capitalize ${activeTab === tab ? 'bg-white/20 text-white' : 'text-slate-400 hover:text-white'}`}>{tab}</button>
           ))}
           <div className="w-px bg-white/20 mx-2"></div>
-          <button onClick={onBack} className="text-slate-400 hover:text-white">Exit</button>
+          <button type="button" onClick={onBack} className="text-slate-400 hover:text-white">Exit</button>
         </div>
       </div>
 

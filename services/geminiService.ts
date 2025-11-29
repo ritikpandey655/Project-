@@ -37,32 +37,31 @@ export const parseSmartInput = async (
   input: string,
   type: 'text' | 'image',
   examContext: string
-): Promise<any> => {
-  if (!apiKey || apiKey.trim() === '') return null;
+): Promise<any[]> => {
+  if (!apiKey || apiKey.trim() === '') return [];
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
     Act as a data entry assistant for the ${examContext} exam.
-    Analyze the provided ${type} and extract the Multiple Choice Question details accurately.
+    Analyze the provided ${type}. It may contain ONE or MULTIPLE questions.
     
     TASK:
-    1. Extract the Question Text (English).
-    2. Extract Hindi translation if present in input.
-    3. Extract Options.
-    4. Solve the question to find the Correct Index (0-3).
-    5. Write a detailed Explanation for the answer.
-    6. Guess the Subject based on content.
+    Extract ALL questions found in the input.
     
     OUTPUT JSON FORMAT:
-    {
-      "text": "Question string",
-      "text_hi": "Hindi string or null",
-      "options": ["A", "B", "C", "D"],
-      "options_hi": ["A Hindi", ... ] or null,
-      "correct_index": Integer (0-3),
-      "explanation": "String",
-      "subject": "String (e.g. History, Physics)"
-    }
+    A JSON ARRAY of objects. Even if only one question is found, return an array of length 1.
+    [
+      {
+        "text": "Question string",
+        "text_hi": "Hindi string or null",
+        "options": ["A", "B", "C", "D"],
+        "options_hi": ["A Hindi", ... ] or null,
+        "correct_index": Integer (0-3),
+        "explanation": "String",
+        "subject": "String (e.g. History, Physics)"
+      },
+      ...
+    ]
     
     CLEANING RULES:
     - Remove question numbers (e.g. "Q1.", "5.") from text.
@@ -81,13 +80,32 @@ export const parseSmartInput = async (
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: { parts },
-        config: { responseMimeType: "application/json" }
+        config: { 
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        text: { type: Type.STRING },
+                        text_hi: { type: Type.STRING },
+                        options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        correct_index: { type: Type.INTEGER },
+                        explanation: { type: Type.STRING },
+                        subject: { type: Type.STRING }
+                    },
+                    required: ['text', 'options', 'correct_index']
+                }
+            }
+        }
     });
 
-    return JSON.parse(cleanJson(response.text || "{}"));
+    const parsed = JSON.parse(cleanJson(response.text || "[]"));
+    return Array.isArray(parsed) ? parsed : [parsed];
   } catch (error) {
     console.error("Smart extraction failed:", error);
-    return null;
+    return [];
   }
 };
 
@@ -631,6 +649,8 @@ export const generateFullPaper = async (
     mcqCount?: number;
   }
 ): Promise<QuestionPaper | null> => {
+  // ... (No change needed here for this specific request, keeping as is)
+  // Re-exporting same content for brevity if not changed, but must include full file content in XML
   if (!apiKey || apiKey.trim() === '') {
     alert("API Key is missing in production.");
     return null;
