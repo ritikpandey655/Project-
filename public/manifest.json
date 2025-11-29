@@ -2,7 +2,7 @@
   "name": "PYQverse",
   "short_name": "PYQverse",
   "description": "PYQverse: All exams ka pura universe. AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep for UPSC, SSC, NEET, JEE, and more.",
-  "id": "/",
+  "id": "pyqverse-app",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
@@ -105,7 +105,8 @@
         {
           "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=P",
           "sizes": "192x192",
-          "type": "image/png"
+          "type": "image/png",
+          "purpose": "any"
         }
       ]
     },
@@ -118,7 +119,8 @@
         {
           "src": "https://placehold.co/192x192/10B981/ffffff.png?text=N",
           "sizes": "192x192",
-          "type": "image/png"
+          "type": "image/png",
+          "purpose": "any"
         }
       ]
     }
@@ -148,7 +150,8 @@
         {
           "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=File",
           "sizes": "192x192",
-          "type": "image/png"
+          "type": "image/png",
+          "purpose": "any"
         }
       ],
       "launch_type": "single-client"
@@ -175,12 +178,14 @@
         {
           "src": "https://placehold.co/96x96/5B2EFF/ffffff.png?text=Q",
           "sizes": "96x96",
-          "type": "image/png"
+          "type": "image/png",
+          "purpose": "any"
         },
         {
           "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=Q",
           "sizes": "192x192",
-          "type": "image/png"
+          "type": "image/png",
+          "purpose": "any"
         }
       ]
     }
