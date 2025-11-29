@@ -25,8 +25,16 @@
   "launch_handler": {
     "client_mode": "focus-existing"
   },
+  "handle_links": "preferred",
+  "capture_links": "existing-client-navigate",
+  "run_on_os_login": "allowed",
   "edge_side_panel": {
     "preferred_width": 400
+  },
+  "serviceworker": {
+    "src": "/sw.js",
+    "scope": "/",
+    "use_cache": false
   },
   "iarc_rating_id": "",
   "related_applications": [],
