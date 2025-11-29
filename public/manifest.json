@@ -71,7 +71,7 @@
       "url": "/?action=practice",
       "icons": [
         {
-          "src": "https://api.dicebear.com/9.x/initials/png?seed=P&backgroundColor=5B2EFF&size=192",
+          "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=192",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
@@ -81,13 +81,37 @@
   ],
   "share_target": {
     "action": "/?action=share",
-    "method": "GET",
-    "enctype": "application/x-www-form-urlencoded",
+    "method": "POST",
+    "enctype": "multipart/form-data",
     "params": {
       "title": "title",
       "text": "text",
-      "url": "url"
+      "url": "url",
+      "files": [
+        {
+          "name": "file",
+          "accept": ["image/*", "text/*"]
+        }
+      ]
     }
+  },
+  "file_handlers": [
+    {
+      "action": "/?action=open-file",
+      "accept": {
+        "text/plain": [".txt", ".md"],
+        "application/json": [".json"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+pyqverse",
+      "url": "/?link=%s"
+    }
+  ],
+  "note_taking": {
+    "new_note_url": "/?action=new-note"
   },
   "related_applications": [
     {
@@ -114,14 +138,14 @@
       "short_name": "QOTD",
       "description": "Daily Challenge",
       "tag": "qotd",
-      "template": "/widget-template.json",
-      "data": "/widget-data.json",
+      "template": "widget-template.json",
+      "data": "widget-data.json",
       "type": "application/json",
       "auth": false,
       "update": 86400,
       "icons": [
         {
-          "src": "https://api.dicebear.com/9.x/initials/png?seed=Q&backgroundColor=5B2EFF&size=192",
+          "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=192",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
