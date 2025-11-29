@@ -24,25 +24,25 @@
   ],
   "icons": [
     {
-      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=192",
+      "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&length=2",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=192",
+      "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&length=2",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=512",
+      "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=512&length=2",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=512",
+      "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=512&length=2",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -71,7 +71,7 @@
       "url": "/?action=practice",
       "icons": [
         {
-          "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=192",
+          "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&length=2",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
@@ -138,7 +138,7 @@
       "update": 86400,
       "icons": [
         {
-          "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=192",
+          "src": "https://ui-avatars.com/api/?name=PV&background=5B2EFF&color=fff&size=192&length=2",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"

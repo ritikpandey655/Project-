@@ -1,8 +1,18 @@
-/// <reference types="vite/client" />
-
 export {};
 
 declare global {
+  // Manual definition for Vite's ImportMetaEnv since vite/client types are missing
+  interface ImportMetaEnv {
+    readonly API_KEY: string;
+    readonly PROD: boolean;
+    readonly DEV: boolean;
+    [key: string]: any;
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+
   interface BeforeInstallPromptEvent extends Event {
     readonly platforms: string[];
     readonly userChoice: Promise<{
