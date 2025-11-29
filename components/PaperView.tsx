@@ -274,70 +274,72 @@ export const PaperView: React.FC<PaperViewProps> = ({
   }, []);
 
   const watermarks = Array(20).fill("ExamPilot Secure Mode");
-  const radius = 50;
-  const stroke = 8;
+  const radius = 60; // Increased size for mobile visibility
+  const stroke = 10;
   const normalizedRadius = radius - stroke * 2;
   const circumference = normalizedRadius * 2 * Math.PI;
   const strokeDashoffset = resultStats ? circumference - (resultStats.percentage / 100) * circumference : 0;
 
   if (isSubmitted && resultStats) {
     return (
-      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-900 overflow-y-auto safe-top animate-fade-in">
+      <div className="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-900 overflow-y-auto safe-top animate-fade-in no-select">
         <div className="max-w-5xl mx-auto p-4 sm:p-6 pb-20">
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Exam Analytics</h1>
-               <p className="text-slate-500 dark:text-slate-400">{paper.title}</p>
+               <p className="text-slate-500 dark:text-slate-400 text-sm">{paper.title}</p>
             </div>
-            <Button onClick={onClose} variant="outline">Back to Dashboard</Button>
+            <Button onClick={onClose} variant="outline" className="w-full sm:w-auto">Back to Dashboard</Button>
           </div>
           
            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-             <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-8">
-               <div className="flex flex-col items-center">
-                 <div className="relative w-40 h-40 flex items-center justify-center">
+             {/* Score Card */}
+             <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-6">
+               <div className="relative w-48 h-48 flex items-center justify-center">
                    <svg height={radius * 2} width={radius * 2} className="transform -rotate-90">
                      <circle stroke="currentColor" strokeWidth={stroke} fill="transparent" r={normalizedRadius} cx={radius} cy={radius} className="text-slate-100 dark:text-slate-700" />
                      <circle stroke="currentColor" strokeWidth={stroke} strokeDasharray={circumference + ' ' + circumference} style={{ strokeDashoffset, transition: 'stroke-dashoffset 1s ease-in-out' }} strokeLinecap="round" fill="transparent" r={normalizedRadius} cx={radius} cy={radius} className={`${resultStats.percentage >= 60 ? 'text-green-500' : resultStats.percentage >= 40 ? 'text-amber-500' : 'text-red-500'}`} />
                    </svg>
                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                     <span className="text-3xl font-bold text-slate-800 dark:text-white">{resultStats.percentage}%</span>
-                     <span className="text-xs text-slate-400 uppercase font-bold">Score</span>
+                     <span className="text-4xl font-extrabold text-slate-800 dark:text-white">{resultStats.percentage}%</span>
+                     <span className="text-xs text-slate-400 uppercase font-bold tracking-widest mt-1">Score</span>
                    </div>
-                 </div>
-                 <div className={`mt-4 px-4 py-1.5 rounded-full text-sm font-bold border ${resultStats.badge.color}`}>
+               </div>
+               
+               <div className={`px-5 py-2 rounded-full text-base font-bold border ${resultStats.badge.color}`}>
                    {resultStats.badge.label}
-                 </div>
                </div>
                
                {/* Stats Grid */}
-               <div className="grid grid-cols-2 gap-4 w-full">
-                  <div className="text-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                    <div className="text-xl font-bold text-slate-800 dark:text-white">{score} <span className="text-sm text-slate-400">/ {paper.totalMarks}</span></div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Marks</div>
+               <div className="grid grid-cols-2 gap-3 w-full mt-2">
+                  <div className="text-center p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl">
+                    <div className="text-2xl font-bold text-slate-800 dark:text-white">{score} <span className="text-sm text-slate-400 font-normal">/ {paper.totalMarks}</span></div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wide">Marks Obtained</div>
                   </div>
-                  <div className="text-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                    <div className="text-xl font-bold text-slate-800 dark:text-white">{Math.floor(resultStats.timeUsed / 60)}m {resultStats.timeUsed % 60}s</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">Time Taken</div>
+                  <div className="text-center p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl">
+                    <div className="text-2xl font-bold text-slate-800 dark:text-white">{Math.floor(resultStats.timeUsed / 60)}m {resultStats.timeUsed % 60}s</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wide">Time Taken</div>
                   </div>
-                  <div className="text-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl col-span-2">
-                     <div className="flex justify-around">
-                        <div><span className="block text-lg font-bold text-green-600 dark:text-green-400">{resultStats.correctCount}</span><span className="text-[10px] text-slate-400 uppercase">Correct</span></div>
-                        <div><span className="block text-lg font-bold text-red-600 dark:text-red-400">{resultStats.incorrectCount}</span><span className="text-[10px] text-slate-400 uppercase">Wrong</span></div>
-                        <div><span className="block text-lg font-bold text-slate-600 dark:text-slate-400">{resultStats.skippedCount}</span><span className="text-[10px] text-slate-400 uppercase">Skip</span></div>
+                  <div className="text-center p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl col-span-2">
+                     <div className="flex justify-around items-center">
+                        <div className="flex flex-col"><span className="text-xl font-bold text-green-600 dark:text-green-400">{resultStats.correctCount}</span><span className="text-[10px] text-slate-400 uppercase font-bold">Correct</span></div>
+                        <div className="w-px h-8 bg-slate-200 dark:bg-slate-700"></div>
+                        <div className="flex flex-col"><span className="text-xl font-bold text-red-600 dark:text-red-400">{resultStats.incorrectCount}</span><span className="text-[10px] text-slate-400 uppercase font-bold">Wrong</span></div>
+                        <div className="w-px h-8 bg-slate-200 dark:bg-slate-700"></div>
+                        <div className="flex flex-col"><span className="text-xl font-bold text-slate-600 dark:text-slate-400">{resultStats.skippedCount}</span><span className="text-[10px] text-slate-400 uppercase font-bold">Skip</span></div>
                      </div>
                   </div>
                </div>
              </div>
              
              {/* Charts Container */}
-             <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-xl border border-slate-200 dark:border-slate-700">
-               <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Performance vs Average</h3>
-               <div className="h-56 w-full min-w-0" style={{ width: '100%', height: '100%' }}>
-                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={comparisonData}>
+             <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200 dark:border-slate-700">
+               <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Performance vs Average</h3>
+               <div className="h-64 w-full">
+                 <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={comparisonData}>
                        <PolarGrid stroke="#e2e8f0" />
-                       <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                       <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} />
                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                        <Radar name="You" dataKey="You" stroke="#6366f1" fill="#6366f1" fillOpacity={0.5} />
                        <Radar name="Avg" dataKey="Average" stroke="#cbd5e1" fill="#cbd5e1" fillOpacity={0.3} />
@@ -349,31 +351,38 @@ export const PaperView: React.FC<PaperViewProps> = ({
            </div>
 
            <div className="mt-8 space-y-8">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-white text-center">Detailed Solutions</h2>
+              <div className="flex items-center gap-3">
+                 <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+                 <h2 className="text-xl font-bold text-slate-800 dark:text-white text-center uppercase tracking-widest">Detailed Analysis</h2>
+                 <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+              </div>
+              
               {paper.sections.map(section => (
                   <div key={section.id}>
-                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 px-4">{section.title}</h3>
+                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 px-2">{section.title}</h3>
                     <div className="space-y-4">
                        {section.questions.map((q, idx) => {
                           const questionText = (localLang === 'hi' && q.textHindi) ? q.textHindi : q.text;
                           const answerText = (localLang === 'hi' && q.answerHindi) ? q.answerHindi : (q.type === QuestionType.MCQ ? q.options[q.correctIndex] : q.answer);
                           
                           return (
-                            <div key={q.id} className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-                               <div className="flex gap-3 mb-3">
-                                  <span className="font-bold text-slate-500 dark:text-slate-400">{idx + 1}.</span>
-                                  <p className="font-medium text-slate-900 dark:text-white">{questionText}</p>
+                            <div key={q.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                               <div className="flex gap-4 mb-4">
+                                  <span className="font-bold text-slate-400 text-lg">{idx + 1}.</span>
+                                  <div className="flex-1">
+                                     <p className="font-medium text-slate-900 dark:text-white text-base leading-relaxed">{questionText}</p>
+                                  </div>
                                </div>
-                               <div className="ml-6 sm:ml-8 space-y-3">
-                                  <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700">
-                                     <p className="text-xs text-slate-500 uppercase font-bold mb-1">Your Answer</p>
-                                     <p className={`text-sm ${q.type === QuestionType.MCQ ? (answers[q.id] === q.options[q.correctIndex] ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-600 dark:text-red-400') : 'text-slate-700 dark:text-slate-300'}`}>
+                               <div className="space-y-3 pl-8 border-l-2 border-slate-100 dark:border-slate-700 ml-2">
+                                  <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700">
+                                     <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 tracking-wider">Your Answer</p>
+                                     <p className={`text-sm font-medium ${q.type === QuestionType.MCQ ? (answers[q.id] === q.options[q.correctIndex] ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400') : 'text-slate-700 dark:text-slate-300'}`}>
                                         {answers[q.id] || 'Not attempted'}
                                      </p>
                                   </div>
-                                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-800">
-                                     <p className="text-xs text-green-600 dark:text-green-400 uppercase font-bold mb-1">Correct Answer</p>
-                                     <p className="text-sm text-slate-800 dark:text-slate-200">{answerText}</p>
+                                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800">
+                                     <p className="text-[10px] text-green-700 dark:text-green-400 uppercase font-bold mb-1 tracking-wider">Correct Answer</p>
+                                     <p className="text-sm font-bold text-slate-800 dark:text-white">{answerText}</p>
                                   </div>
                                </div>
                             </div>
