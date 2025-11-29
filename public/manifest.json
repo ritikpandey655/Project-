@@ -11,6 +11,7 @@
   "theme_color": "#5B2EFF",
   "lang": "en",
   "dir": "ltr",
+  "prefer_related_applications": false,
   "iarc_rating_id": "e84b786c-4567-4e78-9012-345678901234",
   "display_override": [
     "window-controls-overlay",
@@ -23,25 +24,25 @@
   ],
   "icons": [
     {
-      "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV&font=roboto",
+      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=192",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=PV&font=roboto",
+      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=192",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "https://placehold.co/512x512/5B2EFF/ffffff.png?text=PV&font=roboto",
+      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=512",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://placehold.co/512x512/5B2EFF/ffffff.png?text=PV&font=roboto",
+      "src": "https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=solid&size=512",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -49,14 +50,14 @@
   ],
   "screenshots": [
     {
-      "src": "https://placehold.co/1080x1920/111827/5B2EFF.png?text=PYQverse+Home",
+      "src": "https://placehold.co/1080x1920/111827/5B2EFF.png?text=PYQverse+Mobile",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Smart Dashboard"
+      "label": "Mobile Dashboard"
     },
     {
-      "src": "https://placehold.co/1920x1080/111827/5B2EFF.png?text=Desktop+Experience",
+      "src": "https://placehold.co/1920x1080/111827/5B2EFF.png?text=PYQverse+Desktop",
       "sizes": "1920x1080",
       "type": "image/png",
       "form_factor": "wide",
@@ -70,7 +71,7 @@
       "url": "/?action=practice",
       "icons": [
         {
-          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=P",
+          "src": "https://api.dicebear.com/9.x/initials/png?seed=P&backgroundColor=5B2EFF&size=192",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
@@ -78,6 +79,16 @@
       ]
     }
   ],
+  "share_target": {
+    "action": "/?action=share",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "related_applications": [
     {
       "platform": "webapp",
@@ -110,7 +121,7 @@
       "update": 86400,
       "icons": [
         {
-          "src": "https://placehold.co/192x192/5B2EFF/ffffff.png?text=Q",
+          "src": "https://api.dicebear.com/9.x/initials/png?seed=Q&backgroundColor=5B2EFF&size=192",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
