@@ -47,7 +47,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
       const lowerName = name.toLowerCase().trim();
       
       const isAdmin = lowerEmail === 'admin@pyqverse.com' || 
-                      lowerEmail === 'ritikpandey655@gmail.com' ||
                       lowerName.includes('admin');
 
       const newUser: User = {
