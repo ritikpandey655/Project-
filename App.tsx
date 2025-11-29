@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppState, ExamType, Question, User, ViewState, QuestionPaper } from './types';
 import { EXAM_SUBJECTS, THEME_PALETTES, TECHNICAL_EXAMS, MONTHS } from './constants';
@@ -167,8 +166,12 @@ const App: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    const handleBlur = () => setIsSecurityBlackout(true);
+    // Only enable security blackout in production to allow debugging in dev
+    const handleBlur = () => {
+        if (import.meta.env.PROD) setIsSecurityBlackout(true);
+    };
     const handleFocus = () => setIsSecurityBlackout(false);
+    
     window.addEventListener('blur', handleBlur);
     window.addEventListener('focus', handleFocus);
 
@@ -400,12 +403,15 @@ const App: React.FC = () => {
   // Security Blackout Screen
   if (isSecurityBlackout) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center text-white">
+      <div 
+        className="fixed inset-0 z-[9999] bg-black flex items-center justify-center text-white cursor-pointer"
+        onClick={() => setIsSecurityBlackout(false)}
+      >
          <div className="text-center p-8">
             <div className="text-6xl mb-4">🔒</div>
             <h2 className="text-2xl font-bold mb-2">Security Pause</h2>
-            <p className="text-slate-400">Content is hidden while app is in background.</p>
-            <p className="text-sm text-slate-500 mt-4">Tap or Focus to Resume</p>
+            <p className="text-slate-400">Content hidden for privacy.</p>
+            <p className="text-sm text-slate-500 mt-4 border border-slate-700 px-4 py-2 rounded-full inline-block">Tap anywhere to resume</p>
          </div>
       </div>
     );

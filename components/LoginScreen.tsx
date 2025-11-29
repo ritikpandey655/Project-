@@ -30,8 +30,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       const nameToCheck = rawName.toLowerCase();
       const emailToCheck = userEmail.toLowerCase();
       
+      // Determine Admin Status: Check specific admin email or if name contains "admin"
       const isAdmin = emailToCheck === 'admin@pyqverse.com' || 
-                      emailToCheck === 'ritikpandey655@gmail.com' ||
                       nameToCheck.includes('admin') ||
                       emailToCheck.includes('admin');
 
