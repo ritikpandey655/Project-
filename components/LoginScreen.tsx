@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
 import firebase from 'firebase/compat/app';
@@ -25,18 +25,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
   
-  // Captcha State
-  const [isCaptchaReady, setIsCaptchaReady] = useState(false); 
-  // Note: Invisible captcha doesn't need 'isCaptchaSolved' state for UI blocking
-
   // Admin Auth State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const [error, setError] = useState('');
-  
-  // Ref to track if we should render
-  const shouldRenderCaptcha = !showOtpInput && !isAdminMode;
 
   useEffect(() => {
     if (logoClicks > 0 && logoClicks < 5) {
@@ -54,60 +47,55 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
       setLogoClicks(prev => prev + 1);
   };
 
-  // ReCAPTCHA Lifecycle
+  // Helper to init captcha safely
+  const setupRecaptcha = () => {
+    // Return existing if valid
+    if ((window as any).recaptchaVerifier) {
+      return (window as any).recaptchaVerifier;
+    }
+
+    const container = document.getElementById('recaptcha-container');
+    if (!container) {
+      console.warn("Recaptcha container not found");
+      return null;
+    }
+
+    try {
+      // Clear any artifacts
+      container.innerHTML = '';
+      
+      const verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        'size': 'invisible',
+        'callback': (response: any) => {
+           // reCAPTCHA solved, allow signInWithPhoneNumber.
+        },
+        'expired-callback': () => {
+           console.log("Recaptcha expired");
+           if ((window as any).recaptchaVerifier) {
+             (window as any).recaptchaVerifier.clear();
+             (window as any).recaptchaVerifier = null;
+           }
+        }
+      });
+      
+      (window as any).recaptchaVerifier = verifier;
+      return verifier;
+    } catch (e) {
+      console.error("Recaptcha Setup Error:", e);
+      return null;
+    }
+  };
+
+  // Init on mount/view change
   useEffect(() => {
-    if (!shouldRenderCaptcha) return;
-
-    const initCaptcha = async () => {
-        try {
-            // Cleanup existing
-            if ((window as any).recaptchaVerifier) {
-                try { (window as any).recaptchaVerifier.clear(); } catch(e){}
-                (window as any).recaptchaVerifier = null;
-            }
-            
-            // Wait for DOM
-            await new Promise(r => setTimeout(r, 100));
-            const container = document.getElementById('recaptcha-container');
-            if (container) {
-                container.innerHTML = ''; // Hard clear
-            } else {
-                return; // Container not found
-            }
-
-            // Invisible Recaptcha
-            const verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-                'size': 'invisible',
-                'callback': (response: any) => {
-                     // Automatically handled by Firebase
-                },
-                'expired-callback': () => {
-                    setError('Security check expired. Please try again.');
-                }
-            });
-
-            (window as any).recaptchaVerifier = verifier;
-            // For invisible, we don't strictly need to await render() before user clicks,
-            // but getting it ready helps speed.
-            verifier.render().then(() => {
-                setIsCaptchaReady(true);
-            });
-
-        } catch (err) {
-            console.error("Captcha Init Error:", err);
-        }
-    };
-
-    initCaptcha();
-
-    return () => {
-        setIsCaptchaReady(false);
-        if ((window as any).recaptchaVerifier) {
-            try { (window as any).recaptchaVerifier.clear(); } catch(e){}
-            (window as any).recaptchaVerifier = null;
-        }
-    };
-  }, [shouldRenderCaptcha]);
+    if (!showOtpInput && !isAdminMode) {
+       // Small delay to ensure DOM is ready
+       const timer = setTimeout(() => {
+          setupRecaptcha();
+       }, 500);
+       return () => clearTimeout(timer);
+    }
+  }, [showOtpInput, isAdminMode]);
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
@@ -165,27 +153,40 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
     setError('');
     
     try {
-      const appVerifier = (window as any).recaptchaVerifier;
+      // 1. Get or Create Verifier
+      let appVerifier = (window as any).recaptchaVerifier;
+      if (!appVerifier) {
+        appVerifier = setupRecaptcha();
+      }
+
+      // 2. Strict Check
+      if (!appVerifier) {
+         throw new Error("Security check not ready. Please refresh.");
+      }
+
+      // 3. Send
       const confirmation = await auth.signInWithPhoneNumber(formattedPhone, appVerifier);
       setConfirmationResult(confirmation);
       setShowOtpInput(true);
     } catch (err: any) {
       console.error("OTP Error:", err);
       
-      // Reset logic
-      if ((window as any).recaptchaVerifier) {
-          try { (window as any).recaptchaVerifier.reset(); } catch(e){}
-      }
-
-      if (err.code === 'auth/internal-error') {
-          setError('Internal error. Retrying...');
-          setTimeout(() => window.location.reload(), 1500);
+      if (err.code === 'auth/argument-error') {
+          setError('Security check error. Please reload page.');
       } else if (err.code === 'auth/invalid-phone-number') {
           setError('Invalid phone number.');
       } else if (err.code === 'auth/too-many-requests') {
-          setError('Too many attempts. Please wait a while.');
+          setError('Too many attempts. Try again later.');
       } else {
           setError(err.message || 'Failed to send OTP.');
+      }
+
+      // Reset on error to be safe
+      if ((window as any).recaptchaVerifier) {
+          try { (window as any).recaptchaVerifier.clear(); } catch(e){}
+          (window as any).recaptchaVerifier = null;
+          // Try re-init after short delay
+          setTimeout(setupRecaptcha, 1000);
       }
     } finally {
       setIsLoading(false);
@@ -341,7 +342,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                                     />
                                 </div>
                                 
-                                {/* Hidden ReCAPTCHA Container for invisible mode */}
+                                {/* ReCAPTCHA Container - Kept in DOM but hidden */}
                                 <div id="recaptcha-container" className="fixed bottom-0 right-0 z-0 opacity-0 pointer-events-none"></div>
 
                                 <Button 
