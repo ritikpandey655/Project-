@@ -52,32 +52,42 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
       setLogoClicks(prev => prev + 1);
   };
 
-  // Cleanup Recaptcha on unmount
+  // Lifecycle Management for Recaptcha
   useEffect(() => {
-    return () => {
-      if ((window as any).recaptchaVerifier) {
-        try {
-          (window as any).recaptchaVerifier.clear();
-        } catch (e) {}
-        (window as any).recaptchaVerifier = null;
-      }
-    };
-  }, []);
+    // Only initialize if we are showing the phone form (not OTP input) and container exists
+    if (!showOtpInput && !isAdminMode && recaptchaContainerRef.current) {
+        
+        // 1. Clear existing verifier if it exists (prevents duplicate widgets)
+        if ((window as any).recaptchaVerifier) {
+           try { (window as any).recaptchaVerifier.clear(); } catch(e){}
+           (window as any).recaptchaVerifier = null;
+        }
 
-  // Cleanup Recaptcha when switching views (e.g. back from OTP input)
-  useEffect(() => {
-    if (!showOtpInput) {
-      if ((window as any).recaptchaVerifier) {
+        // 2. Initialize new verifier
         try {
-          (window as any).recaptchaVerifier.clear();
-        } catch (e) {}
-        (window as any).recaptchaVerifier = null;
-      }
-      if (recaptchaContainerRef.current) {
-        recaptchaContainerRef.current.innerHTML = '';
-      }
+            const verifier = new firebase.auth.RecaptchaVerifier(recaptchaContainerRef.current, {
+                'size': 'normal',
+                'callback': () => setError(''), // Clear error on success
+                'expired-callback': () => setError('Captcha expired. Please verify again.')
+            });
+            
+            verifier.render().then((widgetId: any) => {
+                (window as any).recaptchaVerifier = verifier;
+                (window as any).recaptchaWidgetId = widgetId;
+            });
+        } catch (error) {
+            console.error("Recaptcha Init Error", error);
+        }
     }
-  }, [showOtpInput]);
+
+    // Cleanup function: Clear verifier when component unmounts or switches mode
+    return () => {
+        if ((window as any).recaptchaVerifier) {
+            try { (window as any).recaptchaVerifier.clear(); } catch(e){}
+            (window as any).recaptchaVerifier = null;
+        }
+    };
+  }, [showOtpInput, isAdminMode]); // Re-run if these change
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
@@ -126,50 +136,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
     }
   };
 
-  const getRecaptchaVerifier = () => {
-    // STRATEGY: Always create a fresh instance to avoid 'internal-error' from stale state
-    
-    // 1. Clear existing instance if any
-    if ((window as any).recaptchaVerifier) {
-      try {
-        (window as any).recaptchaVerifier.clear();
-      } catch (e) {
-        console.warn("Could not clear old recaptcha", e);
-      }
-      (window as any).recaptchaVerifier = null;
-    }
-
-    // 2. Ensure container exists and is empty
-    if (!recaptchaContainerRef.current) {
-        return null;
-    }
-    recaptchaContainerRef.current.innerHTML = '';
-
-    try {
-      // 3. Create new verifier attached to the REF element
-      const verifier = new firebase.auth.RecaptchaVerifier(recaptchaContainerRef.current, {
-        'size': 'invisible',
-        'callback': () => { console.log("Recaptcha Verified"); },
-        'expired-callback': () => { 
-            console.warn("Recaptcha Expired");
-            // Clean up if expired
-            if ((window as any).recaptchaVerifier) {
-                try { (window as any).recaptchaVerifier.clear(); } catch(e){}
-                (window as any).recaptchaVerifier = null;
-            }
-        }
-      });
-      
-      // Render immediately to ensure it's ready
-      verifier.render();
-      (window as any).recaptchaVerifier = verifier;
-      return verifier;
-    } catch (err) {
-      console.error("Recaptcha Setup Error:", err);
-      return null;
-    }
-  };
-
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isOnline) return alert("⚠️ No Internet Connection");
@@ -180,34 +146,35 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
         return;
     }
 
+    // Check if verifier exists (it should, from useEffect)
+    if (!(window as any).recaptchaVerifier) {
+         setError("Security check not ready. Please refresh.");
+         return;
+    }
+
     setIsLoading(true);
     setError('');
     
     try {
-      const appVerifier = getRecaptchaVerifier();
-      if (!appVerifier) throw new Error("Could not initialize security check. Please refresh.");
-
+      // Use the EXISTING verifier instance
+      const appVerifier = (window as any).recaptchaVerifier;
       const confirmation = await auth.signInWithPhoneNumber(formattedPhone, appVerifier);
       setConfirmationResult(confirmation);
       setShowOtpInput(true);
     } catch (err: any) {
       console.error("OTP Error:", err);
       
-      // Cleanup on error
+      // Reset reCAPTCHA if it failed, so user can try again
       if ((window as any).recaptchaVerifier) {
-        try { (window as any).recaptchaVerifier.clear(); } catch(e){}
-        (window as any).recaptchaVerifier = null;
-        if(recaptchaContainerRef.current) recaptchaContainerRef.current.innerHTML = '';
+          try { (window as any).recaptchaVerifier.reset(); } catch(e){}
       }
 
       if (err.code === 'auth/internal-error') {
-          setError('Security check failed. Please try clicking "Get OTP" again.');
+          setError('Security check failed. Please refresh the page and try again.');
       } else if (err.code === 'auth/invalid-phone-number') {
           setError('Invalid phone number format.');
       } else if (err.code === 'auth/too-many-requests') {
-          setError('Too many attempts. Please try again later.');
-      } else if (err.code === 'auth/captcha-check-failed') {
-          setError('Captcha check failed. Please refresh page.');
+          setError('Server busy. Please wait a moment and try again.');
       } else {
           setError(err.message || 'Failed to send OTP. Try again.');
       }
@@ -392,7 +359,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                                 <div 
                                     ref={recaptchaContainerRef} 
                                     id="recaptcha-container" 
-                                    className="flex justify-center items-center my-4"
+                                    className="w-full flex justify-center items-center my-4 min-h-[50px] w-full"
                                 ></div>
 
                                 <Button type="submit" isLoading={isLoading} className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0">
