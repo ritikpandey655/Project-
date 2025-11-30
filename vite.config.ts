@@ -1,3 +1,4 @@
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -28,6 +29,9 @@ export default defineConfig(({ mode }) => {
           categories: ["education", "productivity", "study"],
           lang: "en",
           dir: "ltr",
+          prefer_related_applications: false,
+          related_applications: [],
+          display_override: ["window-controls-overlay", "minimal-ui", "standalone", "browser"],
           launch_handler: {
             client_mode: "navigate-existing"
           },
@@ -93,8 +97,25 @@ export default defineConfig(({ mode }) => {
               url: "/?action=upload",
               icons: [{ src: "https://placehold.co/96x96/10B981/ffffff.png?text=D", sizes: "96x96", type: "image/png" }]
             }
+          ],
+          edge_side_panel: {
+             preferred_width: 480
+          },
+          widgets: [
+            {
+                name: "Question of the Day",
+                short_name: "QOTD",
+                description: "Daily exam practice question",
+                icons: [{ src: "https://placehold.co/192x192/5B2EFF/ffffff.png?text=Q", sizes: "192x192", type: "image/png" }],
+                screenshots: [{ src: "https://placehold.co/400x400/5B2EFF/ffffff.png?text=QOTD", sizes: "400x400", type: "image/png", label: "Widget Preview" }],
+                tag: "qotd",
+                template: "widget-template.json",
+                ms_ac_template: "widget-template.json",
+                data: "widget-data.json",
+                type: "application/json"
+            }
           ]
-        },
+        } as any,
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
           navigateFallback: '/index.html',
