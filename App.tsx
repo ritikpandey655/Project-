@@ -70,9 +70,6 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
-  // Security State
-  const [isSecurityBlackout, setIsSecurityBlackout] = useState(false);
-  
   // Practice Config State
   const [showPracticeConfig, setShowPracticeConfig] = useState(false);
   const [practiceConfig, setPracticeConfig] = useState<{ mode: 'finite' | 'endless'; subject: string; count: number; topic?: string }>({ 
@@ -167,22 +164,11 @@ const App: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Only enable security blackout in production to allow debugging in dev
-    const handleBlur = () => {
-        if (import.meta.env && import.meta.env.PROD) setIsSecurityBlackout(true);
-    };
-    const handleFocus = () => setIsSecurityBlackout(false);
-    
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
-
     return () => {
       unsubscribe();
       clearTimeout(timeoutId);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
     };
   }, [loadUserData]);
 
@@ -400,23 +386,6 @@ const App: React.FC = () => {
         navigateTo('news');
      });
   }, [state.selectedExam, navigateTo]);
-
-  // Security Blackout Screen
-  if (isSecurityBlackout) {
-    return (
-      <div 
-        className="fixed inset-0 z-[9999] bg-black flex items-center justify-center text-white cursor-pointer"
-        onClick={() => setIsSecurityBlackout(false)}
-      >
-         <div className="text-center p-8">
-            <div className="text-6xl mb-4">🔒</div>
-            <h2 className="text-2xl font-bold mb-2">Security Pause</h2>
-            <p className="text-slate-400">Content hidden for privacy.</p>
-            <p className="text-sm text-slate-500 mt-4 border border-slate-700 px-4 py-2 rounded-full inline-block">Tap anywhere to resume</p>
-         </div>
-      </div>
-    );
-  }
 
   // Auth Views (Simplified render)
   if (state.view === 'login') return <LoginScreen onLogin={handleLogin} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} isInitializing={isAppInitializing} />;

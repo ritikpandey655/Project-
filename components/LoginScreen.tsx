@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
@@ -50,24 +51,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
   };
 
   useEffect(() => {
+    let fallbackTimer: ReturnType<typeof setTimeout>;
+
     if (!showOtpInput && !isAdminMode && recaptchaContainerRef.current) {
         try {
-            // Cleanup existing verifier
+            // 1. Clean container explicitly
+            recaptchaContainerRef.current.innerHTML = '';
+            
+            // 2. Clear global verifier if exists
             if ((window as any).recaptchaVerifier) {
                 try { (window as any).recaptchaVerifier.clear(); } catch(e){}
                 (window as any).recaptchaVerifier = null;
             }
             setIsRecaptchaReady(false);
 
-            // Initialize new verifier
+            // 3. Create new verifier
             const verifier = new firebase.auth.RecaptchaVerifier(recaptchaContainerRef.current, {
                 'size': 'normal',
                 'callback': () => {
                      setError('');
                 },
                 'expired-callback': () => {
-                    setError('Captcha expired. Please refresh.');
-                    setIsRecaptchaReady(false);
+                    setError('Captcha expired. Please refresh page.');
                 }
             });
             
@@ -78,15 +83,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                 setIsRecaptchaReady(true);
             }).catch((err: any) => {
                 console.error("Recaptcha Render Error", err);
-                setIsRecaptchaReady(true); // Attempt to continue anyway
+                // Allow user to try clicking button anyway, which will trigger retry or error
+                setIsRecaptchaReady(true);
             });
 
         } catch (error) {
             console.error("Recaptcha Init Error", error);
+            setIsRecaptchaReady(true);
         }
+
+        // 4. Failsafe: Force ready state after 4 seconds to prevent "Loading..." forever
+        fallbackTimer = setTimeout(() => {
+            setIsRecaptchaReady(true);
+        }, 4000);
     }
 
     return () => {
+        clearTimeout(fallbackTimer);
         setIsRecaptchaReady(false);
         if ((window as any).recaptchaVerifier) {
             try { (window as any).recaptchaVerifier.clear(); } catch(e){}
@@ -147,8 +160,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
         return;
     }
 
-    if (!isRecaptchaReady || !(window as any).recaptchaVerifier) {
-         setError("Please wait for security check to load...");
+    // Check if verifier is actually ready
+    if (!(window as any).recaptchaVerifier) {
+         setError("Security check loading... Please wait 2 seconds and try again.");
+         // Try to force reload verifier if stuck
          return;
     }
 
@@ -169,11 +184,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
       }
 
       if (err.code === 'auth/internal-error') {
-          setError('Internal error. Please refresh the page and try again.');
+          setError('Internal error. Please refresh the page.');
       } else if (err.code === 'auth/invalid-phone-number') {
           setError('Invalid phone number.');
       } else if (err.code === 'auth/too-many-requests') {
-          setError('Too many attempts. Try again later.');
+          setError('Too many requests. Please try again later.');
       } else {
           setError(err.message || 'Failed to send OTP.');
       }
@@ -334,16 +349,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                                 <div 
                                     ref={recaptchaContainerRef} 
                                     id="recaptcha-container" 
-                                    className="w-full flex justify-center items-center my-4 min-h-[78px]"
+                                    className="w-full flex justify-center items-center my-4 min-h-[78px] bg-white/5 rounded-xl"
                                 ></div>
 
                                 <Button 
                                     type="submit" 
                                     isLoading={isLoading} 
-                                    disabled={!isRecaptchaReady || isLoading}
+                                    disabled={isLoading}
                                     className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isRecaptchaReady ? "Get OTP" : "Loading Security Check..."}
+                                    {isRecaptchaReady ? "Get OTP" : "Loading Check..."}
                                 </Button>
                             </form>
                         ) : (
