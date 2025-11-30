@@ -26,9 +26,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
   
   // Captcha State
-  const [isCaptchaReady, setIsCaptchaReady] = useState(false); // Widget loaded
-  const [isCaptchaSolved, setIsCaptchaSolved] = useState(false); // User ticked it
-  const [captchaTimeout, setCaptchaTimeout] = useState(false); // Widget load timeout
+  const [isCaptchaReady, setIsCaptchaReady] = useState(false); 
+  // Note: Invisible captcha doesn't need 'isCaptchaSolved' state for UI blocking
 
   // Admin Auth State
   const [email, setEmail] = useState('');
@@ -59,9 +58,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
   useEffect(() => {
     if (!shouldRenderCaptcha) return;
 
-    let widgetId: any = null;
-    let loadTimer: ReturnType<typeof setTimeout>;
-
     const initCaptcha = async () => {
         try {
             // Cleanup existing
@@ -79,61 +75,39 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                 return; // Container not found
             }
 
+            // Invisible Recaptcha
             const verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-                'size': 'normal',
+                'size': 'invisible',
                 'callback': (response: any) => {
-                     setIsCaptchaSolved(true);
-                     setError('');
+                     // Automatically handled by Firebase
                 },
                 'expired-callback': () => {
-                    setIsCaptchaSolved(false);
-                    setError('Security check expired. Please tick again.');
+                    setError('Security check expired. Please try again.');
                 }
             });
 
             (window as any).recaptchaVerifier = verifier;
-            widgetId = await verifier.render();
-            setIsCaptchaReady(true);
-            setCaptchaTimeout(false);
+            // For invisible, we don't strictly need to await render() before user clicks,
+            // but getting it ready helps speed.
+            verifier.render().then(() => {
+                setIsCaptchaReady(true);
+            });
 
         } catch (err) {
             console.error("Captcha Init Error:", err);
-            // Don't show error immediately, user can retry
         }
     };
 
     initCaptcha();
 
-    // Failsafe if captcha doesn't load in 8 seconds
-    loadTimer = setTimeout(() => {
-        if (!widgetId && !isCaptchaReady) {
-            setCaptchaTimeout(true);
-        }
-    }, 8000);
-
     return () => {
-        clearTimeout(loadTimer);
         setIsCaptchaReady(false);
-        setIsCaptchaSolved(false);
-        setCaptchaTimeout(false);
         if ((window as any).recaptchaVerifier) {
             try { (window as any).recaptchaVerifier.clear(); } catch(e){}
             (window as any).recaptchaVerifier = null;
         }
     };
   }, [shouldRenderCaptcha]);
-
-  const reloadCaptcha = () => {
-      setIsCaptchaReady(false);
-      setCaptchaTimeout(false);
-      // Toggle admin mode briefly to force re-mount of the logic
-      // Or simply re-triggering effect via a state update could work, 
-      // but re-mounting the component part is cleaner for Recaptcha.
-      // For now, we rely on the effect dependencies.
-      const container = document.getElementById('recaptcha-container');
-      if(container) container.innerHTML = '';
-      window.location.reload(); // Hard reload is safest for Recaptcha stuck state
-  };
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
@@ -187,11 +161,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
         return;
     }
 
-    if (!isCaptchaSolved) {
-         setError("Please complete the security check above first.");
-         return;
-    }
-
     setIsLoading(true);
     setError('');
     
@@ -204,18 +173,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
       console.error("OTP Error:", err);
       
       // Reset logic
-      setIsCaptchaSolved(false);
       if ((window as any).recaptchaVerifier) {
           try { (window as any).recaptchaVerifier.reset(); } catch(e){}
       }
 
       if (err.code === 'auth/internal-error') {
-          setError('Internal error. Refreshing page...');
-          setTimeout(() => window.location.reload(), 2000);
+          setError('Internal error. Retrying...');
+          setTimeout(() => window.location.reload(), 1500);
       } else if (err.code === 'auth/invalid-phone-number') {
           setError('Invalid phone number.');
       } else if (err.code === 'auth/too-many-requests') {
-          setError('Too many requests. Please try again later.');
+          setError('Too many attempts. Please wait a while.');
       } else {
           setError(err.message || 'Failed to send OTP.');
       }
@@ -366,41 +334,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                                     <input 
                                         type="tel" 
                                         value={phoneNumber}
-                                        onChange={(e) => { setPhoneNumber(e.target.value); setError(''); setIsCaptchaSolved(false); }}
+                                        onChange={(e) => { setPhoneNumber(e.target.value); setError(''); }}
                                         className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600 tracking-wide"
                                         placeholder="+91 XXXXX XXXXX"
                                         required
                                     />
                                 </div>
                                 
-                                <div className="w-full flex flex-col items-center justify-center my-2 min-h-[82px] relative rounded-xl overflow-hidden">
-                                   {!isCaptchaReady && !captchaTimeout && (
-                                       <div className="absolute inset-0 flex items-center justify-center bg-white/5 rounded-xl">
-                                           <div className="w-5 h-5 border-2 border-slate-500 border-t-white rounded-full animate-spin"></div>
-                                       </div>
-                                   )}
-                                   {captchaTimeout && (
-                                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/20 rounded-xl z-20">
-                                            <p className="text-xs text-red-300 mb-1">Check failed to load</p>
-                                            <button 
-                                                type="button"
-                                                onClick={reloadCaptcha}
-                                                className="px-3 py-1 bg-red-600 text-white text-xs rounded-lg hover:bg-red-500"
-                                            >
-                                                Reload Page
-                                            </button>
-                                       </div>
-                                   )}
-                                   <div id="recaptcha-container" key="recaptcha-container"></div>
-                                </div>
+                                {/* Hidden ReCAPTCHA Container for invisible mode */}
+                                <div id="recaptcha-container" className="fixed bottom-0 right-0 z-0 opacity-0 pointer-events-none"></div>
 
                                 <Button 
                                     type="submit" 
                                     isLoading={isLoading} 
-                                    disabled={!isCaptchaSolved || isLoading}
                                     className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 >
-                                    {isCaptchaSolved ? "Get OTP" : "Tick Checkbox Above"}
+                                    Get OTP
                                 </Button>
                             </form>
                         ) : (
