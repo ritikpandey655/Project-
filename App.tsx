@@ -122,14 +122,23 @@ const App: React.FC = () => {
       examConfig: dynamicExams
     }));
 
-    // Restore view
+    // Restore view handling with Action Parameter Check
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
     const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
+    
     if (prefs.selectedExam) {
-       if (lastView && ['dashboard', 'upload', 'profile', 'admin', 'downloads'].includes(lastView)) {
+       if (action === 'upload') {
+          setState(prev => ({ ...prev, view: 'upload' }));
+       } else if (action === 'practice') {
+          setState(prev => ({ ...prev, view: 'dashboard' }));
+          setShowPracticeConfig(true);
+       } else if (lastView && ['dashboard', 'upload', 'profile', 'admin', 'downloads'].includes(lastView)) {
           setState(prev => ({ ...prev, view: lastView }));
        } else {
           setState(prev => ({ ...prev, view: prefs.hasSeenTutorial ? 'dashboard' : 'tutorial' }));
        }
+       
        // Generate QOTD if missing
        if (!qotd && navigator.onLine) {
           generateSingleQuestion(prefs.selectedExam, (dynamicExams as any)[prefs.selectedExam]?.[0] || 'General', 'QOTD').then(q => {

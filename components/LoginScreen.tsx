@@ -113,29 +113,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-slate-900 via-[#111827] to-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-gradient-to-b from-slate-900 via-[#1c120e] to-black flex items-center justify-center p-4 relative overflow-hidden">
       
+      {/* Background Particles - Warm/Sunset Tones */}
       <div className="absolute inset-0 pointer-events-none">
-         <div className="absolute top-[10%] left-[20%] w-1 h-1 bg-white rounded-full opacity-40 animate-pulse"></div>
-         <div className="absolute top-[30%] right-[20%] w-1.5 h-1.5 bg-blue-300 rounded-full opacity-30 animate-pulse" style={{animationDelay: '1s'}}></div>
-         <div className="absolute bottom-[20%] left-[10%] w-1 h-1 bg-white rounded-full opacity-20 animate-pulse" style={{animationDelay: '2s'}}></div>
+         <div className="absolute top-[10%] left-[20%] w-1 h-1 bg-orange-100 rounded-full opacity-40 animate-pulse"></div>
+         <div className="absolute top-[30%] right-[20%] w-1.5 h-1.5 bg-orange-500 rounded-full opacity-30 animate-pulse" style={{animationDelay: '1s'}}></div>
+         <div className="absolute bottom-[20%] left-[10%] w-1 h-1 bg-yellow-200 rounded-full opacity-20 animate-pulse" style={{animationDelay: '2s'}}></div>
+         <div className="absolute top-[60%] left-[50%] w-1 h-1 bg-red-400 rounded-full opacity-20 animate-pulse" style={{animationDelay: '1.5s'}}></div>
       </div>
 
       <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10 animate-fade-in flex flex-col items-center relative z-10 transition-all duration-500">
         
+        {/* Animated Logo - Sunset Orange Theme */}
         <div 
             className="relative w-32 h-32 mb-6 flex items-center justify-center cursor-pointer active:scale-95 transition-transform select-none"
             onClick={() => setLogoClicks(p => p+1)}
             title="PV"
         >
-            <div className="absolute w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full shadow-[0_0_40px_rgba(99,102,241,0.6)] flex items-center justify-center z-10 animate-pulse-glow border border-white/20">
+            <div className="absolute w-14 h-14 bg-gradient-to-br from-orange-500 to-red-600 rounded-full shadow-[0_0_40px_rgba(249,115,22,0.6)] flex items-center justify-center z-10 animate-pulse-glow border border-white/20">
                 <span className="text-xl font-bold text-white font-display tracking-tight">PV</span>
             </div>
-            <div className="absolute w-full h-full border border-indigo-500/20 rounded-full animate-spin-slow" style={{ animationDuration: '8s' }}>
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-indigo-400 rounded-full shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
+            <div className="absolute w-full h-full border border-orange-500/20 rounded-full animate-spin-slow" style={{ animationDuration: '8s' }}>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-orange-400 rounded-full shadow-[0_0_15px_rgba(251,146,60,0.8)]"></div>
             </div>
-            <div className="absolute w-[70%] h-[70%] border border-purple-500/20 rounded-full animate-spin-slow" style={{ animationDirection: 'reverse', animationDuration: '6s' }}>
-                <div className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 w-2.5 h-2.5 bg-purple-400 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.8)]"></div>
+            <div className="absolute w-[70%] h-[70%] border border-red-500/20 rounded-full animate-spin-slow" style={{ animationDirection: 'reverse', animationDuration: '6s' }}>
+                <div className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_15px_rgba(239,68,68,0.8)]"></div>
             </div>
         </div>
 
@@ -150,7 +153,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
         {isInitializing ? (
            <div className="flex flex-col items-center animate-fade-in my-8">
-              <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
               <p className="text-slate-500 text-xs font-medium uppercase tracking-widest">Loading Universe...</p>
            </div>
         ) : (
@@ -168,7 +171,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                             type="email" 
                             value={email}
                             onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                            className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder-slate-600 tracking-wide"
+                            className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600 tracking-wide"
                             placeholder="name@example.com"
                             required
                         />
@@ -179,19 +182,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                             type="password" 
                             value={password}
                             onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                            className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder-slate-600 tracking-wide"
+                            className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600 tracking-wide"
                             placeholder="••••••••"
                             required
                         />
                         <div className="text-right mt-2">
-                           <button type="button" onClick={onForgotPassword} className="text-xs text-indigo-400 hover:text-indigo-300 font-bold">Forgot Password?</button>
+                           <button type="button" onClick={onForgotPassword} className="text-xs text-orange-400 hover:text-orange-300 font-bold">Forgot Password?</button>
                         </div>
                     </div>
 
                     <Button 
                         type="submit" 
                         isLoading={isLoading} 
-                        className="w-full py-3.5 text-lg font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/50 border-0"
+                        className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0"
                     >
                         Sign In
                     </Button>

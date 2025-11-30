@@ -1,6 +1,26 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { registerSW } from 'virtual:pwa-register';
+
+// Register PWA Service Worker
+const updateSW = registerSW({
+  onNeedRefresh() {
+    if (confirm('New content available. Reload?')) {
+      updateSW(true);
+    }
+  },
+  onOfflineReady() {
+    console.log('App is ready to work offline.');
+  },
+  onRegistered(r) {
+    console.log('SW Registered:', r);
+  },
+  onRegisterError(error) {
+    console.error('SW Registration Error:', error);
+  }
+});
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

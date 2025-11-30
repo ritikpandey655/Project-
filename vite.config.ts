@@ -14,12 +14,13 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html'],
+        injectRegister: null, // Manual registration in index.tsx
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg'],
         manifest: {
           name: 'PYQverse: AI Exam Prep',
           short_name: 'PYQverse',
           description: 'Master UPSC, SSC, JEE, NEET & more with AI-powered Previous Year Questions, smart analytics, and unlimited practice.',
-          theme_color: '#5B2EFF',
+          theme_color: '#f97316',
           background_color: '#111827',
           display: 'standalone',
           orientation: 'portrait',
@@ -30,35 +31,86 @@ export default defineConfig(({ mode }) => {
           lang: "en",
           dir: "ltr",
           prefer_related_applications: false,
-          related_applications: [],
-          display_override: ["window-controls-overlay", "minimal-ui", "standalone", "browser"],
+          iarc_rating_id: "e84b072d-71b3-4d3e-86ae-31a8ce02a73d",
+          related_applications: [
+            {
+              platform: "play",
+              url: "https://play.google.com/store/apps/details?id=com.pyqverse.app",
+              id: "com.pyqverse.app"
+            }
+          ],
+          display_override: ["window-controls-overlay", "tabbed", "minimal-ui", "standalone", "browser"],
+          scope_extensions: [
+            {
+              origin: "https://pyqverse.vercel.app"
+            }
+          ],
           launch_handler: {
-            client_mode: "navigate-existing"
+            client_mode: ["navigate-existing", "auto"]
+          },
+          protocol_handlers: [
+            {
+              protocol: "web+pyq",
+              url: "/?action=practice&q=%s"
+            }
+          ],
+          share_target: {
+            action: "/?action=upload",
+            method: "GET",
+            enctype: "application/x-www-form-urlencoded",
+            params: {
+              title: "title",
+              text: "text",
+              url: "url"
+            }
+          },
+          file_handlers: [
+            {
+              action: "/?action=import",
+              accept: {
+                "application/json": [".json", ".pyq"],
+                "text/csv": [".csv"]
+              },
+              icons: [
+                {
+                  src: "/icon.svg",
+                  sizes: "512x512",
+                  type: "image/svg+xml"
+                }
+              ],
+              launch_type: "single-client"
+            }
+          ],
+          edge_side_panel: {
+             preferred_width: 480
+          },
+          note_taking: {
+            new_note_url: "/?action=upload"
           },
           icons: [
             {
-              src: "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
+              src: "/icon.svg",
+              sizes: "512x512",
+              type: "image/svg+xml",
+              purpose: "any"
+            },
+            {
+              src: "/icon.svg",
+              sizes: "512x512",
+              type: "image/svg+xml",
+              purpose: "maskable"
+            },
+            {
+              src: "https://placehold.co/192x192/f97316/ffffff.png?text=PV",
               sizes: "192x192",
               type: "image/png",
               purpose: "any"
             },
             {
-              src: "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
-              sizes: "192x192",
-              type: "image/png",
-              purpose: "maskable"
-            },
-            {
-              src: "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_512,h_512,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
+              src: "https://placehold.co/512x512/f97316/ffffff.png?text=PV",
               sizes: "512x512",
               type: "image/png",
               purpose: "any"
-            },
-            {
-              src: "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_512,h_512,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
-              sizes: "512x512",
-              type: "image/png",
-              purpose: "maskable"
             }
           ],
           screenshots: [
@@ -68,13 +120,6 @@ export default defineConfig(({ mode }) => {
               type: "image/png",
               form_factor: "narrow",
               label: "Mobile Dashboard"
-            },
-            {
-              src: "https://placehold.co/1080x1920/1f2937/ffffff.png?text=AI+Question+Analysis&font=roboto",
-              sizes: "1080x1920",
-              type: "image/png",
-              form_factor: "narrow",
-              label: "Question Analysis"
             },
             {
               src: "https://placehold.co/1920x1080/111827/ffffff.png?text=PYQverse+Desktop+Experience&font=roboto",
@@ -89,24 +134,21 @@ export default defineConfig(({ mode }) => {
               name: "Start Practice",
               short_name: "Practice",
               url: "/?action=practice",
-              icons: [{ src: "https://placehold.co/96x96/5B2EFF/ffffff.png?text=P", sizes: "96x96", type: "image/png" }]
+              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
             },
             {
               name: "Doubt Solver",
               short_name: "Doubts",
               url: "/?action=upload",
-              icons: [{ src: "https://placehold.co/96x96/10B981/ffffff.png?text=D", sizes: "96x96", type: "image/png" }]
+              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
             }
           ],
-          edge_side_panel: {
-             preferred_width: 480
-          },
           widgets: [
             {
                 name: "Question of the Day",
                 short_name: "QOTD",
                 description: "Daily exam practice question",
-                icons: [{ src: "https://placehold.co/192x192/5B2EFF/ffffff.png?text=Q", sizes: "192x192", type: "image/png" }],
+                icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }],
                 screenshots: [{ src: "https://placehold.co/400x400/5B2EFF/ffffff.png?text=QOTD", sizes: "400x400", type: "image/png", label: "Widget Preview" }],
                 tag: "qotd",
                 template: "widget-template.json",
