@@ -1,44 +1,91 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth'; // Ensure auth module is loaded
 import { Button } from './Button';
 
 interface LoginScreenProps {
   onLogin: (user: User) => void;
+  // Props kept for compatibility but unused in new UI
   onNavigateToSignup: () => void;
   onForgotPassword: () => void;
   isOnline?: boolean;
   isInitializing?: boolean;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToSignup, onForgotPassword, isOnline = true, isInitializing = false }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = true, isInitializing = false }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(false); // Toggle for Admin Email/Pass
+  const [logoClicks, setLogoClicks] = useState(0); // Secret trigger counter
+  
+  // Mobile Auth State
+  const [phoneNumber, setPhoneNumber] = useState('+91');
+  const [otp, setOtp] = useState('');
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<any>(null);
+  
+  // Admin Auth State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+
   const [error, setError] = useState('');
+  
+  // Ref for Recaptcha Container to ensure DOM stability
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
+
+  // Reset logo clicks if idle
+  useEffect(() => {
+    if (logoClicks > 0 && logoClicks < 5) {
+      const timer = setTimeout(() => setLogoClicks(0), 1000); // 1 sec to click next
+      return () => clearTimeout(timer);
+    }
+    if (logoClicks >= 5) {
+        setIsAdminMode(true);
+        setLogoClicks(0);
+        setError('');
+    }
+  }, [logoClicks]);
+
+  const handleLogoClick = () => {
+      setLogoClicks(prev => prev + 1);
+  };
+
+  // Cleanup Recaptcha on unmount
+  useEffect(() => {
+    return () => {
+      if ((window as any).recaptchaVerifier) {
+        try {
+          (window as any).recaptchaVerifier.clear();
+        } catch (e) {}
+        (window as any).recaptchaVerifier = null;
+      }
+    };
+  }, []);
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
       const userRef = db.collection("users").doc(firebaseUser.uid);
       const userSnap = await userRef.get();
       
-      const userEmail = firebaseUser.email || email || "";
-      const rawName = firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : "User");
+      const userEmail = firebaseUser.email || "";
+      const userMobile = firebaseUser.phoneNumber || phoneNumber;
+      // Default name for phone users since they don't provide one initially
+      const rawName = firebaseUser.displayName || "User"; 
       
       const nameToCheck = rawName.toLowerCase();
       const emailToCheck = userEmail.toLowerCase();
       
-      // Determine Admin Status: Check specific admin email or if name contains "admin"
       const isAdmin = emailToCheck === 'admin@pyqverse.com' || 
                       nameToCheck.includes('admin') ||
                       emailToCheck.includes('admin');
 
       const safeData = {
         id: firebaseUser.uid,
-        name: rawName || "User",
-        email: userEmail || "no-email", 
+        name: rawName,
+        email: userEmail, 
+        mobile: userMobile,
         photoURL: firebaseUser.photoURL || null,
         isAdmin: !!isAdmin 
       };
@@ -48,9 +95,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       if (userSnap.exists) {
         const existingData = userSnap.data() as User;
         userData = existingData;
-        if (isAdmin && !existingData.isAdmin) {
-           userData.isAdmin = true;
-           await userRef.set({ isAdmin: true }, { merge: true });
+        // Update mobile if missing in existing record
+        if (!existingData.mobile && userMobile) {
+            await userRef.update({ mobile: userMobile });
+            userData.mobile = userMobile;
         }
       } else {
         userData = safeData as User;
@@ -63,11 +111,107 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     }
   };
 
-  const handleGoogleLogin = async () => {
-    if (!isOnline) {
-      alert("⚠️ No Internet Connection\n\nPlease connect to the internet to log in.");
-      return;
+  const getRecaptchaVerifier = () => {
+    // 1. If it already exists, return it
+    if ((window as any).recaptchaVerifier) {
+      return (window as any).recaptchaVerifier;
     }
+
+    // 2. Ensure container exists
+    if (!recaptchaContainerRef.current) {
+        return null;
+    }
+
+    try {
+      // 3. Create new verifier attached to the REF element
+      // Using 'invisible' size is standard for phone auth
+      const verifier = new firebase.auth.RecaptchaVerifier(recaptchaContainerRef.current, {
+        'size': 'invisible',
+        'callback': () => { console.log("Recaptcha Verified"); },
+        'expired-callback': () => { console.warn("Recaptcha Expired"); }
+      });
+      
+      verifier.render();
+      (window as any).recaptchaVerifier = verifier;
+      return verifier;
+    } catch (err) {
+      console.error("Recaptcha Setup Error:", err);
+      return null;
+    }
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isOnline) return alert("⚠️ No Internet Connection");
+    
+    const formattedPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    if (!/^\+[0-9]{10,15}$/.test(formattedPhone)) {
+        setError("Invalid phone number. Format: +919876543210");
+        return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const appVerifier = getRecaptchaVerifier();
+      if (!appVerifier) throw new Error("Could not initialize security check. Please refresh.");
+
+      const confirmation = await auth.signInWithPhoneNumber(formattedPhone, appVerifier);
+      setConfirmationResult(confirmation);
+      setShowOtpInput(true);
+    } catch (err: any) {
+      console.error("OTP Error:", err);
+      
+      // CRITICAL FIX: If internal error, completely destroy verifier to allow retry
+      if (err.code === 'auth/internal-error') {
+          if ((window as any).recaptchaVerifier) {
+            try { (window as any).recaptchaVerifier.clear(); } catch(e){}
+          }
+          (window as any).recaptchaVerifier = null;
+          if (recaptchaContainerRef.current) {
+             recaptchaContainerRef.current.innerHTML = '';
+          }
+          setError('System connection error. Please click "Get OTP" again.');
+      } else if (err.code === 'auth/invalid-phone-number') {
+          setError('Invalid phone number format.');
+      } else if (err.code === 'auth/too-many-requests') {
+          setError('Too many attempts. Please try again later.');
+      } else if (err.code === 'auth/captcha-check-failed') {
+          setError('Captcha check failed. Please refresh page.');
+      } else {
+          setError(err.message || 'Failed to send OTP. Try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp) return;
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const result = await confirmationResult.confirm(otp);
+      const user = await syncUserToDB(result.user);
+      onLogin(user);
+    } catch (err: any) {
+      console.error("Verify Error:", err);
+      if (err.code === 'auth/invalid-verification-code') {
+         setError('Invalid OTP. Please check the code.');
+      } else {
+         setError('Verification failed. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (!isOnline) return alert("⚠️ No Internet Connection");
     setIsLoading(true);
     setError('');
     try {
@@ -76,169 +220,190 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       onLogin(user);
     } catch (err: any) {
       console.error("Google Login Error:", err);
-      if (err.code === 'auth/unauthorized-domain') {
-         const currentDomain = window.location.hostname;
-         alert(`Domain not authorized: ${currentDomain}`);
+      if (err.code === 'auth/operation-not-supported-in-this-environment') {
+          setError('Google Login is restricted in this preview environment. Please try Phone Login or open in a full browser window.');
       } else if (err.code === 'auth/popup-closed-by-user') {
-         setError('Sign in cancelled');
+          setError('Sign in cancelled.');
       } else {
-         setError(err.message || 'Google Sign In Failed');
+          setError(err.message || 'Google Sign In Failed');
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isOnline) {
-       alert("⚠️ No Internet Connection");
-       return;
-    }
-    if (!email || !password) return;
-    
+    if (!isOnline) return alert("⚠️ No Internet Connection");
     setIsLoading(true);
     setError('');
+    
     try {
-      const result = await auth.signInWithEmailAndPassword(email, password);
-      const user = await syncUserToDB(result.user);
-      onLogin(user);
+        const result = await auth.signInWithEmailAndPassword(email, password);
+        const user = await syncUserToDB(result.user);
+        onLogin(user);
     } catch (err: any) {
-      if (['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-login-credentials'].includes(err.code)) {
-         setError('Account not found or incorrect password. Please Sign Up if you are new.');
-         // Do not log error to console for expected user mistakes to avoid noise
-      } else if (err.code === 'auth/too-many-requests') {
-         setError('Too many failed attempts. Try again later.');
-      } else {
-         console.error("Login Error:", err);
-         setError(`Error: ${err.message}`);
-      }
+        console.error("Admin Login Error:", err);
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+            setError('Invalid Admin Credentials');
+        } else {
+            setError(err.message || 'Login Failed');
+        }
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-slate-900 via-[#111827] to-black flex items-center justify-center p-4 relative overflow-hidden">
       
-      {/* Background Particles (Light Stars) */}
+      {/* Background Particles */}
       <div className="absolute inset-0 pointer-events-none">
          <div className="absolute top-[10%] left-[20%] w-1 h-1 bg-white rounded-full opacity-40 animate-pulse"></div>
          <div className="absolute top-[30%] right-[20%] w-1.5 h-1.5 bg-blue-300 rounded-full opacity-30 animate-pulse" style={{animationDelay: '1s'}}></div>
          <div className="absolute bottom-[20%] left-[10%] w-1 h-1 bg-white rounded-full opacity-20 animate-pulse" style={{animationDelay: '2s'}}></div>
-         <div className="absolute top-[50%] right-[5%] w-1 h-1 bg-purple-300 rounded-full opacity-30 animate-pulse" style={{animationDelay: '1.5s'}}></div>
       </div>
 
       <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10 animate-fade-in flex flex-col items-center relative z-10 transition-all duration-500">
         
-        {/* Orbit Style Logo - Dark Navy Theme with Green/Yellow Orbits */}
-        <div className="relative w-36 h-36 mb-6 flex items-center justify-center">
-            {/* Central Core - Sun Colors */}
-            <div className="absolute w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-full shadow-[0_0_40px_rgba(234,88,12,0.6)] flex items-center justify-center z-10 animate-pulse-glow border border-white/20">
-                <span className="text-2xl font-bold text-white font-display tracking-tight">PV</span>
+        {/* Logo Animation - Secret Admin Trigger (5 Clicks) */}
+        <div 
+            className="relative w-32 h-32 mb-6 flex items-center justify-center cursor-pointer active:scale-95 transition-transform select-none"
+            onClick={handleLogoClick}
+            title="PV"
+        >
+            {/* Core */}
+            <div className="absolute w-14 h-14 bg-gradient-to-br from-orange-500 to-red-600 rounded-full shadow-[0_0_40px_rgba(234,88,12,0.6)] flex items-center justify-center z-10 animate-pulse-glow border border-white/20">
+                <span className="text-xl font-bold text-white font-display tracking-tight">PV</span>
             </div>
-            
-            {/* Orbit 1 (Green) */}
+            {/* Orbits */}
             <div className="absolute w-full h-full border border-emerald-500/20 rounded-full animate-spin-slow" style={{ animationDuration: '8s' }}>
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-emerald-400 rounded-full shadow-[0_0_15px_rgba(52,211,153,0.8)]"></div>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_15px_rgba(52,211,153,0.8)]"></div>
             </div>
-            
-            {/* Orbit 2 (Yellow) */}
             <div className="absolute w-[70%] h-[70%] border border-yellow-500/20 rounded-full animate-spin-slow" style={{ animationDirection: 'reverse', animationDuration: '6s' }}>
-                <div className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 w-3 h-3 bg-yellow-400 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.8)]"></div>
+                <div className="absolute bottom-0 right-1/2 translate-x-1/2 translate-y-1/2 w-2.5 h-2.5 bg-yellow-400 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.8)]"></div>
             </div>
-
-            {/* Orbit 3 (Subtle Glow Ring - Warm) */}
-            <div className="absolute w-[130%] h-[130%] border border-orange-500/10 rounded-full opacity-50 pointer-events-none"></div>
         </div>
 
-        <div className="text-center mb-6 animate-slide-up" style={{ animationDelay: '0.3s' }}>
-            <h1 className="text-3xl font-display font-bold mb-2">
-               <span className="text-white">PYQ</span><span className="bg-gradient-to-r from-orange-400 to-yellow-300 bg-clip-text text-transparent">verse</span>
+        <div className="text-center mb-8 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <h1 className="text-2xl font-display font-bold mb-1 text-white">
+                {isAdminMode ? 'Admin Access' : 'Welcome Back'}
             </h1>
-            <p className="text-slate-400 text-sm font-medium tracking-wide">All exams ka pura universe.</p>
+            <p className="text-slate-400 text-sm">
+                {isAdminMode ? 'Enter credentials to manage app' : 'Login with Mobile or Google'}
+            </p>
         </div>
 
-        {/* LOADING STATE (SPLASH SCREEN) */}
+        {/* LOADING SPLASH */}
         {isInitializing ? (
            <div className="flex flex-col items-center animate-fade-in my-8">
               <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
               <p className="text-slate-500 text-xs font-medium uppercase tracking-widest">Loading Universe...</p>
            </div>
         ) : (
-           /* LOGIN FORM STATE */
-           <div className="w-full animate-fade-in">
+           /* LOGIN CONTENT */
+           <div className="w-full animate-fade-in space-y-6">
                 {error && (
-                    <div className="mb-6 p-4 w-full bg-red-900/30 text-red-200 text-sm rounded-xl text-center font-medium border border-red-500/30 animate-pulse">
+                    <div className="p-3 w-full bg-red-900/30 text-red-200 text-sm rounded-xl text-center font-medium border border-red-500/30 animate-shake">
                         {error}
                     </div>
                 )}
 
-                <form onSubmit={handleEmailLogin} className="space-y-5 w-full">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Email Address</label>
-                        <input 
-                            type="email" 
-                            value={email}
-                            onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                            className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600"
-                            placeholder="name@example.com"
-                            required
-                        />
-                    </div>
-                    
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Password</label>
-                        <div className="relative">
+                {/* Recaptcha Container - Attached via Ref for stability */}
+                <div ref={recaptchaContainerRef} id="recaptcha-container"></div>
+
+                {isAdminMode ? (
+                    /* ADMIN EMAIL LOGIN FORM */
+                    <form onSubmit={handleAdminLogin} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Admin Email</label>
                             <input 
-                                type={showPassword ? "text" : "password"}
-                                value={password}
-                                onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                                className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium pr-12 placeholder-slate-600"
-                                placeholder="••••••••"
+                                type="email" 
+                                value={email}
+                                onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                                className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600 tracking-wide"
+                                placeholder="admin@pyqverse.com"
                                 required
                             />
-                            <button 
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-orange-400 text-xs font-bold uppercase"
-                            >
-                                {showPassword ? "Hide" : "Show"}
-                            </button>
                         </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                        <button type="button" onClick={onForgotPassword} className="text-xs font-bold text-orange-500 hover:text-orange-400 hover:underline">
-                            Forgot Password?
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Password</label>
+                            <input 
+                                type="password" 
+                                value={password}
+                                onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                                className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600 tracking-wide"
+                                placeholder="••••••"
+                                required
+                            />
+                        </div>
+                        <Button type="submit" isLoading={isLoading} className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0">
+                            Secure Login
+                        </Button>
+                        <button type="button" onClick={() => { setIsAdminMode(false); setError(''); }} className="w-full text-sm text-slate-500 hover:text-white transition-colors py-2">
+                            ← Back to User Login
                         </button>
-                    </div>
+                    </form>
+                ) : (
+                    /* USER MOBILE/GOOGLE LOGIN */
+                    <>
+                        {!showOtpInput ? (
+                            <form onSubmit={handleSendOtp} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Mobile Number</label>
+                                    <input 
+                                        type="tel" 
+                                        value={phoneNumber}
+                                        onChange={(e) => { setPhoneNumber(e.target.value); setError(''); }}
+                                        className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600 tracking-wide"
+                                        placeholder="+91 XXXXX XXXXX"
+                                        required
+                                    />
+                                </div>
+                                <Button type="submit" isLoading={isLoading} className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0">
+                                    Get OTP
+                                </Button>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleVerifyOtp} className="space-y-4 animate-slide-up">
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="block text-xs font-bold text-slate-400 uppercase ml-1">Enter OTP</label>
+                                        <button type="button" onClick={() => setShowOtpInput(false)} className="text-xs text-orange-400 font-bold hover:underline">Change Number</button>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={otp}
+                                        onChange={(e) => setOtp(e.target.value)}
+                                        className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all font-medium text-center tracking-[0.5em] text-xl"
+                                        placeholder="• • • • • •"
+                                        maxLength={6}
+                                        required
+                                    />
+                                </div>
+                                <Button type="submit" isLoading={isLoading} className="w-full py-3.5 text-lg font-bold bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/50 border-0">
+                                    Verify & Login
+                                </Button>
+                            </form>
+                        )}
 
-                    <Button type="submit" isLoading={isLoading} className="w-full py-4 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0">
-                        Sign In
-                    </Button>
-                </form>
+                        <div className="relative w-full">
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+                            <div className="relative flex justify-center text-sm"><span className="px-4 bg-[#0f1420] text-slate-500 font-bold uppercase text-[10px] tracking-wider rounded">OR</span></div>
+                        </div>
 
-                <div className="relative my-8 w-full">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-                    <div className="relative flex justify-center text-sm"><span className="px-4 bg-[#0f1420] text-slate-500 font-bold uppercase text-[10px] tracking-wider rounded">Or continue with</span></div>
-                </div>
-
-                <button 
-                    onClick={handleGoogleLogin}
-                    disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-3 p-3.5 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-slate-300 font-bold group bg-black/20"
-                >
-                    <img src="https://www.google.com/favicon.ico" alt="G" className="w-5 h-5 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" />
-                    <span>Google</span>
-                </button>
-
-                <p className="mt-8 text-center text-sm text-slate-500">
-                    New to PYQverse? <button onClick={onNavigateToSignup} className="font-bold text-orange-400 hover:text-white transition-colors">Create Account</button>
-                </p>
+                        <button 
+                            onClick={handleGoogleLogin}
+                            disabled={isLoading}
+                            className="w-full flex items-center justify-center gap-3 p-3.5 rounded-xl border border-white/10 hover:bg-white/5 transition-all text-slate-300 font-bold group bg-black/20"
+                        >
+                            <img src="https://www.google.com/favicon.ico" alt="G" className="w-5 h-5 opacity-80 group-hover:opacity-100 transition-all" />
+                            <span>Continue with Google</span>
+                        </button>
+                    </>
+                )}
            </div>
         )}
-
       </div>
     </div>
   );

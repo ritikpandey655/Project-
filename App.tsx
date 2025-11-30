@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppState, ExamType, Question, User, ViewState, QuestionPaper } from './types';
 import { EXAM_SUBJECTS, THEME_PALETTES, TECHNICAL_EXAMS, MONTHS } from './constants';
@@ -168,7 +169,7 @@ const App: React.FC = () => {
 
     // Only enable security blackout in production to allow debugging in dev
     const handleBlur = () => {
-        if (import.meta.env.PROD) setIsSecurityBlackout(true);
+        if (import.meta.env && import.meta.env.PROD) setIsSecurityBlackout(true);
     };
     const handleFocus = () => setIsSecurityBlackout(false);
     
