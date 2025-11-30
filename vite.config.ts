@@ -13,17 +13,24 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html'],
+        devOptions: {
+          enabled: true
+        },
         manifest: {
-          name: 'PYQverse',
+          name: 'PYQverse: AI Exam Prep',
           short_name: 'PYQverse',
-          description: 'AI-powered Previous Year Questions for UPSC, SSC, JEE, NEET & more.',
+          description: 'Master UPSC, SSC, JEE, NEET & more with AI-powered Previous Year Questions and smart analytics.',
           theme_color: '#5B2EFF',
           background_color: '#111827',
           display: 'standalone',
           orientation: 'portrait',
-          start_url: '/',
-          scope: '/',
+          start_url: '/?source=pwa',
+          id: '/?source=pwa',
+          categories: ["education", "productivity", "study"],
+          lang: "en",
+          dir: "ltr",
+          prefer_related_applications: false,
           icons: [
             {
               src: "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
@@ -50,25 +57,84 @@ export default defineConfig(({ mode }) => {
               purpose: "maskable"
             }
           ],
+          screenshots: [
+            {
+              src: "https://placehold.co/1080x1920/111827/ffffff.png?text=PYQverse+Mobile+Dashboard&font=roboto",
+              sizes: "1080x1920",
+              type: "image/png",
+              form_factor: "narrow",
+              label: "Mobile Dashboard"
+            },
+            {
+              src: "https://placehold.co/1080x1920/1f2937/ffffff.png?text=AI+Question+Analysis&font=roboto",
+              sizes: "1080x1920",
+              type: "image/png",
+              form_factor: "narrow",
+              label: "Question Analysis"
+            },
+            {
+              src: "https://placehold.co/1920x1080/111827/ffffff.png?text=PYQverse+Desktop+Experience&font=roboto",
+              sizes: "1920x1080",
+              type: "image/png",
+              form_factor: "wide",
+              label: "Desktop Dashboard"
+            }
+          ],
           shortcuts: [
             {
               name: "Start Practice",
               short_name: "Practice",
               url: "/?action=practice",
-              icons: [
-                {
-                  src: "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
-                  sizes: "192x192",
-                  type: "image/png",
-                  purpose: "any"
-                }
-              ]
+              icons: [{ src: "https://placehold.co/96x96/5B2EFF/ffffff.png?text=P", sizes: "96x96", type: "image/png" }]
+            },
+            {
+              name: "Doubt Solver",
+              short_name: "Doubts",
+              url: "/?action=upload",
+              icons: [{ src: "https://placehold.co/96x96/10B981/ffffff.png?text=D", sizes: "96x96", type: "image/png" }]
             }
           ]
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+          cleanupOutdatedCaches: true,
+          navigateFallback: '/index.html', 
+          navigateFallbackDenylist: [/^\/api/, /^\/auth/], 
           runtimeCaching: [
+            {
+              urlPattern: ({ request }) => request.destination === 'document',
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'html-cache',
+                networkTimeoutSeconds: 3,
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 // 1 day
+                }
+              }
+            },
+            {
+              urlPattern: ({ request }) => request.destination === 'script' || request.destination === 'style',
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'assets-cache',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+                }
+              }
+            },
+            {
+              urlPattern: ({ request }) => request.destination === 'image',
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'image-cache',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+                }
+              }
+            },
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
               handler: 'CacheFirst',
@@ -76,7 +142,7 @@ export default defineConfig(({ mode }) => {
                 cacheName: 'google-fonts-cache',
                 expiration: {
                   maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                  maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
                 },
                 cacheableResponse: {
                   statuses: [0, 200]
@@ -90,7 +156,7 @@ export default defineConfig(({ mode }) => {
                 cacheName: 'gstatic-fonts-cache',
                 expiration: {
                   maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                  maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
                 },
                 cacheableResponse: {
                   statuses: [0, 200]

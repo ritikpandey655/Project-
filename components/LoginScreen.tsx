@@ -49,30 +49,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
 
   // Helper to init captcha safely
   const setupRecaptcha = () => {
+    if (!isOnline) return null;
+    
+    // Check if container exists
+    const container = document.getElementById('recaptcha-container');
+    if (!container) return null;
+
     // Return existing if valid
     if ((window as any).recaptchaVerifier) {
       return (window as any).recaptchaVerifier;
     }
 
-    const container = document.getElementById('recaptcha-container');
-    if (!container) {
-      console.warn("Recaptcha container not found");
-      return null;
-    }
-
     try {
-      // Clear any artifacts
+      // Clear container just in case
       container.innerHTML = '';
       
       const verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-        'size': 'invisible',
+        'size': 'invisible', // Invisible mode for seamless experience
         'callback': (response: any) => {
-           // reCAPTCHA solved, allow signInWithPhoneNumber.
+           // reCAPTCHA solved
+           // console.log("Captcha solved");
         },
         'expired-callback': () => {
-           console.log("Recaptcha expired");
+           // console.log("Recaptcha expired");
            if ((window as any).recaptchaVerifier) {
-             (window as any).recaptchaVerifier.clear();
+             try { (window as any).recaptchaVerifier.clear(); } catch(e) {}
              (window as any).recaptchaVerifier = null;
            }
         }
@@ -93,9 +94,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
        const timer = setTimeout(() => {
           setupRecaptcha();
        }, 500);
-       return () => clearTimeout(timer);
+
+       return () => {
+         clearTimeout(timer);
+         // Cleanup verifier on unmount/change to avoid internal-error on re-init
+         if ((window as any).recaptchaVerifier) {
+           try { (window as any).recaptchaVerifier.clear(); } catch(e) {}
+           (window as any).recaptchaVerifier = null;
+         }
+       };
     }
-  }, [showOtpInput, isAdminMode]);
+  }, [showOtpInput, isAdminMode, isOnline]);
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
@@ -161,7 +170,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
 
       // 2. Strict Check
       if (!appVerifier) {
-         throw new Error("Security check not ready. Please refresh.");
+         // Attempt one last time synchronously
+         appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+         (window as any).recaptchaVerifier = appVerifier;
       }
 
       // 3. Send
@@ -171,12 +182,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
     } catch (err: any) {
       console.error("OTP Error:", err);
       
+      // Handle specific Firebase errors
       if (err.code === 'auth/argument-error') {
-          setError('Security check error. Please reload page.');
+          setError('Security check failed. Please refresh and try again.');
       } else if (err.code === 'auth/invalid-phone-number') {
           setError('Invalid phone number.');
       } else if (err.code === 'auth/too-many-requests') {
           setError('Too many attempts. Try again later.');
+      } else if (err.code === 'auth/captcha-check-failed') {
+          setError('Security check failed. Please try again.');
       } else {
           setError(err.message || 'Failed to send OTP.');
       }
@@ -185,7 +199,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
       if ((window as any).recaptchaVerifier) {
           try { (window as any).recaptchaVerifier.clear(); } catch(e){}
           (window as any).recaptchaVerifier = null;
-          // Try re-init after short delay
+          // Re-init for next attempt
           setTimeout(setupRecaptcha, 1000);
       }
     } finally {
@@ -342,8 +356,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                                     />
                                 </div>
                                 
-                                {/* ReCAPTCHA Container - Kept in DOM but hidden */}
-                                <div id="recaptcha-container" className="fixed bottom-0 right-0 z-0 opacity-0 pointer-events-none"></div>
+                                {/* Invisible ReCAPTCHA Container */}
+                                <div id="recaptcha-container"></div>
 
                                 <Button 
                                     type="submit" 
