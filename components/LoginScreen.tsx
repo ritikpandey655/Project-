@@ -24,15 +24,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
   const [otp, setOtp] = useState('');
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
-  const [isRecaptchaReady, setIsRecaptchaReady] = useState(false);
   
+  // Captcha State
+  const [isCaptchaReady, setIsCaptchaReady] = useState(false); // Widget loaded
+  const [isCaptchaSolved, setIsCaptchaSolved] = useState(false); // User ticked it
+  const [captchaTimeout, setCaptchaTimeout] = useState(false); // Widget load timeout
+
   // Admin Auth State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const [error, setError] = useState('');
   
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
+  // Ref to track if we should render
+  const shouldRenderCaptcha = !showOtpInput && !isAdminMode;
 
   useEffect(() => {
     if (logoClicks > 0 && logoClicks < 5) {
@@ -50,63 +55,85 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
       setLogoClicks(prev => prev + 1);
   };
 
+  // ReCAPTCHA Lifecycle
   useEffect(() => {
-    let fallbackTimer: ReturnType<typeof setTimeout>;
+    if (!shouldRenderCaptcha) return;
 
-    if (!showOtpInput && !isAdminMode && recaptchaContainerRef.current) {
+    let widgetId: any = null;
+    let loadTimer: ReturnType<typeof setTimeout>;
+
+    const initCaptcha = async () => {
         try {
-            // 1. Clean container explicitly
-            recaptchaContainerRef.current.innerHTML = '';
-            
-            // 2. Clear global verifier if exists
+            // Cleanup existing
             if ((window as any).recaptchaVerifier) {
                 try { (window as any).recaptchaVerifier.clear(); } catch(e){}
                 (window as any).recaptchaVerifier = null;
             }
-            setIsRecaptchaReady(false);
+            
+            // Wait for DOM
+            await new Promise(r => setTimeout(r, 100));
+            const container = document.getElementById('recaptcha-container');
+            if (container) {
+                container.innerHTML = ''; // Hard clear
+            } else {
+                return; // Container not found
+            }
 
-            // 3. Create new verifier
-            const verifier = new firebase.auth.RecaptchaVerifier(recaptchaContainerRef.current, {
+            const verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
                 'size': 'normal',
-                'callback': () => {
+                'callback': (response: any) => {
+                     setIsCaptchaSolved(true);
                      setError('');
                 },
                 'expired-callback': () => {
-                    setError('Captcha expired. Please refresh page.');
+                    setIsCaptchaSolved(false);
+                    setError('Security check expired. Please tick again.');
                 }
             });
-            
+
             (window as any).recaptchaVerifier = verifier;
-            
-            verifier.render().then((widgetId: any) => {
-                (window as any).recaptchaWidgetId = widgetId;
-                setIsRecaptchaReady(true);
-            }).catch((err: any) => {
-                console.error("Recaptcha Render Error", err);
-                // Allow user to try clicking button anyway, which will trigger retry or error
-                setIsRecaptchaReady(true);
-            });
+            widgetId = await verifier.render();
+            setIsCaptchaReady(true);
+            setCaptchaTimeout(false);
 
-        } catch (error) {
-            console.error("Recaptcha Init Error", error);
-            setIsRecaptchaReady(true);
+        } catch (err) {
+            console.error("Captcha Init Error:", err);
+            // Don't show error immediately, user can retry
         }
+    };
 
-        // 4. Failsafe: Force ready state after 4 seconds to prevent "Loading..." forever
-        fallbackTimer = setTimeout(() => {
-            setIsRecaptchaReady(true);
-        }, 4000);
-    }
+    initCaptcha();
+
+    // Failsafe if captcha doesn't load in 8 seconds
+    loadTimer = setTimeout(() => {
+        if (!widgetId && !isCaptchaReady) {
+            setCaptchaTimeout(true);
+        }
+    }, 8000);
 
     return () => {
-        clearTimeout(fallbackTimer);
-        setIsRecaptchaReady(false);
+        clearTimeout(loadTimer);
+        setIsCaptchaReady(false);
+        setIsCaptchaSolved(false);
+        setCaptchaTimeout(false);
         if ((window as any).recaptchaVerifier) {
             try { (window as any).recaptchaVerifier.clear(); } catch(e){}
             (window as any).recaptchaVerifier = null;
         }
     };
-  }, [showOtpInput, isAdminMode]);
+  }, [shouldRenderCaptcha]);
+
+  const reloadCaptcha = () => {
+      setIsCaptchaReady(false);
+      setCaptchaTimeout(false);
+      // Toggle admin mode briefly to force re-mount of the logic
+      // Or simply re-triggering effect via a state update could work, 
+      // but re-mounting the component part is cleaner for Recaptcha.
+      // For now, we rely on the effect dependencies.
+      const container = document.getElementById('recaptcha-container');
+      if(container) container.innerHTML = '';
+      window.location.reload(); // Hard reload is safest for Recaptcha stuck state
+  };
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
@@ -160,10 +187,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
         return;
     }
 
-    // Check if verifier is actually ready
-    if (!(window as any).recaptchaVerifier) {
-         setError("Security check loading... Please wait 2 seconds and try again.");
-         // Try to force reload verifier if stuck
+    if (!isCaptchaSolved) {
+         setError("Please complete the security check above first.");
          return;
     }
 
@@ -178,13 +203,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
     } catch (err: any) {
       console.error("OTP Error:", err);
       
-      // Force Recaptcha reset on error
+      // Reset logic
+      setIsCaptchaSolved(false);
       if ((window as any).recaptchaVerifier) {
           try { (window as any).recaptchaVerifier.reset(); } catch(e){}
       }
 
       if (err.code === 'auth/internal-error') {
-          setError('Internal error. Please refresh the page.');
+          setError('Internal error. Refreshing page...');
+          setTimeout(() => window.location.reload(), 2000);
       } else if (err.code === 'auth/invalid-phone-number') {
           setError('Invalid phone number.');
       } else if (err.code === 'auth/too-many-requests') {
@@ -339,26 +366,41 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                                     <input 
                                         type="tel" 
                                         value={phoneNumber}
-                                        onChange={(e) => { setPhoneNumber(e.target.value); setError(''); }}
+                                        onChange={(e) => { setPhoneNumber(e.target.value); setError(''); setIsCaptchaSolved(false); }}
                                         className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600 tracking-wide"
                                         placeholder="+91 XXXXX XXXXX"
                                         required
                                     />
                                 </div>
                                 
-                                <div 
-                                    ref={recaptchaContainerRef} 
-                                    id="recaptcha-container" 
-                                    className="w-full flex justify-center items-center my-4 min-h-[78px] bg-white/5 rounded-xl"
-                                ></div>
+                                <div className="w-full flex flex-col items-center justify-center my-2 min-h-[82px] relative rounded-xl overflow-hidden">
+                                   {!isCaptchaReady && !captchaTimeout && (
+                                       <div className="absolute inset-0 flex items-center justify-center bg-white/5 rounded-xl">
+                                           <div className="w-5 h-5 border-2 border-slate-500 border-t-white rounded-full animate-spin"></div>
+                                       </div>
+                                   )}
+                                   {captchaTimeout && (
+                                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/20 rounded-xl z-20">
+                                            <p className="text-xs text-red-300 mb-1">Check failed to load</p>
+                                            <button 
+                                                type="button"
+                                                onClick={reloadCaptcha}
+                                                className="px-3 py-1 bg-red-600 text-white text-xs rounded-lg hover:bg-red-500"
+                                            >
+                                                Reload Page
+                                            </button>
+                                       </div>
+                                   )}
+                                   <div id="recaptcha-container" key="recaptcha-container"></div>
+                                </div>
 
                                 <Button 
                                     type="submit" 
                                     isLoading={isLoading} 
-                                    disabled={isLoading}
-                                    className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!isCaptchaSolved || isLoading}
+                                    className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 >
-                                    {isRecaptchaReady ? "Get OTP" : "Loading Check..."}
+                                    {isCaptchaSolved ? "Get OTP" : "Tick Checkbox Above"}
                                 </Button>
                             </form>
                         ) : (
