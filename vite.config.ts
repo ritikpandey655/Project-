@@ -14,23 +14,23 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html'],
-        devOptions: {
-          enabled: true
-        },
         manifest: {
           name: 'PYQverse: AI Exam Prep',
           short_name: 'PYQverse',
-          description: 'Master UPSC, SSC, JEE, NEET & more with AI-powered Previous Year Questions and smart analytics.',
+          description: 'Master UPSC, SSC, JEE, NEET & more with AI-powered Previous Year Questions, smart analytics, and unlimited practice.',
           theme_color: '#5B2EFF',
           background_color: '#111827',
           display: 'standalone',
           orientation: 'portrait',
-          start_url: '/?source=pwa',
-          id: '/?source=pwa',
+          start_url: '/',
+          scope: '/',
+          id: '/',
           categories: ["education", "productivity", "study"],
           lang: "en",
           dir: "ltr",
-          prefer_related_applications: false,
+          launch_handler: {
+            client_mode: "navigate-existing"
+          },
           icons: [
             {
               src: "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
@@ -97,44 +97,10 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+          navigateFallback: '/index.html',
+          navigateFallbackDenylist: [/^\/api/, /^\/auth/],
           cleanupOutdatedCaches: true,
-          navigateFallback: '/index.html', 
-          navigateFallbackDenylist: [/^\/api/, /^\/auth/], 
           runtimeCaching: [
-            {
-              urlPattern: ({ request }) => request.destination === 'document',
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'html-cache',
-                networkTimeoutSeconds: 3,
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 // 1 day
-                }
-              }
-            },
-            {
-              urlPattern: ({ request }) => request.destination === 'script' || request.destination === 'style',
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'assets-cache',
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-                }
-              }
-            },
-            {
-              urlPattern: ({ request }) => request.destination === 'image',
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'image-cache',
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-                }
-              }
-            },
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
               handler: 'CacheFirst',
@@ -142,7 +108,7 @@ export default defineConfig(({ mode }) => {
                 cacheName: 'google-fonts-cache',
                 expiration: {
                   maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
                 },
                 cacheableResponse: {
                   statuses: [0, 200]
@@ -156,12 +122,30 @@ export default defineConfig(({ mode }) => {
                 cacheName: 'gstatic-fonts-cache',
                 expiration: {
                   maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
                 },
                 cacheableResponse: {
                   statuses: [0, 200]
                 }
               }
+            },
+            {
+              urlPattern: ({ request }) => request.destination === 'image',
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'images-cache',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+                },
+              },
+            },
+            {
+              urlPattern: ({ request }) => request.destination === 'script' || request.destination === 'style',
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'assets-cache',
+              },
             }
           ]
         }

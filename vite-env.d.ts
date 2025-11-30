@@ -1,7 +1,7 @@
 export {};
 
 declare global {
-  // Manual definition for Vite's ImportMetaEnv since vite/client types are missing
+  // Manual definition for Vite's ImportMetaEnv
   interface ImportMetaEnv {
     readonly API_KEY: string;
     [key: string]: any;
