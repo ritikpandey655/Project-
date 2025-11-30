@@ -90,7 +90,7 @@ export default defineConfig(({ mode }) => {
           icons: [
             {
               src: "/icon.svg",
-              sizes: "512x512",
+              sizes: "192x192",
               type: "image/svg+xml",
               purpose: "any"
             },
@@ -98,19 +98,19 @@ export default defineConfig(({ mode }) => {
               src: "/icon.svg",
               sizes: "512x512",
               type: "image/svg+xml",
+              purpose: "any"
+            },
+            {
+              src: "/icon.svg",
+              sizes: "192x192",
+              type: "image/svg+xml",
               purpose: "maskable"
             },
             {
-              src: "https://placehold.co/192x192/f97316/ffffff.png?text=PV",
-              sizes: "192x192",
-              type: "image/png",
-              purpose: "any"
-            },
-            {
-              src: "https://placehold.co/512x512/f97316/ffffff.png?text=PV",
+              src: "/icon.svg",
               sizes: "512x512",
-              type: "image/png",
-              purpose: "any"
+              type: "image/svg+xml",
+              purpose: "maskable"
             }
           ],
           screenshots: [
