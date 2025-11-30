@@ -1,4 +1,3 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -14,10 +13,10 @@ const updateSW = registerSW({
   onOfflineReady() {
     console.log('App is ready to work offline.');
   },
-  onRegistered(r) {
+  onRegistered(r: ServiceWorkerRegistration | undefined) {
     console.log('SW Registered:', r);
   },
-  onRegisterError(error) {
+  onRegisterError(error: any) {
     console.error('SW Registration Error:', error);
   }
 });
