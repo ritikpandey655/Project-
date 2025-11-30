@@ -1,14 +1,12 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
 import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth'; // Ensure auth module is loaded
+import 'firebase/compat/auth';
 import { Button } from './Button';
 
 interface LoginScreenProps {
   onLogin: (user: User) => void;
-  // Props kept for compatibility but unused in new UI
   onNavigateToSignup: () => void;
   onForgotPassword: () => void;
   isOnline?: boolean;
@@ -17,14 +15,15 @@ interface LoginScreenProps {
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = true, isInitializing = false }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isAdminMode, setIsAdminMode] = useState(false); // Toggle for Admin Email/Pass
-  const [logoClicks, setLogoClicks] = useState(0); // Secret trigger counter
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [logoClicks, setLogoClicks] = useState(0);
   
   // Mobile Auth State
   const [phoneNumber, setPhoneNumber] = useState('+91');
   const [otp, setOtp] = useState('');
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<any>(null);
+  const [isRecaptchaReady, setIsRecaptchaReady] = useState(false);
   
   // Admin Auth State
   const [email, setEmail] = useState('');
@@ -32,13 +31,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
 
   const [error, setError] = useState('');
   
-  // Ref for Recaptcha Container to ensure DOM stability
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
-  // Reset logo clicks if idle
   useEffect(() => {
     if (logoClicks > 0 && logoClicks < 5) {
-      const timer = setTimeout(() => setLogoClicks(0), 1000); // 1 sec to click next
+      const timer = setTimeout(() => setLogoClicks(0), 1000);
       return () => clearTimeout(timer);
     }
     if (logoClicks >= 5) {
@@ -52,42 +49,51 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
       setLogoClicks(prev => prev + 1);
   };
 
-  // Lifecycle Management for Recaptcha
   useEffect(() => {
-    // Only initialize if we are showing the phone form (not OTP input) and container exists
     if (!showOtpInput && !isAdminMode && recaptchaContainerRef.current) {
-        
-        // 1. Clear existing verifier if it exists (prevents duplicate widgets)
-        if ((window as any).recaptchaVerifier) {
-           try { (window as any).recaptchaVerifier.clear(); } catch(e){}
-           (window as any).recaptchaVerifier = null;
-        }
-
-        // 2. Initialize new verifier
         try {
+            // Cleanup existing verifier
+            if ((window as any).recaptchaVerifier) {
+                try { (window as any).recaptchaVerifier.clear(); } catch(e){}
+                (window as any).recaptchaVerifier = null;
+            }
+            setIsRecaptchaReady(false);
+
+            // Initialize new verifier
             const verifier = new firebase.auth.RecaptchaVerifier(recaptchaContainerRef.current, {
                 'size': 'normal',
-                'callback': () => setError(''), // Clear error on success
-                'expired-callback': () => setError('Captcha expired. Please verify again.')
+                'callback': () => {
+                     setError('');
+                },
+                'expired-callback': () => {
+                    setError('Captcha expired. Please refresh.');
+                    setIsRecaptchaReady(false);
+                }
             });
             
+            (window as any).recaptchaVerifier = verifier;
+            
             verifier.render().then((widgetId: any) => {
-                (window as any).recaptchaVerifier = verifier;
                 (window as any).recaptchaWidgetId = widgetId;
+                setIsRecaptchaReady(true);
+            }).catch((err: any) => {
+                console.error("Recaptcha Render Error", err);
+                setIsRecaptchaReady(true); // Attempt to continue anyway
             });
+
         } catch (error) {
             console.error("Recaptcha Init Error", error);
         }
     }
 
-    // Cleanup function: Clear verifier when component unmounts or switches mode
     return () => {
+        setIsRecaptchaReady(false);
         if ((window as any).recaptchaVerifier) {
             try { (window as any).recaptchaVerifier.clear(); } catch(e){}
             (window as any).recaptchaVerifier = null;
         }
     };
-  }, [showOtpInput, isAdminMode]); // Re-run if these change
+  }, [showOtpInput, isAdminMode]);
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
@@ -96,7 +102,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
       
       const userEmail = firebaseUser.email || "";
       const userMobile = firebaseUser.phoneNumber || phoneNumber;
-      // Default name for phone users since they don't provide one initially
       const rawName = firebaseUser.displayName || "User"; 
       
       const nameToCheck = rawName.toLowerCase();
@@ -115,24 +120,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
         isAdmin: !!isAdmin 
       };
 
-      let userData: User;
-      
       if (userSnap.exists) {
         const existingData = userSnap.data() as User;
-        userData = existingData;
-        // Update mobile if missing in existing record
         if (!existingData.mobile && userMobile) {
             await userRef.update({ mobile: userMobile });
-            userData.mobile = userMobile;
+            existingData.mobile = userMobile;
         }
+        return existingData;
       } else {
-        userData = safeData as User;
         await userRef.set(safeData);
+        return safeData as User;
       }
-      return userData;
     } catch (dbError: any) {
       console.error("Database Sync Error:", dbError);
-      throw new Error("Failed to save user data. " + dbError.message);
+      throw new Error("Failed to save user data.");
     }
   };
 
@@ -146,9 +147,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
         return;
     }
 
-    // Check if verifier exists (it should, from useEffect)
-    if (!(window as any).recaptchaVerifier) {
-         setError("Security check not ready. Please refresh.");
+    if (!isRecaptchaReady || !(window as any).recaptchaVerifier) {
+         setError("Please wait for security check to load...");
          return;
     }
 
@@ -156,7 +156,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
     setError('');
     
     try {
-      // Use the EXISTING verifier instance
       const appVerifier = (window as any).recaptchaVerifier;
       const confirmation = await auth.signInWithPhoneNumber(formattedPhone, appVerifier);
       setConfirmationResult(confirmation);
@@ -164,19 +163,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
     } catch (err: any) {
       console.error("OTP Error:", err);
       
-      // Reset reCAPTCHA if it failed, so user can try again
+      // Force Recaptcha reset on error
       if ((window as any).recaptchaVerifier) {
           try { (window as any).recaptchaVerifier.reset(); } catch(e){}
       }
 
       if (err.code === 'auth/internal-error') {
-          setError('Security check failed. Please refresh the page and try again.');
+          setError('Internal error. Please refresh the page and try again.');
       } else if (err.code === 'auth/invalid-phone-number') {
-          setError('Invalid phone number format.');
+          setError('Invalid phone number.');
       } else if (err.code === 'auth/too-many-requests') {
-          setError('Server busy. Please wait a moment and try again.');
+          setError('Too many attempts. Try again later.');
       } else {
-          setError(err.message || 'Failed to send OTP. Try again.');
+          setError(err.message || 'Failed to send OTP.');
       }
     } finally {
       setIsLoading(false);
@@ -196,11 +195,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
       onLogin(user);
     } catch (err: any) {
       console.error("Verify Error:", err);
-      if (err.code === 'auth/invalid-verification-code') {
-         setError('Invalid OTP. Please check the code.');
-      } else {
-         setError('Verification failed. Please try again.');
-      }
+      setError('Invalid OTP. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -216,15 +211,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
       onLogin(user);
     } catch (err: any) {
       console.error("Google Login Error:", err);
-      if (err.code === 'auth/operation-not-supported-in-this-environment') {
-          setError('Google Login requires a secure context (HTTPS) and full browser support. It may not work in this preview. Please use Phone Login.');
-      } else if (err.code === 'auth/popup-closed-by-user') {
-          setError('Sign in cancelled.');
-      } else if (err.code === 'auth/popup-blocked') {
-          setError('Popup blocked. Please allow popups for this site.');
-      } else {
-          setError(err.message || 'Google Sign In Failed');
-      }
+      setError(err.message || 'Google Sign In Failed');
     } finally {
       setIsLoading(false);
     }
@@ -242,11 +229,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
         onLogin(user);
     } catch (err: any) {
         console.error("Admin Login Error:", err);
-        if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-            setError('Invalid Admin Credentials');
-        } else {
-            setError(err.message || 'Login Failed');
-        }
+        setError('Invalid Admin Credentials');
     } finally {
         setIsLoading(false);
     }
@@ -255,7 +238,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-slate-900 via-[#111827] to-black flex items-center justify-center p-4 relative overflow-hidden">
       
-      {/* Background Particles */}
       <div className="absolute inset-0 pointer-events-none">
          <div className="absolute top-[10%] left-[20%] w-1 h-1 bg-white rounded-full opacity-40 animate-pulse"></div>
          <div className="absolute top-[30%] right-[20%] w-1.5 h-1.5 bg-blue-300 rounded-full opacity-30 animate-pulse" style={{animationDelay: '1s'}}></div>
@@ -264,17 +246,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
 
       <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10 animate-fade-in flex flex-col items-center relative z-10 transition-all duration-500">
         
-        {/* Logo Animation - Secret Admin Trigger (5 Clicks) */}
         <div 
             className="relative w-32 h-32 mb-6 flex items-center justify-center cursor-pointer active:scale-95 transition-transform select-none"
             onClick={handleLogoClick}
             title="PV"
         >
-            {/* Core */}
             <div className="absolute w-14 h-14 bg-gradient-to-br from-orange-500 to-red-600 rounded-full shadow-[0_0_40px_rgba(234,88,12,0.6)] flex items-center justify-center z-10 animate-pulse-glow border border-white/20">
                 <span className="text-xl font-bold text-white font-display tracking-tight">PV</span>
             </div>
-            {/* Orbits */}
             <div className="absolute w-full h-full border border-emerald-500/20 rounded-full animate-spin-slow" style={{ animationDuration: '8s' }}>
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_15px_rgba(52,211,153,0.8)]"></div>
             </div>
@@ -292,14 +271,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
             </p>
         </div>
 
-        {/* LOADING SPLASH */}
         {isInitializing ? (
            <div className="flex flex-col items-center animate-fade-in my-8">
               <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
               <p className="text-slate-500 text-xs font-medium uppercase tracking-widest">Loading Universe...</p>
            </div>
         ) : (
-           /* LOGIN CONTENT */
            <div className="w-full animate-fade-in space-y-6">
                 {error && (
                     <div className="p-3 w-full bg-red-900/30 text-red-200 text-sm rounded-xl text-center font-medium border border-red-500/30 animate-shake">
@@ -308,7 +285,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                 )}
 
                 {isAdminMode ? (
-                    /* ADMIN EMAIL LOGIN FORM */
                     <form onSubmit={handleAdminLogin} className="space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Admin Email</label>
@@ -340,7 +316,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                         </button>
                     </form>
                 ) : (
-                    /* USER MOBILE/GOOGLE LOGIN */
                     <>
                         {!showOtpInput ? (
                             <form onSubmit={handleSendOtp} className="space-y-4">
@@ -359,11 +334,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                                 <div 
                                     ref={recaptchaContainerRef} 
                                     id="recaptcha-container" 
-                                    className="w-full flex justify-center items-center my-4 min-h-[50px] w-full"
+                                    className="w-full flex justify-center items-center my-4 min-h-[78px]"
                                 ></div>
 
-                                <Button type="submit" isLoading={isLoading} className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0">
-                                    Get OTP
+                                <Button 
+                                    type="submit" 
+                                    isLoading={isLoading} 
+                                    disabled={!isRecaptchaReady || isLoading}
+                                    className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isRecaptchaReady ? "Get OTP" : "Loading Security Check..."}
                                 </Button>
                             </form>
                         ) : (

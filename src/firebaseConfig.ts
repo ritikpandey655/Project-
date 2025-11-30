@@ -1,7 +1,7 @@
-
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDJ48kwjfVfIm6Pi7v8Kc4fgd_PzZilZwY",
@@ -13,24 +13,19 @@ const firebaseConfig = {
   measurementId: "G-C8G91QQYCH"
 };
 
-// Initialize Firebase with explicit any cast to avoid TS strict type errors with compat
 const firebaseApp: any = firebase;
 const app = !firebaseApp.apps.length ? firebaseApp.initializeApp(firebaseConfig) : firebaseApp.app();
 
 export const auth = firebaseApp.auth();
 export const googleProvider = new firebase.auth.GoogleAuthProvider();
 
-export const db = firebaseApp.firestore();
+// Initialize Firestore with modern persistence settings to prevent deprecation warnings
+initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
 
-// Enable offline persistence (Compat Mode - Stable)
-try {
-  db.enablePersistence({ synchronizeTabs: true });
-} catch (err: any) {
-  if (err.code === 'failed-precondition') {
-    console.warn("Persistence failed: Multiple tabs open.");
-  } else if (err.code === 'unimplemented') {
-    console.warn("Persistence not supported by browser.");
-  }
-}
+export const db = firebaseApp.firestore();
 
 export default firebaseApp;
