@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: null, // Manual registration in index.tsx
+        injectRegister: 'auto', // Changed to auto to ensure PWA Builder detects the SW in index.html
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg'],
         manifest: {
           name: 'PYQverse: AI Exam Prep',
@@ -39,10 +39,15 @@ export default defineConfig(({ mode }) => {
               id: "com.pyqverse.app"
             }
           ],
+          // Ensure 'tabbed' and 'window-controls-overlay' are explicitly defined
           display_override: ["window-controls-overlay", "tabbed", "minimal-ui", "standalone", "browser"],
+          // Define scope extensions for associated domains
           scope_extensions: [
             {
               origin: "https://pyqverse.vercel.app"
+            },
+            {
+              origin: "https://pyqverse.web.app"
             }
           ],
           launch_handler: {
@@ -171,7 +176,7 @@ export default defineConfig(({ mode }) => {
                 cacheName: 'google-fonts-cache',
                 expiration: {
                   maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                  maxAgeSeconds: 60 * 60 * 24 * 365
                 },
                 cacheableResponse: {
                   statuses: [0, 200]
@@ -185,7 +190,7 @@ export default defineConfig(({ mode }) => {
                 cacheName: 'gstatic-fonts-cache',
                 expiration: {
                   maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+                  maxAgeSeconds: 60 * 60 * 24 * 365
                 },
                 cacheableResponse: {
                   statuses: [0, 200]
@@ -199,7 +204,7 @@ export default defineConfig(({ mode }) => {
                 cacheName: 'images-cache',
                 expiration: {
                   maxEntries: 50,
-                  maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+                  maxAgeSeconds: 30 * 24 * 60 * 60,
                 },
               },
             },

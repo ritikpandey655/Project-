@@ -1,10 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<!-- pyqverse-icon-modern.svg
+     Canvas: 512x512
+     Maskable-safe circle radius: 216
+     Modern geometric P & Y, pure vector (no fonts)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="PYQverse">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#f97316;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
-    </linearGradient>
+    <!-- Sunset radial gradient -->
+    <radialGradient id="sunGrad" cx="50%" cy="36%" r="70%">
+      <stop offset="0%" stop-color="#FF9A53"/>
+      <stop offset="60%" stop-color="#FF7E29"/>
+      <stop offset="100%" stop-color="#FF4F00"/>
+    </radialGradient>
+
+    <!-- subtle soft shadow as a blurred ellipse -->
+    <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur"/>
+      <feOffset in="blur" dx="0" dy="6" result="off"/>
+      <feMerge>
+        <feMergeNode in="off"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-  <circle cx="256" cy="256" r="256" fill="url(#grad)"/>
-  <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="280" fill="white">PV</text>
+
+  <!-- maskable-safe circular background -->
+  <g filter="" transform="">
+    <circle cx="256" cy="256" r="216" fill="url(#sunGrad)"/>
+  </g>
+
+  <!-- inner rounded panel for subtle contrast -->
+  <circle cx="256" cy="256" r="168" fill="#ffffff" opacity="0.04"/>
+
+  <!-- Modern geometric PY mark -->
+  <g fill="#FFFFFF" transform="translate(0,0)">
+
+    <!-- P: straight geometric block -->
+    <rect x="132" y="170" width="40" height="196" rx="6" ry="6"/>
+
+    <!-- P bowl: geometric rounded rectangle attached to stem -->
+    <path d="M172 170 h56 a48 48 0 0 1 0 96 h-56 z" fill="#FFFFFF"/>
+
+    <!-- inner cutout of P (negative space) -->
+    <rect x="186" y="196" width="34" height="48" rx="12" ry="12" fill="url(#sunGrad)" opacity="0.14"/>
+
+    <!-- Y: simplified, angular and balanced -->
+    <!-- left arm -->
+    <path d="M288 160 L322 214 L298 234 L266 190 Z" fill="#FFFFFF"/>
+    <!-- right arm -->
+    <path d="M324 214 L356 160 L384 160 L344 228 L324 214 Z" fill="#FFFFFF"/>
+    <!-- stem -->
+    <rect x="304" y="234" width="24" height="126" rx="6" fill="#FFFFFF"/>
+
+    <!-- small accent dot for Q hint (brand nod) -->
+    <circle cx="372" cy="332" r="10" fill="#FFFFFF" opacity="0.95"/>
+  </g>
+
+  <!-- very soft top-left highlight to add modern depth (low opacity) -->
+  <path d="M96 96 C180 40 332 40 416 96 L416 96 C360 64 152 64 96 96 Z" fill="#FFFFFF" opacity="0.03"/>
 </svg>

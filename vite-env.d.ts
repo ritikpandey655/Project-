@@ -1,3 +1,4 @@
+
 // Asset declarations
 declare module '*.png' {
   const src: string
@@ -22,18 +23,6 @@ declare module '*.svg' {
 declare module '*.ico' {
   const src: string
   export default src
-}
-
-declare module 'virtual:pwa-register' {
-  export interface RegisterSWOptions {
-    immediate?: boolean
-    onNeedRefresh?: () => void
-    onOfflineReady?: () => void
-    onRegistered?: (registration: ServiceWorkerRegistration | undefined) => void
-    onRegisterError?: (error: any) => void
-  }
-
-  export function registerSW(options?: RegisterSWOptions): (reloadPage?: boolean) => Promise<void>
 }
 
 // PWA Install Prompt Event
