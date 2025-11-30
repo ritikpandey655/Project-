@@ -2,7 +2,7 @@
   "id": "/?source=pwa",
   "name": "PYQverse",
   "short_name": "PYQverse",
-  "description": "PYQverse: All exams ka pura universe. AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep.",
+  "description": "AI-powered Previous Year Questions for UPSC, SSC, JEE, NEET & more.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
@@ -18,35 +18,31 @@
     "tabbed",
     "standalone"
   ],
-  "tab_strip": {
-    "home_tab": "auto",
-    "new_tab_button": "auto"
-  },
   "categories": [
     "education",
     "productivity"
   ],
   "icons": [
     {
-      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120&size=512",
+      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120&size=512",
+      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_512,h_512,c_fill/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120&size=512",
+      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_512,h_512,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_512,h_512,c_fill/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120&size=512",
+      "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_512,h_512,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -75,7 +71,7 @@
       "url": "/?action=practice",
       "icons": [
         {
-          "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120&size=512",
+          "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=PV&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
@@ -115,19 +111,10 @@
   "note_taking": {
     "new_note_url": "/?action=new-note"
   },
-  "related_applications": [
-    {
-      "platform": "webapp",
-      "url": "https://pyqverse.vercel.app/manifest.json",
-      "id": "pyqverse-app"
-    }
-  ],
+  "related_applications": [],
   "scope_extensions": [
     {
       "origin": "https://pyqverse.vercel.app"
-    },
-    {
-      "origin": "https://*.pyqverse.vercel.app"
     }
   ],
   "launch_handler": {
@@ -151,7 +138,7 @@
       "multiple": false,
       "icons": [
         {
-          "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill/https://api.dicebear.com/9.x/initials/png?seed=Q&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120&size=512",
+          "src": "https://res.cloudinary.com/dwxqyvz5j/image/fetch/w_192,h_192,c_fill,q_auto,f_png/https://api.dicebear.com/9.x/initials/png?seed=Q&backgroundColor=5B2EFF&backgroundType=gradientLinear&scale=120",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"

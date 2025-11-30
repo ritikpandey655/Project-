@@ -64,6 +64,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
     };
   }, []);
 
+  // Cleanup Recaptcha when switching views (e.g. back from OTP input)
+  useEffect(() => {
+    if (!showOtpInput) {
+      if ((window as any).recaptchaVerifier) {
+        try {
+          (window as any).recaptchaVerifier.clear();
+        } catch (e) {}
+        (window as any).recaptchaVerifier = null;
+      }
+      if (recaptchaContainerRef.current) {
+        recaptchaContainerRef.current.innerHTML = '';
+      }
+    }
+  }, [showOtpInput]);
+
   const syncUserToDB = async (firebaseUser: any) => {
     try {
       const userRef = db.collection("users").doc(firebaseUser.uid);
@@ -112,25 +127,40 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
   };
 
   const getRecaptchaVerifier = () => {
-    // 1. If it already exists, return it
+    // STRATEGY: Always create a fresh instance to avoid 'internal-error' from stale state
+    
+    // 1. Clear existing instance if any
     if ((window as any).recaptchaVerifier) {
-      return (window as any).recaptchaVerifier;
+      try {
+        (window as any).recaptchaVerifier.clear();
+      } catch (e) {
+        console.warn("Could not clear old recaptcha", e);
+      }
+      (window as any).recaptchaVerifier = null;
     }
 
-    // 2. Ensure container exists
+    // 2. Ensure container exists and is empty
     if (!recaptchaContainerRef.current) {
         return null;
     }
+    recaptchaContainerRef.current.innerHTML = '';
 
     try {
       // 3. Create new verifier attached to the REF element
-      // Using 'invisible' size is standard for phone auth
       const verifier = new firebase.auth.RecaptchaVerifier(recaptchaContainerRef.current, {
         'size': 'invisible',
         'callback': () => { console.log("Recaptcha Verified"); },
-        'expired-callback': () => { console.warn("Recaptcha Expired"); }
+        'expired-callback': () => { 
+            console.warn("Recaptcha Expired");
+            // Clean up if expired
+            if ((window as any).recaptchaVerifier) {
+                try { (window as any).recaptchaVerifier.clear(); } catch(e){}
+                (window as any).recaptchaVerifier = null;
+            }
+        }
       });
       
+      // Render immediately to ensure it's ready
       verifier.render();
       (window as any).recaptchaVerifier = verifier;
       return verifier;
@@ -163,16 +193,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
     } catch (err: any) {
       console.error("OTP Error:", err);
       
-      // CRITICAL FIX: If internal error, completely destroy verifier to allow retry
+      // Cleanup on error
+      if ((window as any).recaptchaVerifier) {
+        try { (window as any).recaptchaVerifier.clear(); } catch(e){}
+        (window as any).recaptchaVerifier = null;
+        if(recaptchaContainerRef.current) recaptchaContainerRef.current.innerHTML = '';
+      }
+
       if (err.code === 'auth/internal-error') {
-          if ((window as any).recaptchaVerifier) {
-            try { (window as any).recaptchaVerifier.clear(); } catch(e){}
-          }
-          (window as any).recaptchaVerifier = null;
-          if (recaptchaContainerRef.current) {
-             recaptchaContainerRef.current.innerHTML = '';
-          }
-          setError('System connection error. Please click "Get OTP" again.');
+          setError('Security check failed. Please try clicking "Get OTP" again.');
       } else if (err.code === 'auth/invalid-phone-number') {
           setError('Invalid phone number format.');
       } else if (err.code === 'auth/too-many-requests') {
@@ -221,9 +250,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
     } catch (err: any) {
       console.error("Google Login Error:", err);
       if (err.code === 'auth/operation-not-supported-in-this-environment') {
-          setError('Google Login is restricted in this preview environment. Please try Phone Login or open in a full browser window.');
+          setError('Google Login requires a secure context (HTTPS) and full browser support. It may not work in this preview. Please use Phone Login.');
       } else if (err.code === 'auth/popup-closed-by-user') {
           setError('Sign in cancelled.');
+      } else if (err.code === 'auth/popup-blocked') {
+          setError('Popup blocked. Please allow popups for this site.');
       } else {
           setError(err.message || 'Google Sign In Failed');
       }
@@ -309,9 +340,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                     </div>
                 )}
 
-                {/* Recaptcha Container - Attached via Ref for stability */}
-                <div ref={recaptchaContainerRef} id="recaptcha-container"></div>
-
                 {isAdminMode ? (
                     /* ADMIN EMAIL LOGIN FORM */
                     <form onSubmit={handleAdminLogin} className="space-y-4">
@@ -360,6 +388,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, isOnline = tr
                                         required
                                     />
                                 </div>
+                                
+                                <div 
+                                    ref={recaptchaContainerRef} 
+                                    id="recaptcha-container" 
+                                    className="flex justify-center items-center my-4"
+                                ></div>
+
                                 <Button type="submit" isLoading={isLoading} className="w-full py-3.5 text-lg font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/50 border-0">
                                     Get OTP
                                 </Button>
