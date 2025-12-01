@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
           theme_color: '#f97316',
           background_color: '#111827',
           display: 'standalone',
-          orientation: 'portrait',
+          orientation: 'any',
           start_url: '/',
           scope: '/',
           id: '/',
@@ -32,13 +32,7 @@ export default defineConfig(({ mode }) => {
           dir: "ltr",
           prefer_related_applications: false,
           iarc_rating_id: "e84b072d-71b3-4d3e-86ae-31a8ce02a73d",
-          related_applications: [
-            {
-              platform: "play",
-              url: "https://play.google.com/store/apps/details?id=com.pyqverse.app",
-              id: "com.pyqverse.app"
-            }
-          ],
+          related_applications: [],
           // Ensure 'tabbed' and 'window-controls-overlay' are explicitly defined
           display_override: ["window-controls-overlay", "tabbed", "minimal-ui", "standalone", "browser"],
           // Define scope extensions for associated domains
@@ -95,25 +89,13 @@ export default defineConfig(({ mode }) => {
           icons: [
             {
               src: "/icon.svg",
-              sizes: "192x192",
+              sizes: "48x48 72x72 96x96 128x128 192x192 256x256 512x512",
               type: "image/svg+xml",
               purpose: "any"
             },
             {
               src: "/icon.svg",
-              sizes: "512x512",
-              type: "image/svg+xml",
-              purpose: "any"
-            },
-            {
-              src: "/icon.svg",
-              sizes: "192x192",
-              type: "image/svg+xml",
-              purpose: "maskable"
-            },
-            {
-              src: "/icon.svg",
-              sizes: "512x512",
+              sizes: "48x48 72x72 96x96 128x128 192x192 256x256 512x512",
               type: "image/svg+xml",
               purpose: "maskable"
             }
@@ -164,6 +146,8 @@ export default defineConfig(({ mode }) => {
           ]
         } as any,
         workbox: {
+          // Import the custom service worker logic for Push, Sync, etc.
+          importScripts: ['/custom-sw-logic.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api/, /^\/auth/],
