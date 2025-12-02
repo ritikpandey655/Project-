@@ -89,7 +89,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
       <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl relative z-10 animate-fade-in flex flex-col my-8">
         
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 shadow-lg shadow-orange-500/30 mb-4">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 shadow-lg shadow-orange-500/30 mb-4 animate-bounce-slight">
              <span className="text-white font-bold font-display text-xl">PV</span>
           </div>
           <h2 className="text-2xl font-display font-bold text-white mb-1">Create Account</h2>
