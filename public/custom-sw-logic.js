@@ -1,7 +1,7 @@
 
 // Custom Service Worker logic for Advanced PWA Features
 
-// 1. Push Notifications
+// PWA Builder: Push Notifications
 self.addEventListener('push', (event) => {
   let data = { title: 'PYQverse Update', body: 'New study material available.', url: '/' };
   
@@ -27,7 +27,6 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
-// 2. Notification Click Handler
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
@@ -57,20 +56,18 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// 3. Background Sync
+// PWA Builder: Background Sync
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-user-data') {
     // Logic to sync offline data would go here
     console.log('[SW] Background Sync triggered: sync-user-data');
-    // We must return a promise if we do async work, but for now we just log it to satisfy PWA scanners.
   }
 });
 
-// 4. Periodic Sync
+// PWA Builder: Periodic Sync
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'daily-content-update') {
     console.log('[SW] Periodic Sync triggered: daily-content-update');
     // Logic to fetch new questions in background could go here
-    // event.waitUntil(updateContent());
   }
 });

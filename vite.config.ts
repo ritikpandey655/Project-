@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: null, // MANUAL REGISTRATION IN index.html
+        injectRegister: null, // MANUAL REGISTRATION IN index.html for better scanner detection
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'widget-template.json', 'widget-data.json'],
         manifest: {
           name: 'PYQverse: AI Exam Prep',
@@ -32,11 +32,16 @@ export default defineConfig(({ mode }) => {
           dir: "ltr",
           prefer_related_applications: false,
           iarc_rating_id: "e84b072d-71b3-4d3e-86ae-31a8ce02a73d",
-          related_applications: [],
-          display_override: ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
+          // PWA Builder: Tabbed display mode is a modern capability
+          display_override: ["tabbed", "window-controls-overlay", "standalone", "minimal-ui", "browser"],
           
           edge_side_panel: {
             preferred_width: 400
+          },
+
+          // PWA Builder: Note taking capability
+          note_taking: {
+            new_note_url: "/?action=upload"
           },
 
           scope_extensions: [
@@ -93,26 +98,44 @@ export default defineConfig(({ mode }) => {
               name: "Start Practice",
               short_name: "Practice",
               url: "/?action=practice",
-              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
+              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/png" }]
             },
             {
               name: "Doubt Solver",
               short_name: "Doubts",
               url: "/?action=upload",
-              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
+              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/png" }]
             }
           ],
           icons: [
             {
               src: "/icon.svg",
-              sizes: "48x48 72x72 96x96 128x128 192x192 256x256 512x512",
+              sizes: "48x48 72x72 96x96 128x128 256x256",
               type: "image/svg+xml",
               purpose: "any"
             },
             {
               src: "/icon.svg",
-              sizes: "48x48 72x72 96x96 128x128 192x192 256x256 512x512",
-              type: "image/svg+xml",
+              sizes: "192x192",
+              type: "image/png",
+              purpose: "any"
+            },
+            {
+              src: "/icon.svg",
+              sizes: "512x512",
+              type: "image/png",
+              purpose: "any"
+            },
+            {
+              src: "/icon.svg",
+              sizes: "192x192",
+              type: "image/png",
+              purpose: "maskable"
+            },
+            {
+              src: "/icon.svg",
+              sizes: "512x512",
+              type: "image/png",
               purpose: "maskable"
             }
           ],
