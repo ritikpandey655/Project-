@@ -32,7 +32,8 @@ export default defineConfig(({ mode }) => {
           dir: "ltr",
           prefer_related_applications: false,
           iarc_rating_id: "e84b072d-71b3-4d3e-86ae-31a8ce02a73d",
-          // PWA Builder: Tabbed display mode is a modern capability
+          // PWA Builder: Tabbed display mode is a modern capability. 
+          // Casting to 'any' allows "tabbed" which might not be in the strict TypeScript definition yet.
           display_override: ["tabbed", "window-controls-overlay", "standalone", "minimal-ui", "browser"],
           
           edge_side_panel: {
@@ -47,6 +48,12 @@ export default defineConfig(({ mode }) => {
           scope_extensions: [
             {
               origin: "https://pyqverse.vercel.app"
+            },
+            {
+              origin: "https://pyqverse.in"
+            },
+            {
+              origin: "https://www.pyqverse.in"
             }
           ],
           
@@ -155,7 +162,7 @@ export default defineConfig(({ mode }) => {
               label: "Desktop Dashboard"
             }
           ]
-        },
+        } as any, // Cast to any prevents TS errors for 'widgets' and 'tabbed' not being in the type definition yet
         workbox: {
           importScripts: ['/custom-sw-logic.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],

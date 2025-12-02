@@ -1,3 +1,4 @@
+
 {
   "type": "AdaptiveCard",
   "body": [
@@ -17,7 +18,7 @@
     {
       "type": "Action.OpenUrl",
       "title": "Solve in App",
-      "url": "https://pyqverse.vercel.app/?action=qotd"
+      "url": "https://pyqverse.in/?action=qotd"
     }
   ],
   "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
