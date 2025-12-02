@@ -406,3 +406,18 @@ export const getLeaderboardData = async (currentUser: User): Promise<Leaderboard
     { id: currentUser.id, rank: 99, name: currentUser.name, exam: 'Your Exam', score: 0, isCurrentUser: true }
   ];
 };
+
+// --- FEEDBACK ---
+export const saveFeedback = async (userId: string, message: string, email?: string): Promise<void> => {
+  try {
+    await db.collection("feedback").add({
+      userId,
+      message,
+      email: email || 'Anonymous',
+      createdAt: Date.now(),
+      status: 'unread'
+    });
+  } catch (e) {
+    console.error("Error saving feedback", e);
+  }
+};

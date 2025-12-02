@@ -44,7 +44,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       const nameToCheck = rawName.toLowerCase();
       const emailToCheck = userEmail.toLowerCase();
       
-      const isAdmin = emailToCheck === 'admin@pyqverse.com' || 
+      // LOGIC UPDATE: Allow support@pyqverse.in to be Admin automatically
+      const isAdmin = emailToCheck === 'support@pyqverse.in' || 
+                      emailToCheck === 'admin@pyqverse.com' || 
                       nameToCheck.includes('admin') ||
                       emailToCheck.includes('admin');
 
@@ -57,6 +59,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       };
 
       if (userSnap.exists) {
+        // If existing user is support@pyqverse.in, FORCE update isAdmin to true
+        if (emailToCheck === 'support@pyqverse.in' && !userSnap.data().isAdmin) {
+            await userRef.update({ isAdmin: true });
+            return { ...safeData, isAdmin: true } as User;
+        }
         return userSnap.data() as User;
       } else {
         await userRef.set(safeData);
@@ -113,7 +120,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-slate-900 via-[#1c120e] to-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-gradient-to-b from-slate-900 via-[#1c120e] to-black flex flex-col items-center justify-center p-4 relative overflow-hidden">
       
       {/* Background Particles - Warm/Sunset Tones */}
       <div className="absolute inset-0 pointer-events-none">
@@ -123,7 +130,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
          <div className="absolute top-[60%] left-[50%] w-1 h-1 bg-red-400 rounded-full opacity-20 animate-pulse" style={{animationDelay: '1.5s'}}></div>
       </div>
 
-      <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10 animate-fade-in flex flex-col items-center relative z-10 transition-all duration-500">
+      <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10 animate-fade-in flex flex-col items-center relative z-10 transition-all duration-500 mb-8">
         
         {/* Animated Logo - Sunset Orange Theme */}
         <div 
@@ -219,6 +226,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                 </div>
            </div>
         )}
+      </div>
+
+      {/* Professional Footer */}
+      <div className="relative z-10 text-center space-y-2 opacity-60">
+         <p className="text-xs text-slate-500">
+            Need help? Contact <a href="mailto:support@pyqverse.in?subject=Login%20Issue%20-%20PYQverse" className="text-orange-400 hover:text-orange-300 font-bold transition-colors">support@pyqverse.in</a>
+         </p>
+         <p className="text-[10px] text-slate-600">
+            © 2025 PYQverse. All rights reserved.
+         </p>
       </div>
     </div>
   );

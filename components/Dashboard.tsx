@@ -4,6 +4,7 @@ import { UserStats, ExamType, User, Question } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from './Button';
 import { TRANSLATIONS, TECHNICAL_EXAMS } from '../constants';
+import { saveFeedback } from '../services/storageService';
 
 interface DashboardProps {
   stats: UserStats;
@@ -63,6 +64,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [showCAMenu, setShowCAMenu] = useState(false);
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
 
   const t = TRANSLATIONS[language];
   const isTechnical = selectedExam && TECHNICAL_EXAMS.includes(selectedExam);
@@ -94,11 +96,14 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
     })).sort((a, b) => b.score - a.score).slice(0, 5);
   }, [displayedStats]);
 
-  const handleSendFeedback = () => {
-    if (!feedbackText.trim()) return;
+  const handleSendFeedback = async () => {
+    if (!feedbackText.trim() || !user) return;
+    setIsSendingFeedback(true);
+    await saveFeedback(user.id, feedbackText, user.email);
     setFeedbackSent(true);
+    setFeedbackText('');
+    setIsSendingFeedback(false);
     setTimeout(() => {
-      setFeedbackText('');
       setFeedbackSent(false);
     }, 3000);
   };
@@ -398,7 +403,9 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
            {/* Feedback */}
            <div className="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors animate-slide-up" style={{animationDelay: '500ms'}}>
              <h3 className="text-lg font-bold font-display text-slate-800 dark:text-white mb-2">{t.feedback}</h3>
-             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Found a bug or have a feature request? Let us know!</p>
+             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+               Found a bug? Email us at <a href="mailto:support@pyqverse.in?subject=Feedback%20for%20PYQverse" className="text-brand-purple font-bold hover:underline">support@pyqverse.in</a> or use the form below.
+             </p>
              
              {feedbackSent ? (
                <div className="bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-300 p-4 rounded-xl border border-green-100 dark:border-green-800 text-center animate-fade-in">
@@ -416,10 +423,11 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
                  />
                  <Button 
                    onClick={handleSendFeedback} 
-                   disabled={!feedbackText.trim()} 
+                   disabled={!feedbackText.trim() || isSendingFeedback} 
                    variant="secondary" 
                    size="sm" 
                    className="w-full"
+                   isLoading={isSendingFeedback}
                  >
                    {t.sendFeedback}
                  </Button>
