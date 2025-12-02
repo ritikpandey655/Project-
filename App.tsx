@@ -98,24 +98,39 @@ const App: React.FC = () => {
         try {
           const registration = await navigator.serviceWorker.ready;
 
-          // 1. Periodic Sync Registration
-          // @ts-ignore
-          if ('periodicSync' in registration && !await registration.periodicSync.getTags().then(tags => tags.includes('daily-content-update'))) {
-            try {
-               // @ts-ignore
-               await registration.periodicSync.register('daily-content-update', {
-                  minInterval: 24 * 60 * 60 * 1000 // 1 day
-               });
-               console.log('Periodic Sync registered');
-            } catch (e) {
-               console.log('Periodic Sync could not be registered', e);
-            }
+          // 1. Background Sync Registration
+          if ('sync' in registration) {
+             try {
+                // @ts-ignore
+                await registration.sync.register('sync-user-data');
+                console.log('Background Sync registered');
+             } catch (err) {
+                console.log('Background Sync registration failed (likely unsupported)', err);
+             }
           }
 
-          // 2. Background Sync Registration
-          if ('sync' in registration) {
-             // @ts-ignore
-             await registration.sync.register('sync-user-data');
+          // 2. Periodic Sync Registration (Requires Permission)
+          // @ts-ignore
+          if ('periodicSync' in registration) {
+            try {
+               const status = await navigator.permissions.query({
+                 // @ts-ignore
+                 name: 'periodic-background-sync',
+               });
+
+               if (status.state === 'granted') {
+                 // @ts-ignore
+                 if (!await registration.periodicSync.getTags().then(tags => tags.includes('daily-content-update'))) {
+                     // @ts-ignore
+                     await registration.periodicSync.register('daily-content-update', {
+                        minInterval: 24 * 60 * 60 * 1000 // 1 day
+                     });
+                     console.log('Periodic Sync registered');
+                 }
+               }
+            } catch (e) {
+               console.log('Periodic Sync could not be registered (permission denied or unsupported)', e);
+            }
           }
 
         } catch (error) {
@@ -226,10 +241,53 @@ const App: React.FC = () => {
   }, [loadUserData]);
 
   const requestNotificationPermission = async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      try {
-        await Notification.requestPermission();
-      } catch (e) { console.error(e); }
+    if (!('Notification' in window)) {
+      alert("Your browser does not support notifications.");
+      return;
+    }
+
+    // Check if already granted
+    if (Notification.permission === 'granted') {
+       if ('serviceWorker' in navigator) {
+          try {
+             const reg = await navigator.serviceWorker.ready;
+             reg.showNotification("Notifications Active! 🔔", {
+                body: "You're all set to receive study updates.",
+                icon: '/icon.svg',
+                vibrate: [200, 100, 200],
+                tag: 'test-notification'
+             } as any);
+          } catch (e) {
+             console.error("Test notification failed", e);
+             alert("Notifications are granted but we couldn't send a test one.");
+          }
+       }
+       return;
+    }
+
+    if (Notification.permission === 'denied') {
+       alert("Notifications are blocked. Please enable them in your browser settings (Site Settings > Permissions > Notifications).");
+       return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+         if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.ready;
+            reg.showNotification("Welcome to PYQverse 🚀", {
+               body: "Notifications enabled successfully! We'll keep you updated.",
+               icon: '/icon.svg',
+               vibrate: [200, 100, 200],
+               tag: 'welcome-notification'
+            } as any);
+         } else {
+            new Notification("Welcome to PYQverse 🚀");
+         }
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error requesting permission.");
     }
   };
 

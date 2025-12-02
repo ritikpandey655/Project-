@@ -32,16 +32,13 @@ export default defineConfig(({ mode }) => {
           dir: "ltr",
           prefer_related_applications: false,
           iarc_rating_id: "e84b072d-71b3-4d3e-86ae-31a8ce02a73d",
-          related_applications: [],
-          display_override: ["window-controls-overlay", "tabbed", "minimal-ui", "standalone", "browser"],
+          related_applications: [], // Keep empty to avoid store validation errors
+          display_override: ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
           
-          // SCOPE EXTENSIONS: Allows your PWA to capture navigation to these domains
+          // SCOPE EXTENSIONS: Allows PWA to capture navigation to these domains
           scope_extensions: [
             {
               origin: "https://pyqverse.vercel.app"
-            },
-            {
-              origin: "https://pyqverse.web.app"
             }
           ],
           
@@ -110,7 +107,7 @@ export default defineConfig(({ mode }) => {
           ]
         } as any,
         workbox: {
-          importScripts: ['/custom-sw-logic.js'],
+          importScripts: ['/custom-sw-logic.js'], // CRITICAL: Loads custom logic for Sync/Push
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api/, /^\/auth/],

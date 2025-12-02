@@ -115,8 +115,8 @@ export const SmartAnalytics: React.FC<SmartAnalyticsProps> = ({ stats, history, 
         <div className="md:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700">
            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Daily Progress (Accuracy %)</h3>
            {/* Fixed height container for chart */}
-           <div className="h-64 w-full">
-             <ResponsiveContainer width="100%" height="100%">
+           <div className="h-64 w-full min-w-0">
+             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={300}>
                <LineChart data={dailyProgress}>
                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
@@ -134,8 +134,8 @@ export const SmartAnalytics: React.FC<SmartAnalyticsProps> = ({ stats, history, 
         {/* Accuracy Chart */}
         <div className="md:col-span-1 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center relative min-h-[300px]">
             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 absolute top-6 left-6">Overall Accuracy</h3>
-            <div className="w-full h-64">
-               <ResponsiveContainer width="100%" height="100%">
+            <div className="w-full h-64 min-w-0">
+               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={300}>
                  <PieChart>
                     <Pie
                       data={[

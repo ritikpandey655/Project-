@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { User, UserStats } from '../types';
 import { THEME_PALETTES, TRANSLATIONS } from '../constants';
 import { Button } from './Button';
@@ -44,6 +44,21 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   onEnableNotifications
 }) => {
   const t = TRANSLATIONS[language];
+  const [notifState, setNotifState] = useState('default');
+
+  useEffect(() => {
+     if ('Notification' in window) {
+        setNotifState(Notification.permission);
+     }
+  }, [isOpen]);
+
+  const handleNotifClick = () => {
+    onEnableNotifications();
+    // Optimistically update or re-check
+    setTimeout(() => {
+        if ('Notification' in window) setNotifState(Notification.permission);
+    }, 1000);
+  };
 
   return (
     <>
@@ -179,14 +194,20 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                  </div>
 
                  <button 
-                    onClick={onEnableNotifications}
+                    onClick={handleNotifClick}
                     className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 text-left"
                  >
                     <div className="flex items-center gap-3">
                        <span className="text-lg">🔔</span>
                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.notifications}</span>
                     </div>
-                    <span className="text-xs text-indigo-500 font-bold bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded">ENABLE</span>
+                    <span className={`text-xs font-bold px-2 py-1 rounded transition-colors ${
+                        notifState === 'granted' 
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' 
+                        : 'bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30'
+                    }`}>
+                        {notifState === 'granted' ? 'ACTIVE' : 'ENABLE'}
+                    </span>
                  </button>
               </div>
            </div>
