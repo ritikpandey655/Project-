@@ -26,8 +26,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose }) => {
             
             <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed text-sm sm:text-base">
                 We are crafting the ultimate study experience with <strong>Unlimited AI Generation</strong>, <strong>Offline Downloads</strong>, and <strong>Deep Analytics</strong>.
-                <br/><br/>
-                Stay tuned for the launch!
             </p>
 
             <div className="flex flex-col gap-3">

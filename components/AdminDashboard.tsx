@@ -260,7 +260,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Total Users</h3>
-                <p className="text-4xl font-extrabold text-slate-800 dark:text-white mt-2">{stats?.totalUsers || 0}</p>
+                <p className="text-4xl font-extrabold text-slate-800 dark:text-white mt-2">{users.length}</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Questions</h3>

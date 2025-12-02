@@ -32,9 +32,12 @@ export const getUser = async (userId: string): Promise<User | null> => {
     }
     return null;
   } catch (e) {
-    // Explicitly handle permission errors preventing app crash
-    console.warn("Error getting user profile (likely permission issue):", e);
-    return null;
+    // This catches "Missing or insufficient permissions" which happens
+    // when a user is logged in but not yet verified, and rules deny access.
+    // Returning null allows the app to handle this as "user data not loaded" 
+    // rather than crashing, eventually leading to the VerifyScreen.
+    console.warn("Error getting user profile (Permission/Network issue):", e);
+    return null; 
   }
 };
 

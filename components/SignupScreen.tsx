@@ -70,6 +70,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
           setLoadingText('Sending Verification Link...');
 
           // 5. Send Verification Email
+          // IMPORTANT: Do NOT sign out. App.tsx will detect unverified state and show the VerifyScreen.
           await firebaseUser.sendEmailVerification();
           
           // 6. Show Success Screen Immediately
