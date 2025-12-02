@@ -14,8 +14,8 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: 'auto',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg'],
+        injectRegister: null, // MANUAL REGISTRATION IN index.html
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'widget-template.json', 'widget-data.json'],
         manifest: {
           name: 'PYQverse: AI Exam Prep',
           short_name: 'PYQverse',
@@ -32,13 +32,40 @@ export default defineConfig(({ mode }) => {
           dir: "ltr",
           prefer_related_applications: false,
           iarc_rating_id: "e84b072d-71b3-4d3e-86ae-31a8ce02a73d",
-          related_applications: [], // Keep empty to avoid store validation errors
+          related_applications: [],
           display_override: ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
           
-          // SCOPE EXTENSIONS: Allows PWA to capture navigation to these domains
+          edge_side_panel: {
+            preferred_width: 400
+          },
+
           scope_extensions: [
             {
               origin: "https://pyqverse.vercel.app"
+            }
+          ],
+          
+          file_handlers: [
+            {
+              action: "/?action=open-file",
+              accept: {
+                "text/plain": [".txt", ".note"],
+                "application/json": [".json"]
+              }
+            }
+          ],
+
+          widgets: [
+            {
+              name: "Question of the Day",
+              short_name: "QOTD",
+              description: "Daily exam question to keep your streak alive.",
+              tag: "qotd",
+              template: "widget-template.json",
+              data: "widget-data.json",
+              type: "application/json",
+              screenshots: [],
+              icons: [{ "src": "/icon.svg", "sizes": "512x512", "type": "image/svg+xml" }]
             }
           ],
           
@@ -105,9 +132,9 @@ export default defineConfig(({ mode }) => {
               label: "Desktop Dashboard"
             }
           ]
-        } as any,
+        },
         workbox: {
-          importScripts: ['/custom-sw-logic.js'], // CRITICAL: Loads custom logic for Sync/Push
+          importScripts: ['/custom-sw-logic.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api/, /^\/auth/],

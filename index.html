@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -111,5 +112,19 @@
   <body class="bg-[#F3F4F6] dark:bg-[#111827] text-slate-900 dark:text-slate-100 h-full w-full overflow-y-auto overflow-x-hidden select-none transition-colors duration-200">
     <div id="root" class="h-full w-full"></div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+      // Manual Service Worker Registration for PWA Builder Recognition
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(registration => {
+              console.log('SW Registered: ', registration);
+            })
+            .catch(registrationError => {
+              console.log('SW Registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

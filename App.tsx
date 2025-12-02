@@ -91,14 +91,29 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // --- PWA Advanced Registration (Sync, Periodic Sync, Notifications) ---
+  // --- PWA Advanced Registration (Sync, Periodic Sync, Notifications, File Handling) ---
   useEffect(() => {
     const registerPWAFeatures = async () => {
+      // 1. File Handling Consumer
+      if ('launchQueue' in window) {
+        // @ts-ignore
+        window.launchQueue.setConsumer(async (launchParams) => {
+          if (launchParams.files && launchParams.files.length) {
+            console.log('App opened with file:', launchParams.files[0]);
+            // Logic to read the file can be added here
+            // For now, we redirect to upload screen to indicate handling
+            if (state.user) {
+               setState(prev => ({ ...prev, view: 'upload' }));
+            }
+          }
+        });
+      }
+
       if ('serviceWorker' in navigator) {
         try {
           const registration = await navigator.serviceWorker.ready;
 
-          // 1. Background Sync Registration
+          // 2. Background Sync Registration
           if ('sync' in registration) {
              try {
                 // @ts-ignore
@@ -109,7 +124,7 @@ const App: React.FC = () => {
              }
           }
 
-          // 2. Periodic Sync Registration (Requires Permission)
+          // 3. Periodic Sync Registration (Requires Permission)
           // @ts-ignore
           if ('periodicSync' in registration) {
             try {
@@ -140,7 +155,7 @@ const App: React.FC = () => {
     };
     
     registerPWAFeatures();
-  }, []);
+  }, [state.user]);
 
   // Helper to load async user data
   const loadUserData = useCallback(async (userId: string) => {
