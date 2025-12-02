@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, UserStats, ExamType } from '../types';
 import { Button } from './Button';
-import { getUserQuestions } from '../services/storageService';
+import { getUserQuestions, removeUser } from '../services/storageService';
+import { auth } from '../src/firebaseConfig';
 
 interface ProfileScreenProps {
   user: User;
@@ -77,6 +79,33 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setAddress(user.address || '');
     setUserState(user.state || '');
     setPincode(user.pincode || '');
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("⚠️ Are you sure you want to delete your account? This action CANNOT be undone and you will lose all your progress.")) return;
+    
+    const confirmation = window.prompt("Type 'DELETE' to confirm account deletion:");
+    if (confirmation !== 'DELETE') return;
+
+    setIsLoading(true);
+    try {
+        // 1. Delete Firestore Data
+        await removeUser(user.id);
+        
+        // 2. Delete Auth User
+        if (auth.currentUser) {
+            await auth.currentUser.delete();
+        }
+        // Redirect handled by onAuthStateChanged in App.tsx
+    } catch (error: any) {
+        console.error("Delete Account Error:", error);
+        if (error.code === 'auth/requires-recent-login') {
+            alert("Security Requirement: Please Sign Out and Log In again before deleting your account.");
+        } else {
+            alert("Failed to delete account: " + error.message);
+        }
+        setIsLoading(false);
+    }
   };
 
   const accuracy = stats.totalAttempted > 0 
@@ -182,6 +211,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </svg>
             Sign Out
           </button>
+
+          {/* Delete Account Button */}
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-700 w-full text-center">
+             <button 
+               onClick={handleDeleteAccount}
+               disabled={isLoading}
+               className="text-xs font-bold text-slate-400 hover:text-red-600 dark:hover:text-red-500 transition-colors uppercase tracking-wider flex items-center justify-center gap-1 mx-auto"
+             >
+               {isLoading ? 'Processing...' : (
+                 <>
+                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                   Delete Account
+                 </>
+               )}
+             </button>
+          </div>
         </div>
 
         {/* Right Column: Details & Stats */}

@@ -21,13 +21,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose }) => {
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-bold font-display text-slate-900 dark:text-white mb-3">
-                Premium Coming Soon
+                Coming Soon
             </h2>
             
             <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed text-sm sm:text-base">
                 We are crafting the ultimate study experience with <strong>Unlimited AI Generation</strong>, <strong>Offline Downloads</strong>, and <strong>Deep Analytics</strong>.
                 <br/><br/>
-                The payment gateway is currently under integration. Stay tuned for the launch!
+                Stay tuned for the launch!
             </p>
 
             <div className="flex flex-col gap-3">

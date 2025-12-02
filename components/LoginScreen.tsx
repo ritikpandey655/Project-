@@ -28,7 +28,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     }
     if (logoClicks >= 5) {
        setLogoClicks(0);
-       // Just a visual indicator, actual admin check happens on login
        alert("Admin Mode: Please enter admin credentials.");
     }
   }, [logoClicks]);
@@ -36,7 +35,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
   const syncUserToDB = async (firebaseUser: any) => {
     try {
       const userRef = db.collection("users").doc(firebaseUser.uid);
-      const userSnap = await userRef.get();
+      // Attempt to read first
+      let userSnap;
+      try {
+        userSnap = await userRef.get();
+      } catch (readError) {
+        console.warn("Could not read user profile (likely permission issue), attempting fallback...", readError);
+        userSnap = { exists: false, data: () => ({}) };
+      }
       
       const userEmail = firebaseUser.email || "";
       const rawName = firebaseUser.displayName || "User"; 
@@ -44,7 +50,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       const nameToCheck = rawName.toLowerCase();
       const emailToCheck = userEmail.toLowerCase();
       
-      // LOGIC UPDATE: Allow support@pyqverse.in to be Admin automatically
       const isAdmin = emailToCheck === 'support@pyqverse.in' || 
                       emailToCheck === 'admin@pyqverse.com' || 
                       nameToCheck.includes('admin') ||
@@ -58,20 +63,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         isAdmin: !!isAdmin 
       };
 
+      // @ts-ignore
       if (userSnap.exists) {
-        // If existing user is support@pyqverse.in, FORCE update isAdmin to true
-        if (emailToCheck === 'support@pyqverse.in' && !userSnap.data().isAdmin) {
-            await userRef.update({ isAdmin: true });
+        // @ts-ignore
+        const currentData = userSnap.data();
+        if (emailToCheck === 'support@pyqverse.in' && !currentData?.isAdmin) {
+            try { await userRef.update({ isAdmin: true }); } catch (e) {}
             return { ...safeData, isAdmin: true } as User;
         }
-        return userSnap.data() as User;
+        return currentData as User;
       } else {
-        await userRef.set(safeData);
+        // Try to write, but don't fail login if write fails
+        try {
+            await userRef.set(safeData);
+        } catch (writeError) {
+            console.warn("Could not write user profile (Permission issue):", writeError);
+        }
         return safeData as User;
       }
     } catch (dbError: any) {
       console.error("Database Sync Error:", dbError);
-      throw new Error("Failed to save user data.");
+      return {
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || "User",
+        email: firebaseUser.email || "",
+        isAdmin: false
+      } as User;
     }
   };
 
@@ -83,16 +100,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
     try {
       const result = await auth.signInWithEmailAndPassword(email, password);
+      
       if (result.user) {
         const user = await syncUserToDB(result.user);
         onLogin(user);
       }
     } catch (err: any) {
       console.error("Login Error:", err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      // Map Firebase errors to user-friendly messages
+      const code = err.code;
+      if (
+        code === 'auth/user-not-found' || 
+        code === 'auth/wrong-password' || 
+        code === 'auth/invalid-credential' || 
+        code === 'auth/invalid-login-credentials'
+      ) {
          setError('Invalid email or password.');
-      } else if (err.code === 'auth/too-many-requests') {
-         setError('Too many failed attempts. Please try again later.');
+      } else if (code === 'auth/too-many-requests') {
+         setError('Too many failed attempts. Try again later.');
       } else {
          setError(err.message || 'Login Failed');
       }

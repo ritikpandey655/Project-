@@ -32,7 +32,8 @@ export const getUser = async (userId: string): Promise<User | null> => {
     }
     return null;
   } catch (e) {
-    console.error("Error getting user:", e);
+    // Explicitly handle permission errors preventing app crash
+    console.warn("Error getting user profile (likely permission issue):", e);
     return null;
   }
 };

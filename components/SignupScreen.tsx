@@ -18,7 +18,11 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedExam, setSelectedExam] = useState<ExamType>(ExamType.UPSC);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState('');
   const [error, setError] = useState('');
+  
+  // State for immediate feedback UI
+  const [isVerificationSent, setIsVerificationSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +32,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
     }
     
     setIsLoading(true);
+    setLoadingText('Creating Account...');
     setError('');
 
     try {
@@ -35,40 +40,50 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
       const userCredential = await auth.createUserWithEmailAndPassword(email, password);
       const firebaseUser = userCredential.user;
 
-      // 2. Update Profile Display Name
       if (firebaseUser) {
+          setLoadingText('Setting up Profile...');
+          
+          // 2. Update Profile Display Name
           await firebaseUser.updateProfile({ displayName: name });
+
+          // 3. Create Firestore User Doc
+          const lowerEmail = email.toLowerCase().trim();
+          const isAdmin = lowerEmail === 'support@pyqverse.in' || lowerEmail === 'admin@pyqverse.com';
+
+          const newUser: User = {
+            id: firebaseUser.uid,
+            name: name,
+            email: email,
+            photoURL: null, 
+            isAdmin: isAdmin 
+          };
+          
+          // Use set with merge to be safe
+          try {
+            await db.collection("users").doc(firebaseUser.uid).set(newUser, { merge: true });
+            // 4. Save Preference (Exam)
+            await db.collection("users").doc(firebaseUser.uid).collection("data").doc("prefs").set({ selectedExam }, { merge: true });
+          } catch (dbError) {
+            console.warn("Firestore profile creation failed (likely permission issue until verified), proceeding with auth flow...", dbError);
+          }
+
+          setLoadingText('Sending Verification Link...');
+
+          // 5. Send Verification Email
+          await firebaseUser.sendEmailVerification();
+          
+          // 6. Show Success Screen Immediately
+          setIsVerificationSent(true);
       }
-
-      // 3. Create Firestore User Doc
-      const lowerEmail = email.toLowerCase().trim();
-      
-      // Admin Logic: Automatically make support@pyqverse.in an Admin
-      // (Hidden from UI now as requested)
-      const isAdmin = lowerEmail === 'support@pyqverse.in' ||
-                      lowerEmail === 'admin@pyqverse.com';
-
-      const newUser: User = {
-        id: firebaseUser ? firebaseUser.uid : 'temp-id',
-        name: name,
-        email: email,
-        photoURL: null, 
-        isAdmin: isAdmin 
-      };
-      
-      if (firebaseUser) {
-        await db.collection("users").doc(firebaseUser.uid).set(newUser);
-      }
-
-      // 4. Save Preference immediately
-      onSignup(newUser, selectedExam);
 
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {
-        setError('Email already exists. Please login.');
+        setError('Account already exists with this email. Please Log In.');
       } else if (err.code === 'auth/weak-password') {
         setError('Password should be at least 6 characters.');
+      } else if (err.code === 'auth/password-does-not-meet-requirements') {
+        setError('Password must contain at least 6 chars, a number, and a symbol.');
       } else {
         setError(err.message || 'Registration failed');
       }
@@ -77,10 +92,42 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
     }
   };
 
+  // Immediate "Check Inbox" Screen
+  if (isVerificationSent) {
+    return (
+      <div className="min-h-screen w-full bg-slate-900 flex flex-col items-center justify-center p-4">
+         <div className="bg-white/10 backdrop-blur-md p-8 rounded-3xl max-w-md w-full text-center border border-white/10 shadow-2xl animate-pop-in">
+            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/30">
+               <svg className="w-10 h-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+               </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2 font-display">Check Your Inbox!</h2>
+            <p className="text-slate-300 text-sm mb-6 leading-relaxed">
+               We have sent a verification link to:<br/>
+               <span className="text-white font-bold text-lg">{email}</span>
+            </p>
+            <div className="bg-slate-800/60 p-4 rounded-xl mb-6 border border-white/5">
+                <div className="flex items-center justify-center gap-2 text-orange-400 mb-1">
+                   <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+                   <span className="text-xs font-bold uppercase tracking-wider">Verification Pending</span>
+                </div>
+                <p className="text-slate-400 text-xs">
+                   The app will automatically update once you verify.
+                </p>
+            </div>
+            <Button onClick={onBackToLogin} className="w-full bg-white/20 hover:bg-white/30 border-0">
+               Back to Login
+            </Button>
+         </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-slate-900 via-[#1c120e] to-black flex flex-col items-center justify-center p-4 relative overflow-hidden overflow-y-auto">
       
-      {/* Background Particles - Warm/Sunset Tones */}
+      {/* Background Particles */}
       <div className="absolute inset-0 pointer-events-none">
          <div className="absolute top-[15%] right-[10%] w-[400px] h-[400px] bg-orange-600/20 rounded-full blur-[100px] animate-pulse"></div>
          <div className="absolute bottom-[10%] left-[10%] w-[300px] h-[300px] bg-red-600/10 rounded-full blur-[80px] animate-pulse" style={{animationDelay: '2s'}}></div>
@@ -99,6 +146,11 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
         {error && (
             <div className="p-3 mb-6 bg-red-500/10 border border-red-500/20 rounded-xl text-red-200 text-sm text-center font-medium animate-shake">
                 {error}
+                {error.includes('already exists') && (
+                   <button onClick={onBackToLogin} className="block w-full mt-2 text-white bg-red-500/20 py-1 rounded hover:bg-red-500/40 font-bold underline">
+                      Log In Instead
+                   </button>
+                )}
             </div>
         )}
 
@@ -190,7 +242,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
             isLoading={isLoading}
             className="w-full py-4 mt-2 text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white shadow-lg shadow-orange-900/50 border-0 rounded-xl transition-transform active:scale-[0.98]"
           >
-            Create Account
+            {isLoading ? loadingText || 'Processing...' : 'Sign Up'}
           </Button>
         </form>
 
