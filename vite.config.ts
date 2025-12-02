@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: 'auto', // Changed to auto to ensure PWA Builder detects the SW in index.html
+        injectRegister: 'auto',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg'],
         manifest: {
           name: 'PYQverse: AI Exam Prep',
@@ -33,9 +33,9 @@ export default defineConfig(({ mode }) => {
           prefer_related_applications: false,
           iarc_rating_id: "e84b072d-71b3-4d3e-86ae-31a8ce02a73d",
           related_applications: [],
-          // Ensure 'tabbed' and 'window-controls-overlay' are explicitly defined
           display_override: ["window-controls-overlay", "tabbed", "minimal-ui", "standalone", "browser"],
-          // Define scope extensions for associated domains
+          
+          // SCOPE EXTENSIONS: Allows your PWA to capture navigation to these domains
           scope_extensions: [
             {
               origin: "https://pyqverse.vercel.app"
@@ -44,6 +44,7 @@ export default defineConfig(({ mode }) => {
               origin: "https://pyqverse.web.app"
             }
           ],
+          
           launch_handler: {
             client_mode: ["navigate-existing", "auto"]
           },
@@ -63,29 +64,20 @@ export default defineConfig(({ mode }) => {
               url: "url"
             }
           },
-          file_handlers: [
+          shortcuts: [
             {
-              action: "/?action=import",
-              accept: {
-                "application/json": [".json", ".pyq"],
-                "text/csv": [".csv"]
-              },
-              icons: [
-                {
-                  src: "/icon.svg",
-                  sizes: "512x512",
-                  type: "image/svg+xml"
-                }
-              ],
-              launch_type: "single-client"
+              name: "Start Practice",
+              short_name: "Practice",
+              url: "/?action=practice",
+              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
+            },
+            {
+              name: "Doubt Solver",
+              short_name: "Doubts",
+              url: "/?action=upload",
+              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
             }
           ],
-          edge_side_panel: {
-             preferred_width: 480
-          },
-          note_taking: {
-            new_note_url: "/?action=upload"
-          },
           icons: [
             {
               src: "/icon.svg",
@@ -115,38 +107,9 @@ export default defineConfig(({ mode }) => {
               form_factor: "wide",
               label: "Desktop Dashboard"
             }
-          ],
-          shortcuts: [
-            {
-              name: "Start Practice",
-              short_name: "Practice",
-              url: "/?action=practice",
-              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
-            },
-            {
-              name: "Doubt Solver",
-              short_name: "Doubts",
-              url: "/?action=upload",
-              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
-            }
-          ],
-          widgets: [
-            {
-                name: "Question of the Day",
-                short_name: "QOTD",
-                description: "Daily exam practice question",
-                icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }],
-                screenshots: [{ src: "https://placehold.co/400x400/5B2EFF/ffffff.png?text=QOTD", sizes: "400x400", type: "image/png", label: "Widget Preview" }],
-                tag: "qotd",
-                template: "widget-template.json",
-                ms_ac_template: "widget-template.json",
-                data: "widget-data.json",
-                type: "application/json"
-            }
           ]
         } as any,
         workbox: {
-          // Import the custom service worker logic for Push, Sync, etc.
           importScripts: ['/custom-sw-logic.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
           navigateFallback: '/index.html',
@@ -168,20 +131,6 @@ export default defineConfig(({ mode }) => {
               }
             },
             {
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'gstatic-fonts-cache',
-                expiration: {
-                  maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
-                }
-              }
-            },
-            {
               urlPattern: ({ request }) => request.destination === 'image',
               handler: 'CacheFirst',
               options: {
@@ -190,13 +139,6 @@ export default defineConfig(({ mode }) => {
                   maxEntries: 50,
                   maxAgeSeconds: 30 * 24 * 60 * 60,
                 },
-              },
-            },
-            {
-              urlPattern: ({ request }) => request.destination === 'script' || request.destination === 'style',
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'assets-cache',
               },
             }
           ]

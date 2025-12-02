@@ -1,40 +1,49 @@
 
-// Custom Service Worker logic imported by the main SW
+// Custom Service Worker logic for Advanced PWA Features
 
 // 1. Push Notifications
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'PYQverse Update';
+  let data = { title: 'PYQverse Update', body: 'New study material available.', url: '/' };
+  
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
   const options = {
-    body: data.body || 'New study material available.',
+    body: data.body,
     icon: '/icon.svg',
     badge: '/icon.svg',
-    data: data.url || '/',
+    data: data.url,
     vibrate: [100, 50, 100],
     actions: [
-      { action: 'open', title: 'Open App' },
-      { action: 'close', title: 'Close' }
+      { action: 'open', title: 'Open App' }
     ]
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+
+  event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
+// 2. Notification Click Handler
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
-  if (event.action === 'close') return;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Open the URL in the notification data
       const urlToOpen = event.notification.data || '/';
       
+      // If the app is already open, focus it
       for (const client of clientList) {
-        // If a window is already open, focus it
         if (client.url.includes(self.location.origin) && 'focus' in client) {
-          return client.navigate(urlToOpen).then(c => c.focus());
+          return client.focus().then((c) => {
+             return c.navigate ? c.navigate(urlToOpen) : c;
+          });
         }
       }
+      // Otherwise open a new window
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }
@@ -42,18 +51,19 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// 2. Background Sync
+// 3. Background Sync
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-user-data') {
+    // Logic to sync offline data (e.g., cached analytics) would go here
     console.log('[SW] Background Sync triggered: sync-user-data');
-    // Logic to sync offline data would go here
   }
 });
 
-// 3. Periodic Sync
+// 4. Periodic Sync
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'daily-content-update') {
     console.log('[SW] Periodic Sync triggered: daily-content-update');
-    // Logic to fetch new content in background
+    // Logic to fetch new questions in background could go here
+    // event.waitUntil(updateContent());
   }
 });

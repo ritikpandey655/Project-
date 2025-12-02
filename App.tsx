@@ -91,6 +91,42 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // --- PWA Advanced Registration (Sync, Periodic Sync, Notifications) ---
+  useEffect(() => {
+    const registerPWAFeatures = async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+
+          // 1. Periodic Sync Registration
+          // @ts-ignore
+          if ('periodicSync' in registration && !await registration.periodicSync.getTags().then(tags => tags.includes('daily-content-update'))) {
+            try {
+               // @ts-ignore
+               await registration.periodicSync.register('daily-content-update', {
+                  minInterval: 24 * 60 * 60 * 1000 // 1 day
+               });
+               console.log('Periodic Sync registered');
+            } catch (e) {
+               console.log('Periodic Sync could not be registered', e);
+            }
+          }
+
+          // 2. Background Sync Registration
+          if ('sync' in registration) {
+             // @ts-ignore
+             await registration.sync.register('sync-user-data');
+          }
+
+        } catch (error) {
+          console.log("PWA Service Worker features registration failed", error);
+        }
+      }
+    };
+    
+    registerPWAFeatures();
+  }, []);
+
   // Helper to load async user data
   const loadUserData = useCallback(async (userId: string) => {
     const userProfile = await getUser(userId);
@@ -188,6 +224,14 @@ const App: React.FC = () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, [loadUserData]);
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      try {
+        await Notification.requestPermission();
+      } catch (e) { console.error(e); }
+    }
+  };
 
   const navigateTo = useCallback((view: ViewState) => {
     // Instant navigation
@@ -446,7 +490,7 @@ const App: React.FC = () => {
         onLogout={handleLogout}
         onInstall={handleInstallClick}
         canInstall={!!installPrompt}
-        onEnableNotifications={() => {}}
+        onEnableNotifications={requestNotificationPermission}
       />
 
       {state.view !== 'tutorial' && (
@@ -483,7 +527,7 @@ const App: React.FC = () => {
             onStartCurrentAffairs={handleCurrentAffairs}
             onReadCurrentAffairs={handleReadCurrentAffairs}
             onReadNotes={handleFetchNotes}
-            onEnableNotifications={() => {}}
+            onEnableNotifications={requestNotificationPermission}
             language={state.language}
             onToggleLanguage={toggleLanguage}
             currentTheme={state.theme}
