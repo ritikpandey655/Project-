@@ -44,19 +44,8 @@ export const getUser = async (userId: string): Promise<User | null> => {
 export const getAllUsers = async (): Promise<User[]> => {
   try {
     const snapshot = await db.collection("users").get();
-    // Explicitly map doc.id ensuring 'id' is present even if not in the document body
-    // Also provide defaults for name/email if missing to prevent blank rows
-    return snapshot.docs.map((doc: any) => {
-        const d = doc.data();
-        return {
-          ...d,
-          id: doc.id,
-          name: d.name || 'Unknown User',
-          email: d.email || 'No Email'
-        };
-    }) as User[];
+    return snapshot.docs.map((doc: any) => doc.data() as User);
   } catch (e) {
-    console.error("Error fetching all users:", e);
     return [];
   }
 };
@@ -156,14 +145,10 @@ export const getGlobalStats = async () => {
   try {
     const qSnap = await db.collection("global_questions").get();
     const uSnap = await db.collection("users").get();
-    // In a real app, query 'lastActiveDate' range. Here we simulate ~20% activity if date not tracked globally
-    const totalUsers = uSnap.size;
-    const activeUsers = Math.ceil(totalUsers * 0.2) + 1; // At least you are active
-    
     return {
        totalQuestions: qSnap.size,
-       totalUsers: totalUsers,
-       activeUsers: activeUsers
+       totalUsers: uSnap.size,
+       activeUsers: Math.floor(uSnap.size * 0.7) // Mock active count
     };
   } catch(e) {
     return { totalQuestions: 0, totalUsers: 0, activeUsers: 0 };
