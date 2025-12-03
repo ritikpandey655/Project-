@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -15,12 +16,70 @@
     <!-- Google Search Console Verification -->
     <meta name="google-site-verification" content="L3rCDAWQpbGNAOIsteCbHlWU7dcmONSbw3fPI8IWRts" />
 
+    <!-- Schema Markup for Google Rich Results & Site Identity -->
+    <script type="application/ld+json">
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "PYQverse",
+        "headline": "All exams ka pura universe",
+        "operatingSystem": "Web, Android, iOS",
+        "applicationCategory": "EducationalApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "INR"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "ratingCount": "1250"
+        },
+        "description": "AI-powered Exam Prep for UPSC, SSC, JEE, NEET. Practice unlimited questions, get instant solutions, and track your progress.",
+        "image": "https://pyqverse.in/icon.svg",
+        "screenshot": "https://pyqverse.in/icon.svg"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "PYQverse",
+        "alternateName": ["PYQverse App", "PYQverse.in", "Exam Pilot"],
+        "url": "https://pyqverse.in/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://pyqverse.in/?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "PYQverse",
+        "url": "https://pyqverse.in/",
+        "logo": "https://pyqverse.in/icon.svg",
+        "sameAs": [
+          "https://www.instagram.com/pyqverse",
+          "https://twitter.com/pyqverse",
+          "https://www.linkedin.com/company/pyqverse"
+        ]
+      }
+    ]
+    </script>
+
     <!-- Open Graph / Facebook / WhatsApp -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PYQverse" />
     <meta property="og:url" content="https://pyqverse.in/" />
     <meta property="og:title" content="PYQverse | All exams ka pura universe" />
     <meta property="og:description" content="AI-powered Exam Prep for UPSC, SSC, JEE, NEET. Practice unlimited questions, get instant solutions, and track your progress." />
     <meta property="og:image" content="https://pyqverse.in/icon.svg" />
+    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
@@ -31,6 +90,7 @@
     
     <!-- Apple Support & Icons -->
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="alternate icon" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

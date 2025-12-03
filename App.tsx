@@ -41,13 +41,14 @@ import { SmartAnalytics } from './components/SmartAnalytics';
 import { Leaderboard } from './components/Leaderboard';
 import { CurrentAffairsFeed } from './components/CurrentAffairsFeed';
 import { PYQLibrary } from './components/PYQLibrary';
+import { LandingPage } from './components/LandingPage';
 import { auth } from './src/firebaseConfig';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
-    view: 'login',
+    view: 'landing', // Default to landing
     selectedExam: null,
     stats: INITIAL_STATS,
     user: null,
@@ -228,7 +229,8 @@ const App: React.FC = () => {
       if (currentUser) {
         loadUserData(currentUser.uid).then(() => setIsAppInitializing(false));
       } else {
-        setState(prev => ({ ...prev, user: null, view: 'login' }));
+        // Change view to 'landing' if user is not logged in
+        setState(prev => ({ ...prev, user: null, view: 'landing' }));
         setIsAppInitializing(false);
       }
     });
@@ -311,7 +313,7 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, view }));
     setIsSidebarOpen(false);
     
-    if (!['practice', 'paperView', 'paperGenerator'].includes(view)) {
+    if (!['practice', 'paperView', 'paperGenerator', 'landing', 'login', 'signup'].includes(view)) {
        localStorage.setItem(LAST_VIEW_KEY, view);
     }
   }, []);
@@ -521,7 +523,8 @@ const App: React.FC = () => {
      });
   }, [state.selectedExam, navigateTo]);
 
-  // Auth Views (Simplified render)
+  // View Routing
+  if (state.view === 'landing') return <LandingPage onLogin={() => navigateTo('login')} onSignup={() => navigateTo('signup')} />;
   if (state.view === 'login') return <LoginScreen onLogin={handleLogin} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} isInitializing={isAppInitializing} />;
   if (state.view === 'signup') return <SignupScreen onSignup={handleSignup} onBackToLogin={() => navigateTo('login')} />;
   if (state.view === 'forgotPassword') return <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />;

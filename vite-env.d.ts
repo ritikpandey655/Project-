@@ -1,29 +1,4 @@
-
-// Asset declarations
-declare module '*.png' {
-  const pngSrc: string
-  export default pngSrc
-}
-
-declare module '*.jpg' {
-  const jpgSrc: string
-  export default jpgSrc
-}
-
-declare module '*.jpeg' {
-  const jpegSrc: string
-  export default jpegSrc
-}
-
-declare module '*.svg' {
-  const svgSrc: string
-  export default svgSrc
-}
-
-declare module '*.ico' {
-  const icoSrc: string
-  export default icoSrc
-}
+/// <reference types="vite/client" />
 
 // PWA Install Prompt Event
 interface BeforeInstallPromptEvent extends Event {
