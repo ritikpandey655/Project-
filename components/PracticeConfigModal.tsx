@@ -10,6 +10,7 @@ interface PracticeConfigModalProps {
   onClose: () => void;
   onExamChange: (exam: ExamType) => void;
   isPro?: boolean;
+  isAdmin?: boolean;
   onUpgrade?: () => void;
   availableExams?: string[];
 }
@@ -20,6 +21,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
   onClose, 
   onExamChange, 
   isPro, 
+  isAdmin,
   onUpgrade,
   availableExams = []
 }) => {
@@ -84,10 +86,10 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
         </div>
 
         <div className="space-y-5">
-          {/* Exam Selection - Unlocked for Free users, Locked for Pro (per user request to allow changes until subscribed) */}
+          {/* Exam Selection - Unlocked for Free users and Admin, Locked for Pro (unless Admin) */}
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Target Exam</label>
-            {isPro ? (
+            {isPro && !isAdmin ? (
                 <div className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold flex items-center gap-2">
                     <span>🔒</span> {examType}
                 </div>

@@ -278,11 +278,23 @@ const App: React.FC = () => {
        setIsLoading(false); 
        navigateTo('practice'); 
        
-       generateExamQuestions(exam, config.subject, config.count - initialBatch.length, 'Medium', config.topic ? [config.topic] : [])
-       .then(moreQuestions => {
-          setPracticeQueue(prev => [...prev, ...moreQuestions]);
-       });
+       // If official questions are scarce (e.g. NEET user uploaded only 2), 
+       // immediately trigger AI to fill the buffer so user doesn't hit end.
+       if (initialBatch.length < 5 || config.count > initialBatch.length) {
+           const needed = config.count - initialBatch.length;
+           // Fetch in background but update state when ready
+           generateExamQuestions(exam, config.subject, needed, 'Medium', config.topic ? [config.topic] : [])
+           .then(moreQuestions => {
+              // Append new questions, filtering duplicates
+              setPracticeQueue(prev => {
+                  const existingIds = new Set(prev.map(q => q.id));
+                  const uniqueMore = moreQuestions.filter(q => !existingIds.has(q.id));
+                  return [...prev, ...uniqueMore];
+              });
+           });
+       }
     } else {
+       // No official questions at all, force AI immediately
        const questions = await generateExamQuestions(
           exam, 
           config.subject, 
@@ -302,11 +314,16 @@ const App: React.FC = () => {
     if (!state.user || !exam) return;
     const nextIndex = currentQIndex + 1;
     
+    // Improved endless mode trigger
     if (practiceConfig.mode === 'endless' && nextIndex >= practiceQueue.length - 3 && !isFetchingMore) {
         setIsFetchingMore(true);
         generateExamQuestions(exam, practiceConfig.subject, 5, 'Medium', practiceConfig.topic ? [practiceConfig.topic] : [])
         .then(moreQs => {
-            setPracticeQueue(prev => [...prev, ...moreQs]);
+            setPracticeQueue(prev => {
+                const existingIds = new Set(prev.map(q => q.id));
+                const uniqueMore = moreQs.filter(q => !existingIds.has(q.id));
+                return [...prev, ...uniqueMore];
+            });
             setIsFetchingMore(false);
         });
     }
@@ -620,6 +637,7 @@ const App: React.FC = () => {
           onClose={() => setShowPracticeConfig(false)} 
           onExamChange={handleExamSelect} 
           isPro={state.user?.isPro} 
+          isAdmin={state.user?.isAdmin}
           onUpgrade={() => { setShowPracticeConfig(false); setShowPaymentModal(true); }}
           availableExams={Object.keys(state.examConfig || EXAM_SUBJECTS)}
         />

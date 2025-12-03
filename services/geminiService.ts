@@ -4,18 +4,32 @@ import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsIt
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions, getOfficialNews } from "./storageService";
 
-// Initialize Client-side Gemini
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize Client-side Gemini safely
+const apiKey = process.env.API_KEY || "dummy-key-to-prevent-crash";
+if (!process.env.API_KEY) {
+    console.warn("⚠️ API_KEY is missing. AI generation will fallback to mock data.");
+}
+const ai = new GoogleGenAI({ apiKey });
 
 // Helpers
 const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 const cleanJson = (text: string) => {
   if (!text) return "[]";
-  const match = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-  let cleaned = match ? match[0] : text;
-  cleaned = cleaned.replace(/```json/g, '').replace(/```/g, '').trim();
-  return cleaned;
+  // Attempt to find JSON array or object within markdown code blocks or raw text
+  const match = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  let cleaned = match ? match[1] || match[0] : text;
+  
+  // Remove any trailing text that might be search citations
+  const endBracket = cleaned.lastIndexOf(']');
+  const endBrace = cleaned.lastIndexOf('}');
+  const lastChar = Math.max(endBracket, endBrace);
+  
+  if (lastChar !== -1) {
+      cleaned = cleaned.substring(0, lastChar + 1);
+  }
+  
+  return cleaned.trim();
 };
 
 // Common Config for Educational Content
@@ -89,25 +103,29 @@ export const generateExamQuestions = async (
   if (officialQs.length >= count) return officialQs;
   
   const remainingCount = count - officialQs.length;
+  // Cap at 10 for speed
+  const fetchCount = Math.min(remainingCount, 10); 
   
   // 2. Client-side Generation
   try {
       const prompt = `
-          You are an expert examiner for ${exam}. 
-          Generate ${remainingCount} HIGH-ACCURACY multiple-choice questions for subject: ${subject}.
-          ${topics.length > 0 ? `Focus Topics: ${topics.join(', ')}` : 'Topics: Standard Syllabus Coverage'}
-          STRICT RULES:
-          1. QUESTIONS MUST BE SOLVABLE and Factual.
-          2. OPTIONS: Must be distinct and unambiguous.
-          3. EXPLANATION: Provide step-by-step verification.
-          Output strictly JSON array.
+          Act as a strict Examiner for ${exam}.
+          Generate ${fetchCount} highly accurate, solvable MCQs for subject: ${subject}.
+          ${topics.length > 0 ? `Topics: ${topics.join(', ')}` : 'Topics: Core Syllabus'}
+          
+          CRITICAL RULES:
+          1. NO FAKE QUESTIONS. Verify facts internally.
+          2. Difficulty: ${difficulty}.
+          3. Format: Return a raw JSON Array.
+          4. Ensure 4 distinct options.
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-flash', // Using latest Flash model
         contents: prompt,
         config: {
           ...commonConfig,
+          systemInstruction: `You are a strict academic AI for Indian Exams (${exam}). Do not hallucinate. If unsure, do not generate. Return valid JSON.`,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.ARRAY,
@@ -117,12 +135,10 @@ export const generateExamQuestions = async (
                 text: { type: Type.STRING },
                 text_hi: { type: Type.STRING },
                 options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
                 correctIndex: { type: Type.INTEGER },
                 explanation: { type: Type.STRING },
                 explanation_hi: { type: Type.STRING },
                 type: { type: Type.STRING },
-                answer: { type: Type.STRING },
                 tags: { type: Type.ARRAY, items: { type: Type.STRING } }
               },
               required: ['text', 'options', 'correctIndex', 'explanation']
@@ -133,6 +149,10 @@ export const generateExamQuestions = async (
 
       const jsonStr = cleanJson(response.text || "[]");
       const aiData = JSON.parse(jsonStr);
+
+      if (!Array.isArray(aiData) || aiData.length === 0) {
+          throw new Error("Empty AI Response");
+      }
 
       const aiQuestions = aiData.map((q: any) => ({
           ...q,
@@ -149,7 +169,15 @@ export const generateExamQuestions = async (
 
   } catch (e) {
       console.warn("AI Generation Failed, using Fallback:", e);
-      return [...officialQs, ...(MOCK_QUESTIONS_FALLBACK as unknown as Question[])];
+      const needed = count - officialQs.length;
+      const fallback = MOCK_QUESTIONS_FALLBACK.slice(0, needed).map(q => ({
+          ...q, 
+          id: generateId('fallback'), 
+          examType: exam as ExamType,
+          subject: subject
+      })) as unknown as Question[];
+      
+      return [...officialQs, ...fallback];
   }
 };
 
@@ -159,19 +187,16 @@ export const generatePYQList = async (
   year: number,
   topic?: string
 ): Promise<Question[]> => {
-  // Hybrid Check
   const allOfficial = await getOfficialQuestions(exam, subject, 50);
   const officialPYQs = allOfficial.filter(q => q.pyqYear === year);
   if (officialPYQs.length >= 5) return officialPYQs;
 
   try {
       const prompt = `
-          Simulate 15 high-yield questions based on the ${year} ${exam} exam pattern for ${subject}.
+          Simulate 10 authentic questions for ${year} ${exam} (${subject}).
           ${topic ? `Focus Topic: ${topic}` : ''}
-          STRICT ACCURACY RULES:
-          1. If exact PYQ text is restricted, generate a 'Concept Twin'.
-          2. Maintain the exact difficulty level of ${year}.
-          3. Output strictly JSON array.
+          Strictly adhere to the exam pattern of ${year}.
+          Return JSON Array.
       `;
 
       const response = await ai.models.generateContent({
@@ -225,42 +250,50 @@ export const generateCurrentAffairs = async (
   if (officialCA.length >= count) return officialCA;
 
   try {
-      const prompt = `Generate ${count - officialCA.length} High-Quality Current Affairs MCQs for ${exam}. Period: Recent. Output strictly JSON array.`;
+      const fetchCount = Math.min(count - officialCA.length, 10);
+      const prompt = `
+        Search for ${fetchCount} LATEST & REAL Current Affairs news items relevant to Indian Competitive Exams (${exam}).
+        Based on these search results, generate ${fetchCount} high-quality MCQs.
+        
+        CRITICAL RULES:
+        1. NO FAKE NEWS. Use the search results provided.
+        2. Questions must be factual and recent.
+        3. Return strictly a JSON Array inside a markdown code block.
+        
+        JSON Structure:
+        [
+          {
+            "text": "Question text...",
+            "text_hi": "Hindi translation...",
+            "options": ["A", "B", "C", "D"],
+            "options_hi": ["A_hi", "B_hi", "C_hi", "D_hi"],
+            "correctIndex": 0, 
+            "explanation": "Detailed explanation...",
+            "explanation_hi": "Hindi explanation...",
+            "tags": ["Tag1"]
+          }
+        ]
+      `;
       
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           ...commonConfig,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    text: { type: Type.STRING },
-                    text_hi: { type: Type.STRING },
-                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    correctIndex: { type: Type.INTEGER },
-                    explanation: { type: Type.STRING },
-                    explanation_hi: { type: Type.STRING },
-                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ['text', 'options', 'correctIndex']
-            }
-          } as Schema
+          tools: [{ googleSearch: {} }], // ENABLE SEARCH for Truth
+          // NOTE: responseMimeType JSON is NOT supported with Search tools. We must parse text manually.
         }
       });
 
-      const aiData = JSON.parse(cleanJson(response.text || "[]"));
+      const text = response.text || "[]";
+      const aiData = JSON.parse(cleanJson(text));
 
       const aiQs = aiData.map((q: any) => ({
           id: generateId('ca-q'),
           text: q.text,
-          textHindi: q.text_hi,
+          textHindi: q.text_hi || q.text,
           options: q.options,
-          optionsHindi: q.options_hi,
+          optionsHindi: q.options_hi || q.options,
           correctIndex: q.correctIndex,
           explanation: q.explanation,
           explanationHindi: q.explanation_hi,
@@ -274,7 +307,9 @@ export const generateCurrentAffairs = async (
 
       return [...officialCA, ...aiQs];
   } catch (e) {
-      return officialCA;
+      console.error("CA Generation Failed:", e);
+      // Fallback only if search fails entirely
+      return officialCA.length > 0 ? officialCA : MOCK_QUESTIONS_FALLBACK as unknown as Question[];
   }
 };
 
@@ -287,41 +322,45 @@ export const generateNews = async (
   const officialNews = await getOfficialNews(category, month, year);
   
   try {
-      const prompt = `Retrieve 8 REAL, VERIFIED Current Affairs events for ${exam} preparation. Period: ${month} ${year}. Category: ${category}. STRICTLY NO FAKE DATES. Output JSON array with headline, summary, date.`;
+      const prompt = `
+        Search for REAL verified news events for ${exam} preparation. 
+        Period: ${month} ${year}. Category: ${category}.
+        
+        Strictly extract 8 REAL events from the search results.
+        NO FAKE DATES. NO HALLUCINATIONS.
+        
+        Return a JSON Array inside a markdown code block.
+        Structure:
+        [
+          {
+            "headline": "Title...",
+            "headline_hi": "Hindi Title...",
+            "summary": "Short description...",
+            "summary_hi": "Hindi description...",
+            "category": "Category",
+            "date": "DD Month YYYY"
+          }
+        ]
+      `;
       
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           ...commonConfig,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    headline: { type: Type.STRING },
-                    headline_hi: { type: Type.STRING },
-                    summary: { type: Type.STRING },
-                    summary_hi: { type: Type.STRING },
-                    category: { type: Type.STRING },
-                    date: { type: Type.STRING },
-                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ['headline', 'summary']
-            }
-          } as Schema
+          tools: [{ googleSearch: {} }] // ENABLE SEARCH for Truth
         }
       });
 
-      const aiData = JSON.parse(cleanJson(response.text || "[]"));
+      const text = response.text || "[]";
+      const aiData = JSON.parse(cleanJson(text));
 
       const aiNews = aiData.map((n: any) => ({
           id: generateId('news'),
           headline: n.headline,
-          headlineHindi: n.headline_hi,
+          headlineHindi: n.headline_hi || n.headline,
           summary: n.summary,
-          summaryHindi: n.summary_hi,
+          summaryHindi: n.summary_hi || n.summary,
           category: n.category || category || 'General',
           date: n.date || `${month} ${year}`,
           tags: n.tags || []
@@ -329,6 +368,7 @@ export const generateNews = async (
 
       return [...officialNews, ...aiNews];
   } catch (e) {
+      console.error("News Generation Failed:", e);
       return officialNews;
   }
 };
@@ -395,6 +435,7 @@ export const generateSingleQuestion = async (
         contents: prompt,
         config: {
           ...commonConfig,
+          systemInstruction: "You are an expert tutor. Verify facts before generating.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,

@@ -167,7 +167,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               <p className="text-slate-500 dark:text-slate-400 text-sm mb-3">{email}</p>
               
               {/* Exam Selector / Badge */}
-              {!user.isPro ? (
+              {!user.isPro || user.isAdmin ? (
                  <div className="mt-3 relative">
                     <select 
                       value={selectedExam}
@@ -186,7 +186,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 </span>
               )}
               
-              {user.isPro && (
+              {user.isPro && !user.isAdmin && (
                  <p className="text-[10px] text-amber-500 mt-2 font-bold flex items-center gap-1">
                    <span>🔒</span> Exam locked due to Pro Plan
                  </p>

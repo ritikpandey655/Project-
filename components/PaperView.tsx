@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { QuestionPaper, QuestionType, ExamResult } from '../types';
 import { Button } from './Button';
@@ -319,67 +318,76 @@ export const PaperView: React.FC<PaperViewProps> = ({
             >
                {isSaved ? '✔' : '📥'}
             </button>
-            <Button onClick={() => setShowSubmitConfirm(true)} size="sm" variant="primary">Submit</Button>
+            <Button onClick={() => setShowSubmitConfirm(true)} size="sm" variant="primary" className="hidden sm:inline-flex">Submit</Button>
          </div>
       </div>
 
       {/* Questions Content */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 max-w-4xl mx-auto w-full">
-         {paper.sections.map((section) => (
-            <div key={section.id} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-               <div className="mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
-                  <h3 className="font-bold text-lg text-indigo-700 dark:text-indigo-400">{section.title}</h3>
-                  <p className="text-xs text-slate-500">{section.instructions}</p>
-               </div>
-               
-               <div className="space-y-8">
-                  {section.questions.map((q, idx) => {
-                     const displayText = (localLang === 'hi' && q.textHindi) ? q.textHindi : q.text;
-                     return (
-                        <div key={q.id} className="group">
-                           <div className="flex gap-4">
-                              <span className="font-bold text-slate-400 dark:text-slate-500 text-lg select-none">{idx + 1}.</span>
-                              <div className="flex-1">
-                                 <p className="font-medium text-slate-800 dark:text-white text-lg mb-4 leading-relaxed">{displayText}</p>
-                                 
-                                 {q.type === QuestionType.MCQ ? (
-                                    <div className="space-y-3">
-                                       {q.options.map((opt, i) => (
-                                          <label 
-                                            key={i} 
-                                            className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                                               answers[q.id] === opt 
-                                               ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' 
-                                               : 'border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-slate-600'
-                                            }`}
-                                          >
-                                             <input 
-                                               type="radio" 
-                                               name={q.id} 
-                                               checked={answers[q.id] === opt} 
-                                               onChange={() => handleAnswerChange(q.id, opt)}
-                                               className="w-5 h-5 text-indigo-600 focus:ring-indigo-500"
-                                             />
-                                             <span className="text-slate-700 dark:text-slate-300">{opt}</span>
-                                          </label>
-                                       ))}
-                                    </div>
-                                 ) : (
-                                    <textarea 
-                                      placeholder="Type your answer here..." 
-                                      className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none h-32"
-                                      value={answers[q.id] || ''}
-                                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                                    />
-                                 )}
-                              </div>
-                           </div>
-                        </div>
-                     );
-                  })}
-               </div>
-            </div>
-         ))}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-4xl mx-auto w-full">
+         <div className="space-y-8 pb-10">
+            {paper.sections.map((section) => (
+                <div key={section.id} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div className="mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
+                    <h3 className="font-bold text-lg text-indigo-700 dark:text-indigo-400">{section.title}</h3>
+                    <p className="text-xs text-slate-500">{section.instructions}</p>
+                </div>
+                
+                <div className="space-y-8">
+                    {section.questions.map((q, idx) => {
+                        const displayText = (localLang === 'hi' && q.textHindi) ? q.textHindi : q.text;
+                        return (
+                            <div key={q.id} className="group">
+                            <div className="flex gap-4">
+                                <span className="font-bold text-slate-400 dark:text-slate-500 text-lg select-none">{idx + 1}.</span>
+                                <div className="flex-1">
+                                    <p className="font-medium text-slate-800 dark:text-white text-lg mb-4 leading-relaxed">{displayText}</p>
+                                    
+                                    {q.type === QuestionType.MCQ ? (
+                                        <div className="space-y-3">
+                                        {q.options.map((opt, i) => (
+                                            <label 
+                                                key={i} 
+                                                className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                                                answers[q.id] === opt 
+                                                ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' 
+                                                : 'border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-slate-600'
+                                                }`}
+                                            >
+                                                <input 
+                                                type="radio" 
+                                                name={q.id} 
+                                                checked={answers[q.id] === opt} 
+                                                onChange={() => handleAnswerChange(q.id, opt)}
+                                                className="w-5 h-5 text-indigo-600 focus:ring-indigo-500"
+                                                />
+                                                <span className="text-slate-700 dark:text-slate-300">{opt}</span>
+                                            </label>
+                                        ))}
+                                        </div>
+                                    ) : (
+                                        <textarea 
+                                        placeholder="Type your answer here..." 
+                                        className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none h-32"
+                                        value={answers[q.id] || ''}
+                                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                </div>
+            ))}
+         </div>
+
+         {/* Bottom Submit Button */}
+         <div className="flex justify-center pb-20 pt-6">
+            <Button onClick={() => setShowSubmitConfirm(true)} className="w-full max-w-sm py-4 text-lg font-bold shadow-xl">
+               Submit Exam
+            </Button>
+         </div>
       </div>
 
       {/* Confirmation Modal */}
