@@ -75,18 +75,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   useEffect(() => {
     loadAllData();
     checkServer();
-    const interval = setInterval(checkServer, 30000); // Check every 30s
+    const interval = setInterval(checkServer, 10000); // Check every 10s for more responsive updates
     return () => clearInterval(interval);
   }, []);
 
   const checkServer = async () => {
-    if (serverStatus === 'offline') setServerStatus('checking');
+    // Note: Don't set status to 'checking' here to avoid UI flickering, just update latency/status on result
     const start = Date.now();
     try {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 5000);
       
-      const res = await fetch('/api/health', { signal: controller.signal });
+      // Add timestamp to prevent caching
+      const res = await fetch(`/api/health?t=${start}`, { signal: controller.signal });
       clearTimeout(id);
       
       const latency = Date.now() - start;
@@ -103,15 +104,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-        const u = await getAllUsers();
+        // Parallel fetch for speed
+        const [u, s, q, t, e] = await Promise.all([
+            getAllUsers(),
+            getGlobalStats(),
+            getAdminQuestions(),
+            getTransactions(),
+            getExamConfig()
+        ]);
+
         setUsers(u); setFilteredUsers(u);
-        const s = await getGlobalStats();
         setStats(s);
-        const q = await getAdminQuestions();
         setQuestions(q); setFilteredQuestions(q);
-        const t = await getTransactions();
         setTransactions(t);
-        const e = await getExamConfig();
         setExamConfig(e);
         if (Object.keys(e).length > 0) setUploadExam(Object.keys(e)[0]);
     } catch (e) {
@@ -290,13 +295,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                <div>
                   <p className="text-xs font-bold uppercase text-slate-500">Backend Status</p>
                   <p className={`font-bold text-sm ${serverStatus === 'online' ? 'text-green-600' : 'text-red-500'}`}>
-                    {serverStatus === 'online' ? `Online (${serverLatency}ms)` : 'Disconnected / Offline'}
+                    {serverStatus === 'online' ? (
+                        `Online • ${serverLatency !== null ? serverLatency + 'ms' : '...'}`
+                    ) : 'Disconnected / Offline'}
                   </p>
                </div>
             </div>
             <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={checkServer}>
-                   Refresh Status
+                   Ping Server
                 </Button>
                 <Button size="sm" variant="secondary" onClick={loadAllData} isLoading={isLoading}>
                    Sync Data
@@ -306,15 +313,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Total Users</h3>
-                <p className="text-4xl font-extrabold text-slate-800 dark:text-white mt-2">{users.length}</p>
+                <p className="text-4xl font-extrabold text-slate-800 dark:text-white mt-2">
+                    {isLoading ? <span className="text-2xl opacity-50">Loading...</span> : users.length}
+                </p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Questions</h3>
-                <p className="text-4xl font-extrabold text-brand-purple mt-2">{questions.length}</p>
+                <p className="text-4xl font-extrabold text-brand-purple mt-2">
+                    {isLoading ? <span className="text-2xl opacity-50">Loading...</span> : questions.length}
+                </p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Transactions</h3>
-                <p className="text-4xl font-extrabold text-green-600 dark:text-green-400 mt-2">{transactions.length}</p>
+                <p className="text-4xl font-extrabold text-green-600 dark:text-green-400 mt-2">
+                    {isLoading ? <span className="text-2xl opacity-50">Loading...</span> : transactions.length}
+                </p>
             </div>
         </div>
     </div>
@@ -325,21 +338,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         <h3 className="font-bold text-lg dark:text-white mb-4">User Management</h3>
         <input type="text" placeholder="Search..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="w-full p-2 mb-4 border rounded dark:bg-slate-900 dark:text-white" />
         <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-                <thead><tr className="text-slate-500 border-b"><th className="p-2">Name</th><th className="p-2">Email</th><th className="p-2">Action</th></tr></thead>
-                <tbody>
-                    {filteredUsers.map(u => (
-                        <tr key={u.id} className="border-b dark:border-slate-700 dark:text-slate-300">
-                            <td className="p-2 font-bold">{u.name}</td>
-                            <td className="p-2">{u.email}</td>
-                            <td className="p-2 flex gap-2">
-                                <button onClick={() => handleTogglePro(u.id, !!u.isPro)} className="text-indigo-500 font-bold">{u.isPro ? 'Un-Pro' : 'Make Pro'}</button>
-                                <button onClick={() => handleDeleteUser(u.id)} className="text-red-500">Delete</button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            {isLoading ? (
+                <div className="p-8 text-center text-slate-500">Loading users...</div>
+            ) : filteredUsers.length === 0 ? (
+                <div className="p-8 text-center text-slate-500">No users found. (Check database permissions)</div>
+            ) : (
+                <table className="w-full text-left text-sm">
+                    <thead><tr className="text-slate-500 border-b"><th className="p-2">Name</th><th className="p-2">Email</th><th className="p-2">Action</th></tr></thead>
+                    <tbody>
+                        {filteredUsers.map(u => (
+                            <tr key={u.id} className="border-b dark:border-slate-700 dark:text-slate-300">
+                                <td className="p-2 font-bold">{u.name}</td>
+                                <td className="p-2">{u.email}</td>
+                                <td className="p-2 flex gap-2">
+                                    <button onClick={() => handleTogglePro(u.id, !!u.isPro)} className="text-indigo-500 font-bold">{u.isPro ? 'Un-Pro' : 'Make Pro'}</button>
+                                    <button onClick={() => handleDeleteUser(u.id)} className="text-red-500">Delete</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
         </div>
     </div>
   );

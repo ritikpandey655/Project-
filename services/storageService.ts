@@ -56,6 +56,7 @@ export const getAllUsers = async (): Promise<User[]> => {
     const snapshot = await db.collection("users").get();
     return snapshot.docs.map((doc: any) => doc.data() as User);
   } catch (e) {
+    console.error("getAllUsers Failed (Check Firestore Rules):", e);
     return [];
   }
 };
@@ -172,6 +173,7 @@ export const getGlobalStats = async () => {
        activeUsers: activeCount
     };
   } catch(e) {
+    console.error("Global Stats Failed:", e);
     return { totalQuestions: 0, totalUsers: 0, activeUsers: 0 };
   }
 };
@@ -220,7 +222,7 @@ export const getTransactions = async (): Promise<Transaction[]> => {
     const snapshot = await db.collection("transactions").get();
     return snapshot.docs.map((d: any) => d.data() as Transaction);
   } catch (e) {
-    // Return mock if empty
+    // Return mock if empty or permission failed
     return [
       { id: 'tx-1', userId: 'u1', userName: 'Rohan', amount: 199, planId: 'monthly', status: 'SUCCESS', date: Date.now() - 100000, method: 'UPI' },
       { id: 'tx-2', userId: 'u2', userName: 'Anjali', amount: 1499, planId: 'yearly', status: 'SUCCESS', date: Date.now() - 500000, method: 'Card' },
