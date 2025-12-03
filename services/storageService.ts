@@ -1,5 +1,4 @@
 
-
 import { db } from "../src/firebaseConfig";
 import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction } from '../types';
 import { ExamType } from '../types';
@@ -177,9 +176,14 @@ export const getGlobalStats = async () => {
   }
 };
 
-// --- DYNAMIC EXAM CONFIG ---
+// --- DYNAMIC EXAM CONFIG (TANK MODE CACHING) ---
 
 export const saveExamConfig = async (config: Record<string, string[]>): Promise<void> => {
+  // Update local cache immediately for speed
+  try {
+    localStorage.setItem('cached_exam_config', JSON.stringify(config));
+  } catch(e) {}
+
   try {
     await db.collection("settings").doc("exams").set({ config });
   } catch (e) {}
@@ -187,14 +191,26 @@ export const saveExamConfig = async (config: Record<string, string[]>): Promise<
 
 export const getExamConfig = async (): Promise<Record<string, string[]>> => {
   try {
+    // Try Network First
     const docSnap = await db.collection("settings").doc("exams").get();
     if (docSnap.exists) {
-      return docSnap.data()?.config;
+      const config = docSnap.data()?.config;
+      // Update Cache
+      localStorage.setItem('cached_exam_config', JSON.stringify(config));
+      return config;
     }
-    return EXAM_SUBJECTS as unknown as Record<string, string[]>;
   } catch (e) {
-    return EXAM_SUBJECTS as unknown as Record<string, string[]>;
+    // Fail silently to cache
   }
+
+  // Fallback to Cache
+  try {
+    const cached = localStorage.getItem('cached_exam_config');
+    if (cached) return JSON.parse(cached);
+  } catch(e) {}
+
+  // Final Fallback
+  return EXAM_SUBJECTS as unknown as Record<string, string[]>;
 };
 
 // --- TRANSACTIONS ---

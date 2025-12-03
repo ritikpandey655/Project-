@@ -21,6 +21,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'exams' | 'upload' | 'questions' | 'payments'>('dashboard');
   const [stats, setStats] = useState<any>(null);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [serverLatency, setServerLatency] = useState<number | null>(null);
   
   // Data States
   const [users, setUsers] = useState<User[]>([]);
@@ -74,22 +75,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   useEffect(() => {
     loadAllData();
     checkServer();
+    const interval = setInterval(checkServer, 30000); // Check every 30s
+    return () => clearInterval(interval);
   }, []);
 
   const checkServer = async () => {
-    setServerStatus('checking');
+    if (serverStatus === 'offline') setServerStatus('checking');
+    const start = Date.now();
     try {
-      // Small timeout to prevent hanging
       const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 3000);
+      const id = setTimeout(() => controller.abort(), 5000);
       
       const res = await fetch('/api/health', { signal: controller.signal });
       clearTimeout(id);
       
+      const latency = Date.now() - start;
+      setServerLatency(latency);
+
       if (res.ok) setServerStatus('online');
       else setServerStatus('offline');
     } catch (e) {
       setServerStatus('offline');
+      setServerLatency(null);
     }
   };
 
@@ -114,7 +121,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     }
   };
 
-  // ... (Keep existing filtering effects and handler functions same as before) ...
   useEffect(() => {
     const lower = userSearch.toLowerCase();
     setFilteredUsers(users.filter(u => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower)));
@@ -273,30 +279,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setIsSubmitting(false);
   };
 
-  // Render Helpers (Simplified for brevity, same structure as before)
   const renderDashboard = () => (
     <div className="space-y-6 animate-fade-in">
         <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-3">
-               <div className={`w-3 h-3 rounded-full ${serverStatus === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+               <div className={`relative w-4 h-4 flex items-center justify-center`}>
+                  <div className={`absolute w-full h-full rounded-full opacity-75 animate-ping ${serverStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <div className={`relative w-3 h-3 rounded-full ${serverStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+               </div>
                <div>
                   <p className="text-xs font-bold uppercase text-slate-500">Backend Status</p>
                   <p className={`font-bold text-sm ${serverStatus === 'online' ? 'text-green-600' : 'text-red-500'}`}>
-                    {serverStatus === 'online' ? 'Online & Ready' : 'Disconnected / Offline'}
+                    {serverStatus === 'online' ? `Online (${serverLatency}ms)` : 'Disconnected / Offline'}
                   </p>
-                  {serverStatus === 'offline' && (
-                     <p className="text-[10px] text-red-400 mt-1">
-                        Run <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">npm run server</code> in a new terminal.
-                     </p>
-                  )}
                </div>
             </div>
             <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={checkServer}>
-                   {serverStatus === 'checking' ? 'Checking...' : 'Retry Connection'}
+                   Refresh Status
                 </Button>
                 <Button size="sm" variant="secondary" onClick={loadAllData} isLoading={isLoading}>
-                   Refresh Data
+                   Sync Data
                 </Button>
             </div>
         </div>
@@ -317,9 +320,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     </div>
   );
 
-  // Keep other render methods (renderUsers, renderExams, renderUpload, etc.) exactly as they were in the previous file version.
-  // Assuming full content replacement, I will paste the full structure below for safety.
-  
   const renderUsers = () => (
     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
         <h3 className="font-bold text-lg dark:text-white mb-4">User Management</h3>
