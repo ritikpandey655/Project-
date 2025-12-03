@@ -18,8 +18,6 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'exams' | 'upload' | 'questions' | 'payments'>('dashboard');
-  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
-  const [serverLatency, setServerLatency] = useState<number | null>(null);
   
   // Data States
   const [users, setUsers] = useState<User[]>([]);
@@ -72,31 +70,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   // Load Data
   useEffect(() => {
     loadAllData();
-    checkServer();
-    const interval = setInterval(checkServer, 5000); // Check every 5s for live updates
-    return () => clearInterval(interval);
   }, []);
-
-  const checkServer = async () => {
-    const start = Date.now();
-    try {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 5000);
-      
-      // Timestamp prevents caching
-      const res = await fetch(`/api/health?t=${start}`, { signal: controller.signal });
-      clearTimeout(id);
-      
-      const latency = Date.now() - start;
-      setServerLatency(latency);
-
-      if (res.ok) setServerStatus('online');
-      else setServerStatus('offline');
-    } catch (e) {
-      setServerStatus('offline');
-      setServerLatency(null);
-    }
-  };
 
   const loadAllData = async () => {
     setIsLoading(true);
@@ -279,37 +253,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setIsSubmitting(false);
   };
 
-  const getLatencyColor = (ms: number | null) => {
-      if (ms === null) return 'text-slate-500';
-      if (ms < 200) return 'text-green-600';
-      if (ms < 1500) return 'text-amber-500'; // Covers 1212ms
-      return 'text-red-600';
-  };
-
   const renderDashboard = () => (
     <div className="space-y-6 animate-fade-in">
         <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-4">
-               <div className={`relative w-4 h-4 flex items-center justify-center`}>
-                  <div className={`absolute w-full h-full rounded-full opacity-75 animate-ping ${serverStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <div className={`relative w-3 h-3 rounded-full ${serverStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-               </div>
                <div>
-                  <p className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Server Latency</p>
+                  <p className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Status</p>
                   <div className="flex items-center gap-2">
-                    <p className={`font-mono font-bold text-lg ${getLatencyColor(serverLatency)}`}>
-                        {serverLatency !== null ? `${serverLatency}ms` : '---'}
-                    </p>
-                    <span className="text-xs text-slate-400">
-                        {serverStatus === 'online' ? '● Connected' : '○ Offline'}
-                    </span>
+                    <p className="font-bold text-green-600">Client-Side Mode</p>
                   </div>
                </div>
             </div>
             <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={checkServer}>
-                   Ping
-                </Button>
                 <Button size="sm" variant="secondary" onClick={loadAllData} isLoading={isLoading}>
                    Sync DB
                 </Button>

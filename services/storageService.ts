@@ -1,5 +1,9 @@
 
 import { db } from "../src/firebaseConfig";
+import { 
+  collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, 
+  query, where, limit, addDoc 
+} from "firebase/firestore";
 import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction } from '../types';
 import { ExamType } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
@@ -18,7 +22,7 @@ export const INITIAL_STATS: UserStats = {
 
 export const saveUser = async (user: User): Promise<void> => {
   try {
-    await db.collection("users").doc(user.id).set(user, { merge: true });
+    await setDoc(doc(db, "users", user.id), user, { merge: true });
   } catch (e) {
     console.error("Error saving user:", e);
   }
@@ -26,7 +30,7 @@ export const saveUser = async (user: User): Promise<void> => {
 
 export const updateUserActivity = async (userId: string): Promise<void> => {
   try {
-    await db.collection("users").doc(userId).update({
+    await updateDoc(doc(db, "users", userId), {
       lastSeen: Date.now()
     });
   } catch (e) {
@@ -36,16 +40,12 @@ export const updateUserActivity = async (userId: string): Promise<void> => {
 
 export const getUser = async (userId: string): Promise<User | null> => {
   try {
-    const docSnap = await db.collection("users").doc(userId).get();
-    if (docSnap.exists) {
+    const docSnap = await getDoc(doc(db, "users", userId));
+    if (docSnap.exists()) {
       return docSnap.data() as User;
     }
     return null;
   } catch (e) {
-    // This catches "Missing or insufficient permissions" which happens
-    // when a user is logged in but not yet verified, and rules deny access.
-    // Returning null allows the app to handle this as "user data not loaded" 
-    // rather than crashing, eventually leading to the VerifyScreen.
     console.warn("Error getting user profile (Permission/Network issue):", e);
     return null; 
   }
@@ -53,8 +53,8 @@ export const getUser = async (userId: string): Promise<User | null> => {
 
 export const getAllUsers = async (): Promise<User[]> => {
   try {
-    const snapshot = await db.collection("users").get();
-    return snapshot.docs.map((doc: any) => doc.data() as User);
+    const snapshot = await getDocs(collection(db, "users"));
+    return snapshot.docs.map((doc) => doc.data() as User);
   } catch (e) {
     console.error("getAllUsers Failed (Check Firestore Rules):", e);
     return [];
@@ -63,7 +63,7 @@ export const getAllUsers = async (): Promise<User[]> => {
 
 export const removeUser = async (userId: string): Promise<void> => {
   try {
-    await db.collection("users").doc(userId).delete();
+    await deleteDoc(doc(db, "users", userId));
   } catch (e) {
     console.error("Error removing user:", e);
   }
@@ -71,7 +71,7 @@ export const removeUser = async (userId: string): Promise<void> => {
 
 export const toggleUserPro = async (userId: string, currentStatus: boolean): Promise<void> => {
   try {
-    await db.collection("users").doc(userId).update({ isPro: !currentStatus });
+    await updateDoc(doc(db, "users", userId), { isPro: !currentStatus });
   } catch (e) {}
 };
 
@@ -79,7 +79,7 @@ export const toggleUserPro = async (userId: string, currentStatus: boolean): Pro
 
 export const saveUserQuestion = async (userId: string, question: Question): Promise<void> => {
   try {
-    await db.collection("users").doc(userId).collection("questions").doc(question.id).set(question);
+    await setDoc(doc(db, "users", userId, "questions", question.id), question);
   } catch (e) {
     console.error("Error saving question:", e);
   }
@@ -87,8 +87,8 @@ export const saveUserQuestion = async (userId: string, question: Question): Prom
 
 export const getUserQuestions = async (userId: string): Promise<Question[]> => {
   try {
-    const snapshot = await db.collection("users").doc(userId).collection("questions").get();
-    return snapshot.docs.map((doc: any) => doc.data() as Question);
+    const snapshot = await getDocs(collection(db, "users", userId, "questions"));
+    return snapshot.docs.map((doc) => doc.data() as Question);
   } catch (e) {
     console.error("Error fetching questions:", e);
     return [];
@@ -99,7 +99,7 @@ export const getUserQuestions = async (userId: string): Promise<Question[]> => {
 
 export const saveAdminQuestion = async (question: Question): Promise<void> => {
   try {
-    await db.collection("global_questions").doc(question.id).set(question);
+    await setDoc(doc(db, "global_questions", question.id), question);
   } catch (e) {
     console.error("Error uploading admin question:", e);
   }
@@ -107,24 +107,26 @@ export const saveAdminQuestion = async (question: Question): Promise<void> => {
 
 export const deleteGlobalQuestion = async (id: string): Promise<void> => {
   try {
-    await db.collection("global_questions").doc(id).delete();
+    await deleteDoc(doc(db, "global_questions", id));
   } catch (e) {}
 };
 
 export const getOfficialQuestions = async (exam: string, subject: string, count: number): Promise<Question[]> => {
   try {
     // Basic query
-    let q = db.collection("global_questions")
-      .where("examType", "==", exam)
-      .where("moderationStatus", "==", "APPROVED")
-      .limit(50);
+    let constraints = [
+      where("examType", "==", exam),
+      where("moderationStatus", "==", "APPROVED"),
+      limit(50)
+    ];
 
     if (subject !== 'Mixed') {
-      q = q.where("subject", "==", subject);
+      constraints.push(where("subject", "==", subject));
     }
 
-    const snapshot = await q.get();
-    const all = snapshot.docs.map((d: any) => d.data() as Question);
+    const q = query(collection(db, "global_questions"), ...constraints);
+    const snapshot = await getDocs(q);
+    const all = snapshot.docs.map((d) => d.data() as Question);
     
     // Shuffle client-side for randomness since Firestore random sort is complex
     return all.sort(() => 0.5 - Math.random()).slice(0, count);
@@ -136,8 +138,8 @@ export const getOfficialQuestions = async (exam: string, subject: string, count:
 
 export const getAdminQuestions = async (): Promise<Question[]> => {
   try {
-    const snapshot = await db.collection("global_questions").get();
-    return snapshot.docs.map((d: any) => d.data() as Question);
+    const snapshot = await getDocs(collection(db, "global_questions"));
+    return snapshot.docs.map((d) => d.data() as Question);
   } catch (e) {
     console.error("Error fetching admin questions:", e);
     return [];
@@ -146,7 +148,7 @@ export const getAdminQuestions = async (): Promise<Question[]> => {
 
 export const updateAdminQuestionStatus = async (id: string, status: string): Promise<void> => {
   try {
-    await db.collection("global_questions").doc(id).update({ moderationStatus: status });
+    await updateDoc(doc(db, "global_questions", id), { moderationStatus: status });
   } catch (e) {
     console.error("Error updating question status:", e);
   }
@@ -154,13 +156,13 @@ export const updateAdminQuestionStatus = async (id: string, status: string): Pro
 
 export const getGlobalStats = async () => {
   try {
-    const qSnap = await db.collection("global_questions").get();
-    const uSnap = await db.collection("users").get();
+    const qSnap = await getDocs(collection(db, "global_questions"));
+    const uSnap = await getDocs(collection(db, "users"));
     
     // Calculate REAL Active Users (active in last 7 days)
     const now = Date.now();
     let activeCount = 0;
-    uSnap.forEach((doc: any) => {
+    uSnap.forEach((doc) => {
        const data = doc.data();
        if (data.lastSeen && (now - data.lastSeen) < (7 * 24 * 60 * 60 * 1000)) {
           activeCount++;
@@ -187,15 +189,15 @@ export const saveExamConfig = async (config: Record<string, string[]>): Promise<
   } catch(e) {}
 
   try {
-    await db.collection("settings").doc("exams").set({ config });
+    await setDoc(doc(db, "settings", "exams"), { config });
   } catch (e) {}
 };
 
 export const getExamConfig = async (): Promise<Record<string, string[]>> => {
   try {
     // Try Network First
-    const docSnap = await db.collection("settings").doc("exams").get();
-    if (docSnap.exists) {
+    const docSnap = await getDoc(doc(db, "settings", "exams"));
+    if (docSnap.exists()) {
       const config = docSnap.data()?.config;
       // Update Cache
       localStorage.setItem('cached_exam_config', JSON.stringify(config));
@@ -219,8 +221,8 @@ export const getExamConfig = async (): Promise<Record<string, string[]>> => {
 
 export const getTransactions = async (): Promise<Transaction[]> => {
   try {
-    const snapshot = await db.collection("transactions").get();
-    return snapshot.docs.map((d: any) => d.data() as Transaction);
+    const snapshot = await getDocs(collection(db, "transactions"));
+    return snapshot.docs.map((d) => d.data() as Transaction);
   } catch (e) {
     // Return mock if empty or permission failed
     return [
@@ -233,7 +235,7 @@ export const getTransactions = async (): Promise<Transaction[]> => {
 
 export const saveTransaction = async (transaction: Transaction): Promise<void> => {
   try {
-    await db.collection("transactions").doc(transaction.id).set(transaction);
+    await setDoc(doc(db, "transactions", transaction.id), transaction);
   } catch (e) {
     console.error("Error saving transaction:", e);
   }
@@ -243,7 +245,7 @@ export const saveTransaction = async (transaction: Transaction): Promise<void> =
 
 export const saveAdminNews = async (news: NewsItem): Promise<void> => {
   try {
-    await db.collection("global_news").doc(news.id).set(news);
+    await setDoc(doc(db, "global_news", news.id), news);
   } catch (e) {
     console.error("Error saving news:", e);
   }
@@ -251,18 +253,14 @@ export const saveAdminNews = async (news: NewsItem): Promise<void> => {
 
 export const getOfficialNews = async (category?: string, month?: string, year?: number): Promise<NewsItem[]> => {
   try {
-    let q = db.collection("global_news");
-    
-    // Note: Firestore v8 Query building is slightly different, cannot reassign 'q' type easily if strict,
-    // but in JS/loose TS it works.
-    let query: any = q;
-
+    let constraints = [];
     if (category && category !== 'All') {
-      query = query.where("category", "==", category);
+      constraints.push(where("category", "==", category));
     }
     
-    const snapshot = await query.get();
-    const allNews = snapshot.docs.map((d: any) => d.data() as NewsItem);
+    const q = query(collection(db, "global_news"), ...constraints);
+    const snapshot = await getDocs(q);
+    const allNews = snapshot.docs.map((d) => d.data() as NewsItem);
     
     return allNews.filter((n: NewsItem) => {
        if (!month || !year) return true;
@@ -278,14 +276,14 @@ export const getOfficialNews = async (category?: string, month?: string, year?: 
 
 export const toggleBookmark = async (userId: string, question: Question): Promise<boolean> => {
   try {
-    const bookmarkRef = db.collection("users").doc(userId).collection("bookmarks").doc(question.id);
-    const docSnap = await bookmarkRef.get();
+    const bookmarkRef = doc(db, "users", userId, "bookmarks", question.id);
+    const docSnap = await getDoc(bookmarkRef);
     
-    if (docSnap.exists) {
-      await bookmarkRef.delete();
+    if (docSnap.exists()) {
+      await deleteDoc(bookmarkRef);
       return false; // Removed
     } else {
-      await bookmarkRef.set({ ...question, isBookmarked: true });
+      await setDoc(bookmarkRef, { ...question, isBookmarked: true });
       return true; // Added
     }
   } catch (e) {
@@ -296,8 +294,8 @@ export const toggleBookmark = async (userId: string, question: Question): Promis
 
 export const getBookmarks = async (userId: string): Promise<Question[]> => {
   try {
-    const snapshot = await db.collection("users").doc(userId).collection("bookmarks").get();
-    return snapshot.docs.map((d: any) => d.data() as Question);
+    const snapshot = await getDocs(collection(db, "users", userId, "bookmarks"));
+    return snapshot.docs.map((d) => d.data() as Question);
   } catch (e) {
     return [];
   }
@@ -307,9 +305,9 @@ export const getBookmarks = async (userId: string): Promise<Question[]> => {
 
 export const getStats = async (userId: string): Promise<UserStats> => {
   try {
-    const docRef = db.collection("users").doc(userId).collection("data").doc("stats");
-    const docSnap = await docRef.get();
-    if (docSnap.exists) return docSnap.data() as UserStats;
+    const docRef = doc(db, "users", userId, "data", "stats");
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) return docSnap.data() as UserStats;
     return { ...INITIAL_STATS };
   } catch (e) {
     return { ...INITIAL_STATS };
@@ -344,8 +342,8 @@ export const updateStats = async (userId: string, isCorrect: boolean, subject: s
     stats.subjectPerformance[subject].total += 1;
     if (isCorrect) stats.subjectPerformance[subject].correct += 1;
 
-    const statsRef = db.collection("users").doc(userId).collection("data").doc("stats");
-    await statsRef.set(stats);
+    const statsRef = doc(db, "users", userId, "data", "stats");
+    await setDoc(statsRef, stats);
   } catch (e) {
     console.error("Stats update failed", e);
   }
@@ -373,9 +371,9 @@ const DEFAULT_PREFS: UserPrefs = {
 
 export const getUserPref = async (userId: string): Promise<UserPrefs> => {
   try {
-    const docRef = db.collection("users").doc(userId).collection("data").doc("prefs");
-    const docSnap = await docRef.get();
-    if (docSnap.exists) return { ...DEFAULT_PREFS, ...docSnap.data() };
+    const docRef = doc(db, "users", userId, "data", "prefs");
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) return { ...DEFAULT_PREFS, ...docSnap.data() };
     return { ...DEFAULT_PREFS };
   } catch (e) {
     return { ...DEFAULT_PREFS };
@@ -384,8 +382,8 @@ export const getUserPref = async (userId: string): Promise<UserPrefs> => {
 
 export const saveUserPref = async (userId: string, newPrefs: Partial<UserPrefs>): Promise<void> => {
   try {
-    const prefRef = db.collection("users").doc(userId).collection("data").doc("prefs");
-    await prefRef.set(newPrefs, { merge: true });
+    const prefRef = doc(db, "users", userId, "data", "prefs");
+    await setDoc(prefRef, newPrefs, { merge: true });
   } catch (e) {
     console.error("Pref save failed", e);
   }
@@ -396,9 +394,9 @@ export const saveUserPref = async (userId: string, newPrefs: Partial<UserPrefs>)
 export const getStoredQOTD = async (userId: string): Promise<Question | null> => {
   // QOTD is usually global, but if stored per user:
   try {
-    const docRef = db.collection("users").doc(userId).collection("data").doc("qotd");
-    const docSnap = await docRef.get();
-    if(docSnap.exists) {
+    const docRef = doc(db, "users", userId, "data", "qotd");
+    const docSnap = await getDoc(docRef);
+    if(docSnap.exists()) {
        const data = docSnap.data();
        const today = new Date().toISOString().split('T')[0];
        if(data?.date === today) return data.question;
@@ -410,26 +408,26 @@ export const getStoredQOTD = async (userId: string): Promise<Question | null> =>
 export const saveQOTD = async (userId: string, question: Question) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    await db.collection("users").doc(userId).collection("data").doc("qotd").set({ date: today, question });
+    await setDoc(doc(db, "users", userId, "data", "qotd"), { date: today, question });
   } catch (e) {}
 };
 
 export const saveOfflinePaper = async (userId: string, paper: QuestionPaper): Promise<void> => {
   try {
-    await db.collection("users").doc(userId).collection("offline_papers").doc(paper.id).set(paper);
+    await setDoc(doc(db, "users", userId, "offline_papers", paper.id), paper);
   } catch (e) {}
 };
 
 export const getOfflinePapers = async (userId: string): Promise<QuestionPaper[]> => {
   try {
-    const snapshot = await db.collection("users").doc(userId).collection("offline_papers").get();
-    return snapshot.docs.map((d: any) => d.data() as QuestionPaper);
+    const snapshot = await getDocs(collection(db, "users", userId, "offline_papers"));
+    return snapshot.docs.map((d) => d.data() as QuestionPaper);
   } catch (e) { return []; }
 };
 
 export const removeOfflinePaper = async (userId: string, paperId: string): Promise<void> => {
   try {
-    await db.collection("users").doc(userId).collection("offline_papers").doc(paperId).delete();
+    await deleteDoc(doc(db, "users", userId, "offline_papers", paperId));
   } catch (e) {}
 };
 
@@ -437,14 +435,15 @@ export const removeOfflinePaper = async (userId: string, paperId: string): Promi
 
 export const saveExamResult = async (userId: string, result: ExamResult): Promise<void> => {
   try {
-    await db.collection("users").doc(userId).collection("history").add(result);
+    await addDoc(collection(db, "users", userId, "history"), result);
   } catch (e) {}
 };
 
 export const getExamHistory = async (userId: string): Promise<ExamResult[]> => {
   try {
-    const snapshot = await db.collection("users").doc(userId).collection("history").limit(20).get();
-    return snapshot.docs.map((d: any) => d.data() as ExamResult);
+    const q = query(collection(db, "users", userId, "history"), limit(20));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => d.data() as ExamResult);
   } catch (e) { return []; }
 };
 
@@ -462,7 +461,7 @@ export const getLeaderboardData = async (currentUser: User): Promise<Leaderboard
 // --- FEEDBACK ---
 export const saveFeedback = async (userId: string, message: string, email?: string): Promise<void> => {
   try {
-    await db.collection("feedback").add({
+    await addDoc(collection(db, "feedback"), {
       userId,
       message,
       email: email || 'Anonymous',

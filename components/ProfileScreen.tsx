@@ -4,6 +4,7 @@ import { User, UserStats, ExamType } from '../types';
 import { Button } from './Button';
 import { getUserQuestions, removeUser } from '../services/storageService';
 import { auth } from '../src/firebaseConfig';
+import { deleteUser } from "firebase/auth";
 
 interface ProfileScreenProps {
   user: User;
@@ -98,7 +99,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         
         // 2. Delete Auth User
         if (auth.currentUser) {
-            await auth.currentUser.delete();
+            await deleteUser(auth.currentUser);
         }
         // Redirect handled by onAuthStateChanged in App.tsx
     } catch (error: any) {

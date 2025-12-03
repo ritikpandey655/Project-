@@ -1,7 +1,8 @@
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
-import "firebase/compat/firestore";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getAnalytics, isSupported } from "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDJ48kwjfVfIm6Pi7v8Kc4fgd_PzZilZwY",
@@ -13,19 +14,23 @@ const firebaseConfig = {
   measurementId: "G-C8G91QQYCH"
 };
 
-const firebaseApp: any = firebase;
-const app = !firebaseApp.apps.length ? firebaseApp.initializeApp(firebaseConfig) : firebaseApp.app();
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
-export const auth = firebaseApp.auth();
-export const googleProvider = new firebase.auth.GoogleAuthProvider();
+// Initialize Services
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-// Initialize Firestore with modern persistence settings to prevent deprecation warnings
-initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
+let analytics: any = null;
+isSupported().then((supported) => {
+  if (supported) {
+    analytics = getAnalytics(app);
+  }
+}).catch((err) => {
+  console.log("Firebase Analytics not supported:", err);
 });
 
-export const db = firebaseApp.firestore();
+const googleProvider = new GoogleAuthProvider();
 
-export default firebaseApp;
+export { app, auth, db, analytics, googleProvider };
+export default app;

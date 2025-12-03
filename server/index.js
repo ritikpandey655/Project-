@@ -9,7 +9,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// IMPORTANT: Ensure API_KEY is set. If not, this might throw, so we default to empty to allow server start (requests will fail gracefully).
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -18,7 +19,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // --- RATE LIMITING (TANK MODE SECURITY) ---
 const requestCounts = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 Minute
-const MAX_REQUESTS = 20; // 20 Requests per minute
+const MAX_REQUESTS = 30; // Increased to 30 for smoother testing
 
 const rateLimiter = (req, res, next) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -64,6 +65,16 @@ app.get('/api/health', (req, res) => {
 
 // --- AI ENDPOINTS ---
 
+const commonConfig = {
+    // Disable safety filters to ensure educational content (history, wars, politics) isn't blocked
+    safetySettings: [
+        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+    ]
+};
+
 app.post('/api/ai/questions', async (req, res) => {
   try {
     const { exam, subject, count = 5, mode = 'practice', year, topic } = req.body;
@@ -95,6 +106,7 @@ app.post('/api/ai/questions', async (req, res) => {
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
+          ...commonConfig,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.ARRAY,
@@ -170,6 +182,7 @@ app.post('/api/ai/doubt', async (req, res) => {
       model: 'gemini-2.5-flash',
       contents: contents,
       config: {
+        ...commonConfig,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -244,7 +257,7 @@ app.post('/api/ai/news', async (req, res) => {
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: { responseMimeType: "application/json", responseSchema: responseSchema }
+        config: { ...commonConfig, responseMimeType: "application/json", responseSchema: responseSchema }
     });
 
     res.json({ success: true, data: JSON.parse(cleanJson(response.text)) });
@@ -271,6 +284,7 @@ app.post('/api/ai/paper', async (req, res) => {
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
+            ...commonConfig,
             responseMimeType: "application/json",
             responseSchema: {
                 type: Type.OBJECT,
@@ -326,6 +340,7 @@ app.post('/api/ai/extract', async (req, res) => {
             model: 'gemini-2.5-flash',
             contents: contents,
             config: {
+                ...commonConfig,
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.ARRAY,

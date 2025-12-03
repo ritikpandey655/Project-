@@ -157,15 +157,6 @@ export default defineConfig(({ mode }) => {
   };
 
   return {
-    server: {
-      proxy: {
-        '/api': {
-          target: 'http://127.0.0.1:5000',
-          changeOrigin: true,
-          secure: false,
-        }
-      }
-    },
     plugins: [
       react(),
       VitePWA({
@@ -177,7 +168,7 @@ export default defineConfig(({ mode }) => {
           importScripts: ['/custom-sw-logic.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,txt}'],
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/api/, /^\/auth/],
+          navigateFallbackDenylist: [/^\/auth/],
           cleanupOutdatedCaches: true,
           runtimeCaching: [
             {

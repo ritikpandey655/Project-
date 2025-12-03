@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { User, ExamType } from '../types';
 import { Button } from './Button';
 import { auth, db } from '../src/firebaseConfig';
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import { getExamConfig } from '../services/storageService';
 import { EXAM_SUBJECTS } from '../constants';
 
@@ -50,14 +52,14 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
 
     try {
       // 1. Create Auth User
-      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
       if (firebaseUser) {
           setLoadingText('Setting up Profile...');
           
           // 2. Update Profile Display Name
-          await firebaseUser.updateProfile({ displayName: name });
+          await updateProfile(firebaseUser, { displayName: name });
 
           // 3. Create Firestore User Doc
           const lowerEmail = email.toLowerCase().trim();
@@ -73,9 +75,9 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
           
           // Use set with merge to be safe
           try {
-            await db.collection("users").doc(firebaseUser.uid).set(newUser, { merge: true });
+            await setDoc(doc(db, "users", firebaseUser.uid), newUser, { merge: true });
             // 4. Save Preference (Exam)
-            await db.collection("users").doc(firebaseUser.uid).collection("data").doc("prefs").set({ selectedExam }, { merge: true });
+            await setDoc(doc(db, "users", firebaseUser.uid, "data", "prefs"), { selectedExam }, { merge: true });
           } catch (dbError) {
             console.warn("Firestore profile creation failed (likely permission issue until verified), proceeding with auth flow...", dbError);
           }
@@ -83,7 +85,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
           setLoadingText('Sending Verification Link...');
 
           // 5. Send Verification Email
-          await firebaseUser.sendEmailVerification();
+          await sendEmailVerification(firebaseUser);
           
           // 6. Show Success Screen Immediately
           setIsVerificationSent(true);

@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { Button } from './Button';
 
 interface LoginScreenProps {
@@ -34,17 +36,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
-      const userRef = db.collection("users").doc(firebaseUser.uid);
+      const userRef = doc(db, "users", firebaseUser.uid);
       // Attempt to read first
       let userSnap;
       try {
-        userSnap = await userRef.get();
+        userSnap = await getDoc(userRef);
       } catch (readError) {
-        // PERMISSION ERROR HANDLING
-        // If we can't read the user (e.g. strict rules), assume new user or unverified.
-        // Returning a basic object allows the app to proceed to the Verification Screen instead of crashing.
         console.warn("Could not read user profile (Permission/Network issue):", readError);
-        userSnap = { exists: false, data: () => ({}) };
+        userSnap = { exists: () => false, data: () => ({}) };
       }
       
       const userEmail = firebaseUser.email || "";
@@ -67,23 +66,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       };
 
       // @ts-ignore
-      if (userSnap.exists) {
+      if (userSnap.exists()) {
         // @ts-ignore
         const currentData = userSnap.data();
         // Auto-upgrade admin privileges if email matches
         if (emailToCheck === 'support@pyqverse.in' && !currentData?.isAdmin) {
-            try { await userRef.update({ isAdmin: true }); } catch(e) {}
+            try { await updateDoc(userRef, { isAdmin: true }); } catch(e) {}
             return { ...safeData, isAdmin: true } as User;
         }
         return currentData as User;
       } else {
         // Try to create the user doc if it doesn't exist
         try {
-            await userRef.set(safeData);
+            await setDoc(userRef, safeData);
         } catch (writeError) {
-            // CRITICAL SAFEGUARD: If writing fails (due to rules), simply log and proceed.
-            // This prevents "Permission Denied" from blocking the auth flow, 
-            // allowing App.tsx to see the user and redirect to VerifyEmailScreen.
             console.warn("Could not write user profile (Permission issue):", writeError);
         }
         return safeData as User;
@@ -107,7 +103,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     setError('');
 
     try {
-      const result = await auth.signInWithEmailAndPassword(email, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
       
       if (result.user) {
         // ALLOW unverified login to proceed. 
@@ -140,7 +136,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     setIsLoading(true);
     setError('');
     try {
-      const result = await auth.signInWithPopup(googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
       if (result.user) {
          // Google accounts are inherently verified
          const user = await syncUserToDB(result.user);
