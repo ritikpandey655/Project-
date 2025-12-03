@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "server": "node server/index.js"
+    "server": "node api/index.js"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
