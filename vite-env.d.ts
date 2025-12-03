@@ -1,28 +1,28 @@
 
 // Asset declarations
 declare module '*.png' {
-  const src: string
-  export default src
+  const pngSrc: string
+  export default pngSrc
 }
 
 declare module '*.jpg' {
-  const src: string
-  export default src
+  const jpgSrc: string
+  export default jpgSrc
 }
 
 declare module '*.jpeg' {
-  const src: string
-  export default src
+  const jpegSrc: string
+  export default jpegSrc
 }
 
 declare module '*.svg' {
-  const src: string
-  export default src
+  const svgSrc: string
+  export default svgSrc
 }
 
 declare module '*.ico' {
-  const src: string
-  export default src
+  const icoSrc: string
+  export default icoSrc
 }
 
 // PWA Install Prompt Event

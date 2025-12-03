@@ -67,6 +67,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [newsCategory, setNewsCategory] = useState('National');
   const [newsDate, setNewsDate] = useState(new Date().toISOString().split('T')[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Load Data
   useEffect(() => {
@@ -74,17 +75,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   }, []);
 
   const loadAllData = async () => {
-    const s = await getGlobalStats();
-    setStats(s);
-    const u = await getAllUsers();
-    setUsers(u); setFilteredUsers(u);
-    const q = await getAdminQuestions();
-    setQuestions(q); setFilteredQuestions(q);
-    const t = await getTransactions();
-    setTransactions(t);
-    const e = await getExamConfig();
-    setExamConfig(e);
-    if (Object.keys(e).length > 0) setUploadExam(Object.keys(e)[0]);
+    setIsLoading(true);
+    try {
+        // Fetch users first
+        const u = await getAllUsers();
+        setUsers(u); 
+        setFilteredUsers(u);
+        
+        // Fetch stats (might fail if rules deny, but users array is key)
+        const s = await getGlobalStats();
+        setStats(s);
+        
+        const q = await getAdminQuestions();
+        setQuestions(q); setFilteredQuestions(q);
+        
+        const t = await getTransactions();
+        setTransactions(t);
+        
+        const e = await getExamConfig();
+        setExamConfig(e);
+        if (Object.keys(e).length > 0) setUploadExam(Object.keys(e)[0]);
+    } catch (e) {
+        console.error("Failed to load admin data", e);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   // Filter Effects
@@ -146,7 +161,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const handleSmartAnalyze = async (inputType: 'text' | 'image', data: string) => {
     setIsAnalyzing(true);
     try {
-        // service now returns an ARRAY
         const results = await parseSmartInput(data, inputType, uploadExam);
         if (results && results.length > 0) {
             setBulkQueue(results);
@@ -225,7 +239,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             if (nextIdx < bulkQueue.length) {
                 setCurrentQueueIndex(nextIdx);
                 populateFormWithData(bulkQueue[nextIdx]);
-                // Removed alert to speed up workflow
             } else {
                 alert("All questions in queue saved!");
                 handleResetForm();
@@ -257,18 +270,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   const renderDashboard = () => (
     <div className="space-y-6 animate-fade-in">
+        <div className="flex justify-end">
+            <Button size="sm" variant="secondary" onClick={loadAllData} isLoading={isLoading}>
+               {isLoading ? 'Refreshing...' : 'Refresh Data'}
+            </Button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Total Users</h3>
                 <p className="text-4xl font-extrabold text-slate-800 dark:text-white mt-2">{users.length}</p>
+                <p className="text-xs text-slate-400 mt-1">Registered Accounts</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Questions</h3>
                 <p className="text-4xl font-extrabold text-brand-purple mt-2">{questions.length}</p>
+                <p className="text-xs text-slate-400 mt-1">Global Bank</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Transactions</h3>
                 <p className="text-4xl font-extrabold text-green-600 dark:text-green-400 mt-2">{transactions.length}</p>
+                <p className="text-xs text-slate-400 mt-1">Total Orders</p>
             </div>
         </div>
     </div>
@@ -390,7 +411,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       </div>
   );
 
-  // Simplified renders for other tabs (users, etc.) kept same as before...
   const renderUsers = () => (
     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
         <h3 className="font-bold text-lg dark:text-white mb-4">User Management</h3>

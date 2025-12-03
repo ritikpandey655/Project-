@@ -84,7 +84,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
       } else if (err.code === 'auth/weak-password') {
         setError('Password should be at least 6 characters.');
       } else if (err.code === 'auth/password-does-not-meet-requirements') {
-        setError('Password must contain at least 6 chars, a number, and a symbol.');
+        setError('Password is too simple. Use 6+ chars, a number (0-9), and a symbol (@, #, etc).');
       } else {
         setError(err.message || 'Registration failed');
       }

@@ -117,7 +117,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       }
     } catch (err: any) {
       console.error("Login Error:", err);
-      // Map Firebase errors to user-friendly messages
       const code = err.code;
       if (
         code === 'auth/user-not-found' || 
