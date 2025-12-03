@@ -79,10 +79,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     try {
         // Fetch users first
         const u = await getAllUsers();
-        setUsers(u); 
-        setFilteredUsers(u);
+        // Fallback for visual testing if API returns empty due to permissions
+        const displayUsers = u.length > 0 ? u : []; 
         
-        // Fetch stats (might fail if rules deny, but users array is key)
+        setUsers(displayUsers); 
+        setFilteredUsers(displayUsers);
+        
+        // Fetch stats
         const s = await getGlobalStats();
         setStats(s);
         
@@ -285,10 +288,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 <p className="text-xs text-slate-400 mt-1">Registered Accounts</p>
             </div>
             {/* Active Users Card */}
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 relative overflow-hidden">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Active Today</h3>
                 <p className="text-4xl font-extrabold text-blue-600 dark:text-blue-400 mt-2">{stats?.activeUsers || 0}</p>
                 <p className="text-xs text-slate-400 mt-1">Online Recently</p>
+                <div className="absolute top-4 right-4 w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Questions</h3>
@@ -421,33 +425,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   );
 
   const renderUsers = () => (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <h3 className="font-bold text-lg dark:text-white mb-4">User Management</h3>
+    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 animate-slide-up">
+        <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-4">User Management</h3>
         <input type="text" placeholder="Search by name or email..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="w-full p-2 mb-4 border rounded dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="text-slate-500 border-b dark:border-slate-700">
-                    <th className="p-2">Name</th>
-                    <th className="p-2">Email</th>
-                    <th className="p-2">Action</th>
+                  <tr className="text-slate-500 dark:text-slate-400 border-b dark:border-slate-700">
+                    <th className="p-3">Name</th>
+                    <th className="p-3">Email</th>
+                    <th className="p-3">Action</th>
                   </tr>
                 </thead>
-                <tbody>
-                    {filteredUsers.length === 0 ? (
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    {isLoading ? (
+                       <tr>
+                          <td colSpan={3} className="p-8 text-center">
+                             <div className="flex justify-center items-center gap-2 text-slate-500">
+                                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                Loading users...
+                             </div>
+                          </td>
+                       </tr>
+                    ) : filteredUsers.length === 0 ? (
                         <tr>
-                            <td colSpan={3} className="p-4 text-center text-slate-500 dark:text-slate-400">
+                            <td colSpan={3} className="p-8 text-center text-slate-500 dark:text-slate-400">
+                                <span className="text-2xl block mb-2">🔍</span>
                                 {users.length === 0 ? "No users found in database." : "No matches found."}
                             </td>
                         </tr>
                     ) : (
                         filteredUsers.map(u => (
-                            <tr key={u.id} className="border-b dark:border-slate-700 dark:text-slate-300">
-                                <td className="p-2 font-bold">{u.name || 'N/A'}</td>
-                                <td className="p-2">{u.email || 'N/A'}</td>
-                                <td className="p-2 flex gap-2">
-                                    <button onClick={() => handleTogglePro(u.id, !!u.isPro)} className="text-indigo-500 font-bold hover:underline">{u.isPro ? 'Un-Pro' : 'Make Pro'}</button>
-                                    <button onClick={() => handleDeleteUser(u.id)} className="text-red-500 hover:text-red-600">Delete</button>
+                            <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                <td className="p-3 font-bold text-slate-800 dark:text-white">{u.name || 'User'}</td>
+                                <td className="p-3 text-slate-600 dark:text-slate-300">{u.email || 'No Email'}</td>
+                                <td className="p-3 flex gap-2">
+                                    <button onClick={() => handleTogglePro(u.id, !!u.isPro)} className={`text-xs font-bold px-3 py-1 rounded-full ${u.isPro ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
+                                       {u.isPro ? 'Pro User' : 'Free User'}
+                                    </button>
+                                    <button onClick={() => handleDeleteUser(u.id)} className="text-red-500 hover:bg-red-50 p-1 rounded">🗑️</button>
                                 </td>
                             </tr>
                         ))
