@@ -67,9 +67,18 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   // Content Selection Logic
   const displayHindi = language === 'hi' && question.textHindi;
   const displayText = displayHindi ? question.textHindi : question.text;
-  const displayOptions = (displayHindi && question.optionsHindi && question.optionsHindi.length === question.options.length) 
-    ? question.optionsHindi 
-    : question.options;
+  
+  // Safe Options Array Check
+  let displayOptions: string[] = [];
+  if (Array.isArray(question.options)) {
+      displayOptions = (displayHindi && Array.isArray(question.optionsHindi) && question.optionsHindi.length === question.options.length) 
+        ? question.optionsHindi 
+        : question.options;
+  } else {
+      // Fallback if options is malformed string
+      displayOptions = [];
+  }
+
   const displayExplanation = (displayHindi && question.explanationHindi) 
     ? question.explanationHindi 
     : question.explanation;
@@ -200,7 +209,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
         {/* Options */}
         <div className="px-6 pb-8 space-y-3">
-          {displayOptions.map((option, idx) => {
+          {displayOptions.length > 0 ? displayOptions.map((option, idx) => {
             let stateClass = "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-indigo-200 dark:hover:border-slate-600";
             
             if (isSubmitted) {
@@ -244,7 +253,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 )}
               </button>
             );
-          })}
+          }) : (
+             <div className="p-4 text-center text-slate-500 bg-slate-50 dark:bg-slate-900 rounded-xl">
+                No options available for this question.
+             </div>
+          )}
         </div>
 
         {/* Footer / Explanation */}

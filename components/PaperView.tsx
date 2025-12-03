@@ -100,7 +100,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
     let calculatedScore = 0;
     paper.sections.forEach(section => {
       section.questions.forEach(q => {
-        if (q.type === QuestionType.MCQ) {
+        if (q.type === QuestionType.MCQ && Array.isArray(q.options)) {
           const userAns = answers[q.id];
           if (userAns && userAns === q.options[q.correctIndex]) {
             calculatedScore += (q.marks || section.marksPerQuestion);
@@ -147,7 +147,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
         const userAns = answers[q.id];
         if (userAns) attemptedCount++;
 
-        if (q.type === QuestionType.MCQ) {
+        if (q.type === QuestionType.MCQ && Array.isArray(q.options)) {
           const isCorrect = userAns === q.options[q.correctIndex];
           if (isCorrect) {
             correctCount++;
@@ -342,7 +342,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
                                 <div className="flex-1">
                                     <p className="font-medium text-slate-800 dark:text-white text-lg mb-4 leading-relaxed">{displayText}</p>
                                     
-                                    {q.type === QuestionType.MCQ ? (
+                                    {q.type === QuestionType.MCQ && Array.isArray(q.options) ? (
                                         <div className="space-y-3">
                                         {q.options.map((opt, i) => (
                                             <label 

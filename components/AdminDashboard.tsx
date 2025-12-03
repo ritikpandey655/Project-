@@ -17,7 +17,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'exams' | 'upload' | 'questions' | 'payments'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'exams' | 'upload' | 'questions' | 'payments' | 'settings'>('dashboard');
   
   // Data States
   const [users, setUsers] = useState<User[]>([]);
@@ -67,6 +67,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Settings State
+  const [groqKey, setGroqKey] = useState(localStorage.getItem('groq_api_key') || '');
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'groq'>(
+    (localStorage.getItem('selected_ai_provider') as 'gemini' | 'groq') || 'groq'
+  );
+
   // Load Data
   useEffect(() => {
     loadAllData();
@@ -105,6 +111,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setFilteredQuestions(questions.filter(q => q.text.toLowerCase().includes(lower) || q.subject?.toLowerCase().includes(lower)));
   }, [questionSearch, questions]);
 
+  const handleSaveGroqKey = () => {
+      localStorage.setItem('groq_api_key', groqKey);
+      alert("Groq API Key Saved!");
+  };
+
+  const toggleAIProvider = (provider: 'gemini' | 'groq') => {
+      setAiProvider(provider);
+      localStorage.setItem('selected_ai_provider', provider);
+  };
+
+  // ... (Previous Handlers: handleTogglePro, handleDeleteUser, etc. remain the same)
   const handleTogglePro = async (id: string, current: boolean) => {
     await toggleUserPro(id, current);
     setUsers(prev => prev.map(u => u.id === id ? { ...u, isPro: !u.isPro } : u));
@@ -253,6 +270,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setIsSubmitting(false);
   };
 
+  // ... (Render functions for other tabs remain same)
   const renderDashboard = () => (
     <div className="space-y-6 animate-fade-in">
         <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
@@ -276,21 +294,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 <p className="text-4xl font-extrabold text-slate-800 dark:text-white mt-2">
                     {isLoading ? <span className="text-2xl opacity-50">...</span> : users.length}
                 </p>
-                <p className="text-xs text-slate-400 mt-2">Active Accounts</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Questions</h3>
                 <p className="text-4xl font-extrabold text-brand-purple mt-2">
                     {isLoading ? <span className="text-2xl opacity-50">...</span> : questions.length}
                 </p>
-                <p className="text-xs text-slate-400 mt-2">Global Bank</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Transactions</h3>
                 <p className="text-4xl font-extrabold text-green-600 dark:text-green-400 mt-2">
                     {isLoading ? <span className="text-2xl opacity-50">...</span> : transactions.length}
                 </p>
-                <p className="text-xs text-slate-400 mt-2">Total Revenue</p>
             </div>
         </div>
     </div>
@@ -304,7 +319,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             {isLoading ? (
                 <div className="p-8 text-center text-slate-500">Loading users...</div>
             ) : filteredUsers.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">No users found. (Check Firebase Permissions)</div>
+                <div className="p-8 text-center text-slate-500">No users found.</div>
             ) : (
                 <table className="w-full text-left text-sm">
                     <thead><tr className="text-slate-500 border-b"><th className="p-2">Name</th><th className="p-2">Email</th><th className="p-2">Action</th></tr></thead>
@@ -370,6 +385,77 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     <div className="text-right"><p className="font-bold">₹{t.amount}</p><span className={`text-xs ${t.status==='SUCCESS'?'text-green-500':'text-red-500'}`}>{t.status}</span></div>
                 </div>
             ))}
+        </div>
+    </div>
+  );
+
+  const renderSettings = () => (
+    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+        <h3 className="font-bold text-lg dark:text-white mb-6">System Settings</h3>
+        
+        {/* Groq Key Configuration */}
+        <div className="mb-8 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+            <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 uppercase mb-2">Groq AI Acceleration</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                Enter your Groq API key for ultra-fast generation. 
+                <br/>Get one from <a href="https://console.groq.com/keys" target="_blank" className="text-indigo-500 underline">console.groq.com</a>. 
+                (Enter any name for the key in Groq console).
+            </p>
+            <div className="flex gap-2">
+                <input 
+                    type="password" 
+                    value={groqKey} 
+                    onChange={e => setGroqKey(e.target.value)} 
+                    placeholder="gsk_..." 
+                    className="flex-1 p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700 font-mono text-sm" 
+                />
+                <Button onClick={handleSaveGroqKey} size="sm">Save Key</Button>
+            </div>
+            {localStorage.getItem('groq_api_key') && (
+                <p className="text-green-500 text-xs mt-2 font-bold">✅ Key configured.</p>
+            )}
+        </div>
+
+        {/* AI Provider Switch */}
+        <div className="mb-6">
+            <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 uppercase mb-3">Active AI Provider</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Gemini Option */}
+                <div 
+                    onClick={() => toggleAIProvider('gemini')}
+                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                        aiProvider === 'gemini' 
+                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' 
+                        : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300'
+                    }`}
+                >
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${aiProvider === 'gemini' ? 'border-indigo-600' : 'border-slate-400'}`}>
+                            {aiProvider === 'gemini' && <div className="w-2 h-2 rounded-full bg-indigo-600"></div>}
+                        </div>
+                        <span className="font-bold dark:text-white">Google Gemini</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Standard speed, high reliability. Good for images & search.</p>
+                </div>
+
+                {/* Groq Option */}
+                <div 
+                    onClick={() => toggleAIProvider('groq')}
+                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                        aiProvider === 'groq' 
+                        ? 'border-orange-600 bg-orange-50 dark:bg-orange-900/20' 
+                        : 'border-slate-200 dark:border-slate-700 hover:border-orange-300'
+                    }`}
+                >
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${aiProvider === 'groq' ? 'border-orange-600' : 'border-slate-400'}`}>
+                            {aiProvider === 'groq' && <div className="w-2 h-2 rounded-full bg-orange-600"></div>}
+                        </div>
+                        <span className="font-bold dark:text-white">Groq AI</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Ultra-fast text generation. Requires API Key above.</p>
+                </div>
+            </div>
         </div>
     </div>
   );
@@ -496,7 +582,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           <h1 className="font-bold text-lg">Admin Control</h1>
         </div>
         <div className="flex gap-2 text-sm overflow-x-auto">
-          {['dashboard', 'users', 'exams', 'questions', 'upload', 'payments'].map((tab) => (
+          {['dashboard', 'users', 'exams', 'questions', 'upload', 'payments', 'settings'].map((tab) => (
              <button type="button" key={tab} onClick={() => setActiveTab(tab as any)} className={`px-3 py-1 rounded-lg capitalize ${activeTab === tab ? 'bg-white/20 text-white' : 'text-slate-400 hover:text-white'}`}>{tab}</button>
           ))}
           <div className="w-px bg-white/20 mx-2"></div>
@@ -511,6 +597,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         {activeTab === 'questions' && renderQuestions()}
         {activeTab === 'payments' && renderPayments()}
         {activeTab === 'upload' && renderUpload()}
+        {activeTab === 'settings' && renderSettings()}
       </div>
     </div>
   );

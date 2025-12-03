@@ -120,7 +120,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         code === 'auth/invalid-credential' || 
         code === 'auth/invalid-login-credentials'
       ) {
-         setError('Invalid email or password.');
+         setError('Incorrect Email or Password. Please check and try again.');
       } else if (code === 'auth/too-many-requests') {
          setError('Too many failed attempts. Try again later.');
       } else {

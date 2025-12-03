@@ -1,26 +1,27 @@
-
 import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions, getOfficialNews } from "./storageService";
 
-// Initialize Client-side Gemini safely
-const apiKey = process.env.API_KEY || "dummy-key-to-prevent-crash";
-if (!process.env.API_KEY) {
-    console.warn("⚠️ API_KEY is missing. AI generation will fallback to mock data.");
-}
+// --- CONFIGURATION ---
+// 1. Gemini Client (Default)
+const apiKey = process.env.API_KEY || "dummy-key";
 const ai = new GoogleGenAI({ apiKey });
+
+// 2. Groq Client Helper
+const getGroqKey = () => {
+  // Priority: 1. LocalStorage (User setting) 2. Environment Variable
+  return localStorage.getItem('groq_api_key') || process.env.GROQ_API_KEY || "";
+};
 
 // Helpers
 const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 const cleanJson = (text: string) => {
   if (!text) return "[]";
-  // Attempt to find JSON array or object within markdown code blocks or raw text
   const match = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
   let cleaned = match ? match[1] || match[0] : text;
   
-  // Remove any trailing text that might be search citations
   const endBracket = cleaned.lastIndexOf(']');
   const endBrace = cleaned.lastIndexOf('}');
   const lastChar = Math.max(endBracket, endBrace);
@@ -28,13 +29,16 @@ const cleanJson = (text: string) => {
   if (lastChar !== -1) {
       cleaned = cleaned.substring(0, lastChar + 1);
   }
-  
   return cleaned.trim();
 };
 
-// Common Config for Educational Content
+const safeOptions = (opts: any): string[] => {
+    if (Array.isArray(opts)) return opts;
+    if (typeof opts === 'string') return opts.split(',').map(s => s.trim());
+    return [];
+};
+
 const commonConfig = {
-    // Disable safety filters to ensure educational content (history, wars, politics) isn't blocked
     safetySettings: [
         { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
         { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -43,52 +47,40 @@ const commonConfig = {
     ]
 };
 
-export const parseSmartInput = async (
-  input: string,
-  type: 'text' | 'image',
-  examContext: string
-): Promise<any[]> => {
-  try {
-    const prompt = `Extract all questions from this input for ${examContext}. Return JSON Array. Remove question numbers.`;
-    const contents = { parts: [] as any[] };
-    
-    if(type === 'image') {
-        contents.parts.push({ inlineData: { mimeType: 'image/jpeg', data: input } });
-        contents.parts.push({ text: prompt });
-    } else {
-        contents.parts.push({ text: `${prompt}\n\n${input}` });
-    }
+// --- GROQ API HANDLER (For Super Speed) ---
+const fetchFromGroq = async (prompt: string, model = "llama3-70b-8192"): Promise<any> => {
+    // CHECK USER PREFERENCE: If Admin selected Gemini explicitly, skip Groq
+    const preferredProvider = localStorage.getItem('selected_ai_provider');
+    if (preferredProvider === 'gemini') return null;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: contents,
-        config: {
-            ...commonConfig,
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.ARRAY,
-                items: {
-                    type: Type.OBJECT,
-                    properties: {
-                        text: { type: Type.STRING },
-                        text_hi: { type: Type.STRING },
-                        options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        correct_index: { type: Type.INTEGER },
-                        explanation: { type: Type.STRING },
-                        subject: { type: Type.STRING }
-                    }
-                }
-            } as Schema
-        }
-    });
+    const key = getGroqKey();
+    if (!key) return null;
     
-    return JSON.parse(cleanJson(response.text || "[]"));
-  } catch (e) {
-    console.error("Smart Parse Error:", e);
-    return [];
-  }
+    try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${key}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                messages: [{ role: "user", content: prompt + " Respond ONLY in valid JSON." }],
+                model: model,
+                temperature: 0.3, // Strict facts
+            })
+        });
+        
+        if (!response.ok) throw new Error("Groq API Error");
+        
+        const data = await response.json();
+        return JSON.parse(cleanJson(data.choices[0].message.content));
+    } catch (e) {
+        console.warn("Groq failed, falling back to Gemini", e);
+        return null;
+    }
 };
+
+// --- MAIN GENERATION FUNCTIONS ---
 
 export const generateExamQuestions = async (
   exam: string,
@@ -98,147 +90,104 @@ export const generateExamQuestions = async (
   topics: string[] = []
 ): Promise<Question[]> => {
   
-  // 1. Hybrid: Try Official DB first
+  // 1. Try Official DB
   const officialQs = await getOfficialQuestions(exam, subject, count);
   if (officialQs.length >= count) return officialQs;
   
-  const remainingCount = count - officialQs.length;
-  // Cap at 10 for speed
-  const fetchCount = Math.min(remainingCount, 10); 
-  
-  // 2. Client-side Generation
-  try {
+  const needed = count - officialQs.length;
+  const isNEETorJEE = exam.includes('NEET') || exam.includes('JEE');
+
+  // 2. PARALLEL PROCESSING STRATEGY
+  const batchSize = 5;
+  const batches = Math.ceil(needed / batchSize);
+  const promises = [];
+
+  for (let i = 0; i < batches; i++) {
+      const currentBatchCount = Math.min(batchSize, needed - (i * batchSize));
+      if(currentBatchCount <= 0) continue;
+
+      // PROMPT
       const prompt = `
-          Act as a strict Examiner for ${exam}.
-          Generate ${fetchCount} highly accurate, solvable MCQs for subject: ${subject}.
-          ${topics.length > 0 ? `Topics: ${topics.join(', ')}` : 'Topics: Core Syllabus'}
+          Generate ${currentBatchCount} MCQs for ${exam} (${subject}).
+          ${topics.length > 0 ? `Topic: ${topics.join(', ')}` : 'Topic: Important Chapters'}
           
-          CRITICAL RULES:
-          1. NO FAKE QUESTIONS. Verify facts internally.
+          RULES:
+          1. NO FAKE QUESTIONS. Verify scientifically/historically.
           2. Difficulty: ${difficulty}.
-          3. Format: Return a raw JSON Array.
-          4. Ensure 4 distinct options.
+          3. Format: JSON Array.
+          4. ${isNEETorJEE ? 'Strictly NCERT based.' : 'Standard Exam Pattern.'}
       `;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash', // Using latest Flash model
-        contents: prompt,
-        config: {
-          ...commonConfig,
-          systemInstruction: `You are a strict academic AI for Indian Exams (${exam}). Do not hallucinate. If unsure, do not generate. Return valid JSON.`,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                text: { type: Type.STRING },
-                text_hi: { type: Type.STRING },
-                options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                correctIndex: { type: Type.INTEGER },
-                explanation: { type: Type.STRING },
-                explanation_hi: { type: Type.STRING },
-                type: { type: Type.STRING },
-                tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-              },
-              required: ['text', 'options', 'correctIndex', 'explanation']
+      // EXECUTE: Try Groq first (Speed), then Gemini Parallel (Reliability)
+      const fetchPromise = (async () => {
+          // A. Try Groq (If Key Exists & Enabled)
+          const groqData = await fetchFromGroq(prompt);
+          if (groqData && Array.isArray(groqData)) return groqData;
+
+          // B. Gemini Parallel Call
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+              ...commonConfig,
+              temperature: 0.3,
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    text: { type: Type.STRING },
+                    text_hi: { type: Type.STRING },
+                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    correctIndex: { type: Type.INTEGER },
+                    explanation: { type: Type.STRING },
+                    explanation_hi: { type: Type.STRING },
+                    type: { type: Type.STRING },
+                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+                  },
+                  required: ['text', 'options', 'correctIndex', 'explanation']
+                }
+              } as Schema
             }
-          } as Schema
-        }
+          });
+          const text = response.text || "[]";
+          return JSON.parse(cleanJson(text));
+      })();
+
+      promises.push(fetchPromise);
+  }
+
+  try {
+      const results = await Promise.all(promises);
+      
+      let aiQuestions: Question[] = [];
+      results.flat().forEach((q: any) => {
+          if (q && q.text) {
+              const opts = safeOptions(q.options);
+              if (opts.length > 0) {
+                  aiQuestions.push({
+                      ...q,
+                      id: generateId('ai-q'),
+                      source: QuestionSource.PYQ_AI,
+                      examType: exam as ExamType,
+                      subject: subject,
+                      type: QuestionType.MCQ,
+                      options: opts,
+                      correctIndex: q.correctIndex ?? 0
+                  });
+              }
+          }
       });
 
-      const jsonStr = cleanJson(response.text || "[]");
-      const aiData = JSON.parse(jsonStr);
-
-      if (!Array.isArray(aiData) || aiData.length === 0) {
-          throw new Error("Empty AI Response");
-      }
-
-      const aiQuestions = aiData.map((q: any) => ({
-          ...q,
-          id: generateId('ai-q'),
-          source: QuestionSource.PYQ_AI,
-          examType: exam as ExamType,
-          subject: subject,
-          type: QuestionType.MCQ,
-          options: q.options || [],
-          correctIndex: q.correctIndex ?? 0
-      }));
+      if (aiQuestions.length === 0 && officialQs.length === 0) throw new Error("No Qs generated");
 
       return [...officialQs, ...aiQuestions];
 
   } catch (e) {
-      console.warn("AI Generation Failed, using Fallback:", e);
-      const needed = count - officialQs.length;
-      const fallback = MOCK_QUESTIONS_FALLBACK.slice(0, needed).map(q => ({
-          ...q, 
-          id: generateId('fallback'), 
-          examType: exam as ExamType,
-          subject: subject
-      })) as unknown as Question[];
-      
-      return [...officialQs, ...fallback];
-  }
-};
-
-export const generatePYQList = async (
-  exam: string,
-  subject: string,
-  year: number,
-  topic?: string
-): Promise<Question[]> => {
-  const allOfficial = await getOfficialQuestions(exam, subject, 50);
-  const officialPYQs = allOfficial.filter(q => q.pyqYear === year);
-  if (officialPYQs.length >= 5) return officialPYQs;
-
-  try {
-      const prompt = `
-          Simulate 10 authentic questions for ${year} ${exam} (${subject}).
-          ${topic ? `Focus Topic: ${topic}` : ''}
-          Strictly adhere to the exam pattern of ${year}.
-          Return JSON Array.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          ...commonConfig,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                text: { type: Type.STRING },
-                text_hi: { type: Type.STRING },
-                options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                correctIndex: { type: Type.INTEGER },
-                explanation: { type: Type.STRING },
-                answer: { type: Type.STRING },
-                type: { type: Type.STRING }
-              },
-              required: ['text', 'explanation']
-            }
-          } as Schema
-        }
-      });
-
-      const aiData = JSON.parse(cleanJson(response.text || "[]"));
-      
-      const aiPYQs = aiData.map((q: any) => ({
-          ...q,
-          id: generateId(`pyq-${year}`),
-          source: QuestionSource.PYQ_AI,
-          examType: exam as ExamType,
-          subject: subject,
-          pyqYear: year,
-          type: q.type || (q.options ? QuestionType.MCQ : QuestionType.SHORT_ANSWER)
-      }));
-
-      return [...officialPYQs, ...aiPYQs];
-  } catch (e) {
-      return officialPYQs;
+      console.warn("Generation Failed:", e);
+      if (officialQs.length > 0) return officialQs;
+      return MOCK_QUESTIONS_FALLBACK.map(q => ({...q, id: generateId('fall'), examType: exam as ExamType})) as unknown as Question[];
   }
 };
 
@@ -246,33 +195,16 @@ export const generateCurrentAffairs = async (
   exam: string,
   count: number = 10
 ): Promise<Question[]> => {
+  // Groq cannot search the web, so we MUST use Gemini for News
   const officialCA = await getOfficialQuestions(exam, 'Current Affairs', count);
   if (officialCA.length >= count) return officialCA;
 
   try {
       const fetchCount = Math.min(count - officialCA.length, 10);
       const prompt = `
-        Search for ${fetchCount} LATEST & REAL Current Affairs news items relevant to Indian Competitive Exams (${exam}).
-        Based on these search results, generate ${fetchCount} high-quality MCQs.
-        
-        CRITICAL RULES:
-        1. NO FAKE NEWS. Use the search results provided.
-        2. Questions must be factual and recent.
-        3. Return strictly a JSON Array inside a markdown code block.
-        
-        JSON Structure:
-        [
-          {
-            "text": "Question text...",
-            "text_hi": "Hindi translation...",
-            "options": ["A", "B", "C", "D"],
-            "options_hi": ["A_hi", "B_hi", "C_hi", "D_hi"],
-            "correctIndex": 0, 
-            "explanation": "Detailed explanation...",
-            "explanation_hi": "Hindi explanation...",
-            "tags": ["Tag1"]
-          }
-        ]
+        Search for ${fetchCount} LATEST & REAL Current Affairs news for ${exam} exams (India).
+        Based on results, create ${fetchCount} MCQs.
+        Format: JSON Array of objects with text, options, correctIndex, explanation.
       `;
       
       const response = await ai.models.generateContent({
@@ -280,8 +212,7 @@ export const generateCurrentAffairs = async (
         contents: prompt,
         config: {
           ...commonConfig,
-          tools: [{ googleSearch: {} }], // ENABLE SEARCH for Truth
-          // NOTE: responseMimeType JSON is NOT supported with Search tools. We must parse text manually.
+          tools: [{ googleSearch: {} }],
         }
       });
 
@@ -292,9 +223,9 @@ export const generateCurrentAffairs = async (
           id: generateId('ca-q'),
           text: q.text,
           textHindi: q.text_hi || q.text,
-          options: q.options,
-          optionsHindi: q.options_hi || q.options,
-          correctIndex: q.correctIndex,
+          options: safeOptions(q.options),
+          optionsHindi: safeOptions(q.options_hi || q.options),
+          correctIndex: q.correctIndex || 0,
           explanation: q.explanation,
           explanationHindi: q.explanation_hi,
           source: QuestionSource.PYQ_AI,
@@ -307,321 +238,207 @@ export const generateCurrentAffairs = async (
 
       return [...officialCA, ...aiQs];
   } catch (e) {
-      console.error("CA Generation Failed:", e);
-      // Fallback only if search fails entirely
       return officialCA.length > 0 ? officialCA : MOCK_QUESTIONS_FALLBACK as unknown as Question[];
   }
 };
 
-export const generateNews = async (
-  exam: string,
-  month?: string,
-  year?: number,
-  category?: string
-): Promise<NewsItem[]> => {
-  const officialNews = await getOfficialNews(category, month, year);
-  
+export const parseSmartInput = async (input: string, type: 'text' | 'image', examContext: string): Promise<any[]> => {
+  // Groq is great for text parsing
+  if (type === 'text') {
+      const groqResp = await fetchFromGroq(`Extract questions from this text for ${examContext}. Return JSON Array. Text: ${input}`);
+      if (groqResp) return groqResp;
+  }
+
   try {
-      const prompt = `
-        Search for REAL verified news events for ${exam} preparation. 
-        Period: ${month} ${year}. Category: ${category}.
-        
-        Strictly extract 8 REAL events from the search results.
-        NO FAKE DATES. NO HALLUCINATIONS.
-        
-        Return a JSON Array inside a markdown code block.
-        Structure:
-        [
-          {
-            "headline": "Title...",
-            "headline_hi": "Hindi Title...",
-            "summary": "Short description...",
-            "summary_hi": "Hindi description...",
-            "category": "Category",
-            "date": "DD Month YYYY"
-          }
-        ]
-      `;
-      
+    const prompt = `Extract questions from input for ${examContext}. Return JSON Array.`;
+    const contents = { parts: [] as any[] };
+    if(type === 'image') {
+        contents.parts.push({ inlineData: { mimeType: 'image/jpeg', data: input } });
+        contents.parts.push({ text: prompt });
+    } else {
+        contents.parts.push({ text: `${prompt}\n\n${input}` });
+    }
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: contents,
+        config: { ...commonConfig, responseMimeType: "application/json" }
+    });
+    return JSON.parse(cleanJson(response.text || "[]"));
+  } catch (e) { return []; }
+};
+
+export const generateNews = async (exam: string, month?: string, year?: number, category?: string): Promise<NewsItem[]> => {
+  // News needs Gemini Search
+  try {
+      const prompt = `Search verified news for ${exam} (${month} ${year}, ${category}). Return 8 items as JSON Array {headline, summary, date, category}.`;
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: {
-          ...commonConfig,
-          tools: [{ googleSearch: {} }] // ENABLE SEARCH for Truth
-        }
+        config: { ...commonConfig, tools: [{ googleSearch: {} }] }
       });
-
-      const text = response.text || "[]";
-      const aiData = JSON.parse(cleanJson(text));
-
-      const aiNews = aiData.map((n: any) => ({
+      const aiData = JSON.parse(cleanJson(response.text || "[]"));
+      return aiData.map((n: any) => ({
           id: generateId('news'),
           headline: n.headline,
-          headlineHindi: n.headline_hi || n.headline,
+          headlineHindi: n.headline_hi,
           summary: n.summary,
-          summaryHindi: n.summary_hi || n.summary,
+          summaryHindi: n.summary_hi,
           category: n.category || category || 'General',
           date: n.date || `${month} ${year}`,
           tags: n.tags || []
       }));
-
-      return [...officialNews, ...aiNews];
-  } catch (e) {
-      console.error("News Generation Failed:", e);
-      return officialNews;
-  }
+  } catch (e) { return []; }
 };
 
-export const generateStudyNotes = async (
-  exam: string,
-  subject?: string
-): Promise<NewsItem[]> => {
-  try {
-      const prompt = `Generate 8 High-Yield Study Notes/Formulas for ${exam}. Subject: ${subject || 'Key Concepts'}. Include English & Hindi. Format: Title, Content. Output JSON array.`;
-      
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          ...commonConfig,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    headline: { type: Type.STRING },
-                    headline_hi: { type: Type.STRING },
-                    summary: { type: Type.STRING },
-                    summary_hi: { type: Type.STRING },
-                    category: { type: Type.STRING },
-                    date: { type: Type.STRING },
-                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ['headline', 'summary']
-            }
-          } as Schema
-        }
-      });
-
-      const aiData = JSON.parse(cleanJson(response.text || "[]"));
-
-      return aiData.map((n: any) => ({
+export const generateStudyNotes = async (exam: string, subject?: string): Promise<NewsItem[]> => {
+  // Groq is excellent for generating static notes
+  const prompt = `Generate 8 High-Yield Formula/Notes for ${exam} (${subject}). Return JSON Array {headline, summary}.`;
+  
+  const groqResp = await fetchFromGroq(prompt);
+  if (groqResp) {
+      return groqResp.map((n: any) => ({
           id: generateId('note'),
-          headline: n.headline || n.title, 
-          headlineHindi: n.headline_hi,
+          headline: n.headline || n.title,
           summary: n.summary || n.content,
-          summaryHindi: n.summary_hi,
           category: subject || 'Notes',
           date: 'Key Concept',
-          tags: n.tags || []
+          tags: []
       }));
-  } catch (e) {
-      return [];
   }
-};
 
-export const generateSingleQuestion = async (
-  exam: string,
-  subject: string,
-  topic: string
-): Promise<Partial<Question> | null> => {
   try {
-      const prompt = `Generate 1 High-Quality MCQ for ${exam}. Subject: ${subject}, Topic: ${topic}. Ensure factual accuracy. Return JSON.`;
-      
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: {
-          ...commonConfig,
-          systemInstruction: "You are an expert tutor. Verify facts before generating.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-                text: { type: Type.STRING },
-                text_hi: { type: Type.STRING },
-                options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
-                correctIndex: { type: Type.INTEGER },
-                explanation: { type: Type.STRING },
-                explanation_hi: { type: Type.STRING },
-                tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ['text', 'explanation']
-          } as Schema
-        }
+        config: { ...commonConfig, responseMimeType: "application/json" } 
       });
-
-      const data = JSON.parse(cleanJson(response.text || "{}"));
-      
-      return {
-          text: data.text,
-          textHindi: data.text_hi,
-          options: data.options,
-          optionsHindi: data.options_hi,
-          correctIndex: data.correctIndex,
-          explanation: data.explanation,
-          explanationHindi: data.explanation_hi,
-          tags: data.tags
-      };
-  } catch (e) {
-      return null;
-  }
+      const aiData = JSON.parse(cleanJson(response.text || "[]"));
+      return aiData.map((n: any) => ({
+          id: generateId('note'),
+          headline: n.headline || n.title,
+          summary: n.summary || n.content,
+          category: subject || 'Notes',
+          date: 'Key Concept',
+          tags: []
+      }));
+  } catch (e) { return []; }
 };
 
-export const generateQuestionFromImage = async (
-  base64Image: string,
-  mimeType: string,
-  examType: string,
-  subject: string
-): Promise<Partial<Question> | null> => {
+export const generateSingleQuestion = async (exam: string, subject: string, topic: string): Promise<Partial<Question> | null> => {
+  const prompt = `Generate 1 High-Quality MCQ for ${exam} (${subject}: ${topic}). JSON.`;
+  
+  const groqResp = await fetchFromGroq(prompt);
+  if (groqResp) return groqResp;
+
   try {
-      const prompt = `Analyze this image for ${examType} (${subject}). Extract the question, solve it step-by-step, and return JSON.`;
-      
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: {
-            parts: [
-                { inlineData: { mimeType: mimeType, data: base64Image } },
-                { text: prompt }
-            ]
-        },
-        config: {
-          ...commonConfig,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-                text: { type: Type.STRING },
-                text_hi: { type: Type.STRING },
-                options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                options_hi: { type: Type.ARRAY, items: { type: Type.STRING } },
-                correctIndex: { type: Type.INTEGER },
-                explanation: { type: Type.STRING },
-                explanation_hi: { type: Type.STRING },
-                tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ['text', 'explanation']
-          } as Schema
-        }
-      });
-
-      const data = JSON.parse(cleanJson(response.text || "{}"));
-
-      return {
-          text: data.text,
-          textHindi: data.text_hi,
-          options: data.options,
-          optionsHindi: data.options_hi,
-          correctIndex: data.correctIndex,
-          explanation: data.explanation,
-          explanationHindi: data.explanation_hi,
-          tags: data.tags
-      };
-  } catch (e) {
-      return null;
-  }
-};
-
-export const generateFullPaper = async (
-  exam: string,
-  subject: string,
-  difficulty: string,
-  seedData: string,
-  config: any
-): Promise<QuestionPaper | null> => {
-  try {
-      const prompt = `
-        Generate a Mock Exam Paper for ${exam} (${subject}).
-        Difficulty: ${difficulty}.
-        Context: ${seedData || 'Standard Syllabus'}.
-        Structure:
-        - MCQs: ${config.includeMCQ ? (config.mcqCount || 10) : 0}
-        - Short Answers: ${config.includeShort ? 5 : 0}
-        - Long Answers: ${config.includeLong ? 3 : 0}
-        Output a complex JSON object containing 'meta' and 'sections' array.
-      `;
-
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: {
-            ...commonConfig,
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    title: { type: Type.STRING },
-                    duration: { type: Type.INTEGER },
-                    totalMarks: { type: Type.INTEGER },
-                    sections: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                title: { type: Type.STRING },
-                                type: { type: Type.STRING },
-                                marksPerQuestion: { type: Type.INTEGER },
-                                questions: {
-                                    type: Type.ARRAY,
-                                    items: {
-                                        type: Type.OBJECT,
-                                        properties: {
-                                            text: { type: Type.STRING },
-                                            text_hi: { type: Type.STRING },
-                                            options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                            answer: { type: Type.STRING },
-                                            explanation: { type: Type.STRING }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } as Schema
-        }
+        config: { ...commonConfig, responseMimeType: "application/json" }
       });
-
       const data = JSON.parse(cleanJson(response.text || "{}"));
-
-      // Map Backend Data to QuestionPaper Interface
-      const sections = data.sections?.map((sec: any, sIdx: number) => ({
-          id: `sec-${sIdx}`,
-          title: sec.title || `Section ${sIdx+1}`,
-          instructions: "Attempt all questions",
-          marksPerQuestion: sec.marksPerQuestion || 1,
-          questions: sec.questions?.map((q: any, qIdx: number) => ({
-              id: generateId(`p-q-${sIdx}-${qIdx}`),
-              text: q.text,
-              textHindi: q.text_hi,
-              options: q.options || [],
-              correctIndex: q.options ? q.options.findIndex((o: string) => o === q.answer) : -1,
-              answer: q.answer,
-              explanation: q.explanation,
-              type: q.options ? QuestionType.MCQ : QuestionType.SHORT_ANSWER,
-              examType: exam as ExamType,
-              source: QuestionSource.PYQ_AI,
-              createdAt: Date.now(),
-              marks: sec.marksPerQuestion
-          }))
-      }));
-
       return {
-          id: generateId('paper'),
-          title: data.title || `${exam} Mock Paper`,
-          examType: exam as ExamType,
-          subject: subject,
-          difficulty: difficulty,
-          totalMarks: data.totalMarks || 100,
-          durationMinutes: data.duration || 60,
-          sections: sections || [],
-          createdAt: Date.now()
+          ...data,
+          options: safeOptions(data.options)
       };
-  } catch (e) {
-      console.error(e);
-      return null;
-  }
+  } catch (e) { return null; }
+};
+
+export const generateQuestionFromImage = async (base64: string, mime: string, exam: string, subject: string): Promise<Partial<Question> | null> => {
+  // Images require Gemini
+  try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [{ inlineData: { mimeType: mime, data: base64 } }, { text: `Solve this ${exam} question. Return JSON {text, options, correctIndex, explanation}.` }] },
+        config: { ...commonConfig, responseMimeType: "application/json" }
+      });
+      const data = JSON.parse(cleanJson(response.text || "{}"));
+      return {
+          ...data,
+          options: safeOptions(data.options)
+      };
+  } catch (e) { return null; }
+};
+
+export const generatePYQList = async (exam: string, subject: string, year: number, topic?: string): Promise<Question[]> => {
+    const prompt = `Simulate 10 authentic questions for ${year} ${exam} (${subject}). ${topic ? `Topic: ${topic}` : ''}. Return JSON Array.`;
+    
+    const groqResp = await fetchFromGroq(prompt);
+    if (groqResp && Array.isArray(groqResp)) {
+        return groqResp.map((q: any) => ({
+            ...q,
+            id: generateId(`pyq-${year}`),
+            source: QuestionSource.PYQ_AI,
+            examType: exam as ExamType,
+            subject: subject,
+            pyqYear: year,
+            type: QuestionType.MCQ,
+            options: safeOptions(q.options)
+        }));
+    }
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { ...commonConfig, responseMimeType: "application/json" }
+        });
+        const aiData = JSON.parse(cleanJson(response.text || "[]"));
+        return aiData.map((q: any) => ({
+            ...q,
+            id: generateId(`pyq-${year}`),
+            source: QuestionSource.PYQ_AI,
+            examType: exam as ExamType,
+            subject: subject,
+            pyqYear: year,
+            type: QuestionType.MCQ,
+            options: safeOptions(q.options)
+        }));
+    } catch(e) { return []; }
+};
+
+export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any): Promise<QuestionPaper | null> => {
+    try {
+        const prompt = `Generate Mock Paper for ${exam} (${subject}). Diff: ${difficulty}. MCQs: ${config.mcqCount || 10}. Return complex JSON {title, totalMarks, duration, sections: [{title, marksPerQuestion, questions: []}]}.`;
+        
+        // Use Gemini for large context generation
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { ...commonConfig, responseMimeType: "application/json" }
+        });
+        const data = JSON.parse(cleanJson(response.text || "{}"));
+        
+        const sections = data.sections?.map((sec: any, sIdx: number) => ({
+            id: `sec-${sIdx}`,
+            title: sec.title || `Section ${sIdx+1}`,
+            instructions: "Attempt all questions",
+            marksPerQuestion: sec.marksPerQuestion || 1,
+            questions: sec.questions?.map((q: any, qIdx: number) => ({
+                id: generateId(`p-q-${sIdx}-${qIdx}`),
+                text: q.text,
+                textHindi: q.text_hi,
+                options: safeOptions(q.options),
+                correctIndex: safeOptions(q.options).findIndex((o: string) => o === q.answer),
+                answer: q.answer,
+                explanation: q.explanation,
+                type: (q.options && q.options.length > 0) ? QuestionType.MCQ : QuestionType.SHORT_ANSWER,
+                examType: exam as ExamType,
+                source: QuestionSource.PYQ_AI,
+                createdAt: Date.now(),
+                marks: sec.marksPerQuestion
+            }))
+        }));
+        return {
+            id: generateId('paper'),
+            title: data.title || `${exam} Mock Paper`,
+            examType: exam as ExamType,
+            subject: subject,
+            difficulty: difficulty,
+            totalMarks: data.totalMarks || 100,
+            durationMinutes: data.duration || 60,
+            sections: sections || [],
+            createdAt: Date.now()
+        };
+    } catch (e) { return null; }
 };

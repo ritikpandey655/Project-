@@ -182,7 +182,7 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
                     {expandedQ === q.id && (
                        <div className="px-5 pb-5 pt-0 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700 animate-fade-in">
                           <div className="mt-4 space-y-2">
-                             {q.type === QuestionType.MCQ && q.options.map((opt, i) => (
+                             {q.type === QuestionType.MCQ && Array.isArray(q.options) && q.options.map((opt, i) => (
                                 <div key={i} className={`p-3 rounded-lg text-sm border ${
                                    i === q.correctIndex 
                                       ? 'bg-green-100 border-green-300 text-green-900 dark:bg-green-900/30 dark:border-green-800 dark:text-green-100' 
