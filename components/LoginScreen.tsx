@@ -43,7 +43,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         userSnap = await getDoc(userRef);
       } catch (readError) {
         console.warn("Could not read user profile (Permission/Network issue):", readError);
-        userSnap = { exists: () => false, data: () => ({}) };
+        userSnap = { exists: () => false, data: () => ({}) } as any;
       }
       
       const userEmail = firebaseUser.email || "";
@@ -68,7 +68,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
       // @ts-ignore
       if (userSnap.exists()) {
         // @ts-ignore
-        const currentData = userSnap.data();
+        const currentData = userSnap.data() as User;
         // Auto-upgrade admin privileges if email matches
         if (emailToCheck === 'support@pyqverse.in' && !currentData?.isAdmin) {
             try { await updateDoc(userRef, { isAdmin: true }); } catch(e) {}
