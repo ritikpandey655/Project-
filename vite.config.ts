@@ -157,6 +157,15 @@ export default defineConfig(({ mode }) => {
   };
 
   return {
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://127.0.0.1:5000',
+          changeOrigin: true,
+          secure: false,
+        }
+      }
+    },
     plugins: [
       react(),
       VitePWA({
@@ -207,6 +216,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID),
     },
   };
 });

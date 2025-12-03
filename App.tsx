@@ -1,24 +1,21 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { AppState, ExamType, Question, User, ViewState, QuestionPaper } from './types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { AppState, ExamType, Question, User, ViewState } from './types';
 import { EXAM_SUBJECTS, THEME_PALETTES, TECHNICAL_EXAMS, MONTHS } from './constants';
 import { 
   getUserPref, 
   getStats, 
   saveUserPref, 
   updateStats, 
-  getUserQuestions,
   saveUser,
   getUser,
-  removeUser,
   INITIAL_STATS,
   toggleBookmark,
-  getBookmarks,
   getStoredQOTD,
   saveQOTD,
-  getExamHistory,
   getOfficialQuestions,
-  getExamConfig
+  getExamConfig,
+  updateUserActivity
 } from './services/storageService';
 import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion, generateNews, generateStudyNotes } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
@@ -65,7 +62,6 @@ const App: React.FC = () => {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isAppInitializing, setIsAppInitializing] = useState(true);
-  const [initError, setInitError] = useState('');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -91,69 +87,18 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // --- PWA Advanced Registration (Sync, Periodic Sync, Notifications, File Handling) ---
+  // --- PWA Advanced Registration ---
   useEffect(() => {
     const registerPWAFeatures = async () => {
-      // 1. File Handling Consumer
       if ('launchQueue' in window) {
         // @ts-ignore
         window.launchQueue.setConsumer(async (launchParams) => {
           if (launchParams.files && launchParams.files.length) {
-            console.log('App opened with file:', launchParams.files[0]);
-            // Logic to read the file can be added here
-            // For now, we redirect to upload screen to indicate handling
-            if (state.user) {
-               setState(prev => ({ ...prev, view: 'upload' }));
-            }
+            if (state.user) setState(prev => ({ ...prev, view: 'upload' }));
           }
         });
       }
-
-      if ('serviceWorker' in navigator) {
-        try {
-          const registration = await navigator.serviceWorker.ready;
-
-          // 2. Background Sync Registration
-          if ('sync' in registration) {
-             try {
-                // @ts-ignore
-                await registration.sync.register('sync-user-data');
-                console.log('Background Sync registered');
-             } catch (err) {
-                console.log('Background Sync registration failed (likely unsupported)', err);
-             }
-          }
-
-          // 3. Periodic Sync Registration (Requires Permission)
-          // @ts-ignore
-          if ('periodicSync' in registration) {
-            try {
-               const status = await navigator.permissions.query({
-                 // @ts-ignore
-                 name: 'periodic-background-sync',
-               });
-
-               if (status.state === 'granted') {
-                 // @ts-ignore
-                 if (!await registration.periodicSync.getTags().then(tags => tags.includes('daily-content-update'))) {
-                     // @ts-ignore
-                     await registration.periodicSync.register('daily-content-update', {
-                        minInterval: 24 * 60 * 60 * 1000 // 1 day
-                     });
-                     console.log('Periodic Sync registered');
-                 }
-               }
-            } catch (e) {
-               console.log('Periodic Sync could not be registered (permission denied or unsupported)', e);
-            }
-          }
-
-        } catch (error) {
-          console.log("PWA Service Worker features registration failed", error);
-        }
-      }
     };
-    
     registerPWAFeatures();
   }, [state.user]);
 
@@ -161,6 +106,9 @@ const App: React.FC = () => {
   const loadUserData = useCallback(async (userId: string) => {
     const userProfile = await getUser(userId);
     if (!userProfile) return;
+
+    // Track real activity
+    updateUserActivity(userId);
 
     // Load heavy data in background, set User immediately
     const prefsPromise = getUserPref(userId);
@@ -188,7 +136,6 @@ const App: React.FC = () => {
       examConfig: dynamicExams
     }));
 
-    // Restore view handling with Action Parameter Check
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get('action');
     const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
@@ -219,7 +166,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (isAppInitializing) {
-        setInitError("Connecting...");
+        // Fallback if auth is slow
       }
     }, 8000);
 
@@ -228,7 +175,6 @@ const App: React.FC = () => {
       if (currentUser) {
         loadUserData(currentUser.uid).then(() => setIsAppInitializing(false));
       } else {
-        // Change view to 'login' if user is not logged in
         setState(prev => ({ ...prev, user: null, view: 'login' }));
         setIsAppInitializing(false);
       }
@@ -237,7 +183,6 @@ const App: React.FC = () => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    // Install Prompt Listener
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e as BeforeInstallPromptEvent);
@@ -257,69 +202,22 @@ const App: React.FC = () => {
   }, [loadUserData]);
 
   const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      alert("Your browser does not support notifications.");
-      return;
-    }
-
-    // Check if already granted
-    if (Notification.permission === 'granted') {
-       if ('serviceWorker' in navigator) {
-          try {
-             const reg = await navigator.serviceWorker.ready;
-             reg.showNotification("Notifications Active! 🔔", {
-                body: "You're all set to receive study updates.",
-                icon: '/icon.svg',
-                vibrate: [200, 100, 200],
-                tag: 'test-notification'
-             } as any);
-          } catch (e) {
-             console.error("Test notification failed", e);
-             alert("Notifications are granted but we couldn't send a test one.");
-          }
-       }
-       return;
-    }
-
-    if (Notification.permission === 'denied') {
-       alert("Notifications are blocked. Please enable them in your browser settings (Site Settings > Permissions > Notifications).");
-       return;
-    }
-
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') return;
     try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-         if ('serviceWorker' in navigator) {
-            const reg = await navigator.serviceWorker.ready;
-            reg.showNotification("Welcome to PYQverse 🚀", {
-               body: "Notifications enabled successfully! We'll keep you updated.",
-               icon: '/icon.svg',
-               vibrate: [200, 100, 200],
-               tag: 'welcome-notification'
-            } as any);
-         } else {
-            new Notification("Welcome to PYQverse 🚀");
-         }
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Error requesting permission.");
-    }
+      await Notification.requestPermission();
+    } catch (e) {}
   };
 
   const navigateTo = useCallback((view: ViewState) => {
-    // Instant navigation
     setState(prev => ({ ...prev, view }));
     setIsSidebarOpen(false);
-    
     if (!['practice', 'paperView', 'paperGenerator', 'login', 'signup'].includes(view)) {
        localStorage.setItem(LAST_VIEW_KEY, view);
     }
   }, []);
 
-  const handleLogin = useCallback((user: User) => {
-    // Listener handles state
-  }, []);
+  const handleLogin = useCallback((user: User) => {}, []);
 
   const handleSignup = useCallback(async (user: User, exam: ExamType) => {
     await saveUserPref(user.id, { selectedExam: exam });
@@ -329,23 +227,18 @@ const App: React.FC = () => {
     await auth.signOut();
   }, []);
 
-  // Optimized Handlers with Callbacks
   const handleExamSelect = useCallback(async (exam: ExamType) => {
     if (!state.user) return;
-    // Optimistic Update
     setState(prev => ({ ...prev, selectedExam: exam }));
-    // Background Save
     saveUserPref(state.user.id, { selectedExam: exam });
   }, [state.user]);
 
   const toggleDarkMode = useCallback(async () => {
     if (!state.user) return;
     const newState = !state.darkMode;
-    // Optimistic Update
     setState(prev => ({ ...prev, darkMode: newState }));
     if (newState) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
-    
     saveUserPref(state.user.id, { darkMode: newState });
   }, [state.user, state.darkMode]);
 
@@ -384,7 +277,6 @@ const App: React.FC = () => {
        setIsLoading(false); 
        navigateTo('practice'); 
        
-       // Fetch rest in background
        generateExamQuestions(exam, config.subject, config.count - initialBatch.length, 'Medium', config.topic ? [config.topic] : [])
        .then(moreQuestions => {
           setPracticeQueue(prev => [...prev, ...moreQuestions]);
@@ -433,7 +325,6 @@ const App: React.FC = () => {
     const currentQ = practiceQueue[currentQIndex];
     const subject = currentQ.subject || 'General';
     
-    // Update local state locally for instant feedback
     setState(prev => {
         const newStats = { ...prev.stats };
         newStats.totalAttempted++;
@@ -444,7 +335,6 @@ const App: React.FC = () => {
         return { ...prev, stats: newStats };
     });
 
-    // Fire and forget DB update
     updateStats(user.id, isCorrect, subject, exam);
   }, [practiceQueue, currentQIndex, state.user, state.selectedExam]);
 
@@ -452,7 +342,7 @@ const App: React.FC = () => {
     const exam = state.selectedExam;
     if (!state.user || !exam) return;
     setIsLoading(true);
-    // Optimistically fetch small batch
+    
     generateCurrentAffairs(exam, 10).then(questions => {
         setPracticeQueue(questions);
         setCurrentQIndex(0);
@@ -470,7 +360,6 @@ const App: React.FC = () => {
     const exam = state.selectedExam;
     if (!state.user || !exam) return;
     
-    // Don't set loading here to prevent UI flicker, handle in child
     let items;
     if (filters.subject) {
        items = await generateStudyNotes(exam, filters.subject);
@@ -664,11 +553,18 @@ const App: React.FC = () => {
             onInstall={handleInstallClick}
             canInstall={!!installPrompt}
             onExamChange={handleExamSelect}
+            availableExams={Object.keys(state.examConfig || EXAM_SUBJECTS)}
           />
         )}
 
         {state.view === 'paperGenerator' && state.selectedExam && (
-          <PaperGenerator examType={state.selectedExam} onGenerate={(paper) => { setState(prev => ({ ...prev, generatedPaper: paper, view: 'paperView' })); }} onBack={() => navigateTo('dashboard')} onExamChange={handleExamSelect} />
+          <PaperGenerator 
+            examType={state.selectedExam} 
+            examSubjects={(state.examConfig as any)[state.selectedExam] || EXAM_SUBJECTS[state.selectedExam as ExamType]}
+            onGenerate={(paper) => { setState(prev => ({ ...prev, generatedPaper: paper, view: 'paperView' })); }} 
+            onBack={() => navigateTo('dashboard')} 
+            onExamChange={handleExamSelect} 
+          />
         )}
 
         {state.view === 'paperView' && state.generatedPaper && (
@@ -717,11 +613,19 @@ const App: React.FC = () => {
       )}
 
       {showPracticeConfig && state.selectedExam && (
-        <PracticeConfigModal examType={state.selectedExam} onStart={startPracticeSession} onClose={() => setShowPracticeConfig(false)} onExamChange={handleExamSelect} isPro={state.user?.isPro} onUpgrade={() => { setShowPracticeConfig(false); setShowPaymentModal(true); }} />
+        <PracticeConfigModal 
+          examType={state.selectedExam} 
+          onStart={startPracticeSession} 
+          onClose={() => setShowPracticeConfig(false)} 
+          onExamChange={handleExamSelect} 
+          isPro={state.user?.isPro} 
+          onUpgrade={() => { setShowPracticeConfig(false); setShowPaymentModal(true); }}
+          availableExams={Object.keys(state.examConfig || EXAM_SUBJECTS)}
+        />
       )}
 
       {showPaymentModal && (
-        <PaymentModal onClose={() => setShowPaymentModal(false)} onSuccess={async () => { if (state.user) { const updatedUser = { ...state.user, isPro: true }; await saveUser(updatedUser); setState(prev => ({ ...prev, user: updatedUser })); setShowPaymentModal(false); alert("Welcome to Pro! 🌟"); } }} />
+        <PaymentModal onClose={() => setShowPaymentModal(false)} onSuccess={() => {}} />
       )}
     </div>
   );

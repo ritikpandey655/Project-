@@ -11,12 +11,23 @@ interface PracticeConfigModalProps {
   onExamChange: (exam: ExamType) => void;
   isPro?: boolean;
   onUpgrade?: () => void;
+  availableExams?: string[];
 }
 
-export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examType, onStart, onClose, onExamChange, isPro, onUpgrade }) => {
+export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ 
+  examType, 
+  onStart, 
+  onClose, 
+  onExamChange, 
+  isPro, 
+  onUpgrade,
+  availableExams = []
+}) => {
   const [subject, setSubject] = useState<string>('Mixed');
   const [topic, setTopic] = useState('');
   const [mode, setMode] = useState<'short' | 'medium' | 'long' | 'endless'>('medium');
+
+  const examsList = availableExams.length > 0 ? availableExams : Object.values(ExamType);
 
   // Reset subject when exam changes
   useEffect(() => {
@@ -24,7 +35,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examTy
     setTopic('');
   }, [examType]);
 
-  const subjects = ['Mixed', ...EXAM_SUBJECTS[examType]];
+  const subjects = ['Mixed', ...(EXAM_SUBJECTS[examType] || [])];
 
   const modes = [
     { id: 'short', label: 'Quick 10', count: 10, icon: '⚡', desc: 'Rapid fire revision', pro: false },
@@ -86,7 +97,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({ examTy
                   onChange={(e) => onExamChange(e.target.value as ExamType)}
                   className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
                 >
-                  {Object.values(ExamType).map(e => (
+                  {examsList.map(e => (
                     <option key={e} value={e}>{e}</option>
                   ))}
                 </select>

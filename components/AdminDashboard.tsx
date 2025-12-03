@@ -20,6 +20,7 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'exams' | 'upload' | 'questions' | 'payments'>('dashboard');
   const [stats, setStats] = useState<any>(null);
+  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   
   // Data States
   const [users, setUsers] = useState<User[]>([]);
@@ -58,7 +59,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [isReviewing, setIsReviewing] = useState(false); 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Bulk Upload Queue
+  // Bulk Queue
   const [bulkQueue, setBulkQueue] = useState<any[]>([]);
   const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
   
@@ -72,26 +73,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   // Load Data
   useEffect(() => {
     loadAllData();
+    checkServer();
   }, []);
+
+  const checkServer = async () => {
+    setServerStatus('checking');
+    try {
+      // Small timeout to prevent hanging
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 3000);
+      
+      const res = await fetch('/api/health', { signal: controller.signal });
+      clearTimeout(id);
+      
+      if (res.ok) setServerStatus('online');
+      else setServerStatus('offline');
+    } catch (e) {
+      setServerStatus('offline');
+    }
+  };
 
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-        // Fetch users first
         const u = await getAllUsers();
-        setUsers(u); 
-        setFilteredUsers(u);
-        
-        // Fetch stats (might fail if rules deny, but users array is key)
+        setUsers(u); setFilteredUsers(u);
         const s = await getGlobalStats();
         setStats(s);
-        
         const q = await getAdminQuestions();
         setQuestions(q); setFilteredQuestions(q);
-        
         const t = await getTransactions();
         setTransactions(t);
-        
         const e = await getExamConfig();
         setExamConfig(e);
         if (Object.keys(e).length > 0) setUploadExam(Object.keys(e)[0]);
@@ -102,7 +114,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     }
   };
 
-  // Filter Effects
+  // ... (Keep existing filtering effects and handler functions same as before) ...
   useEffect(() => {
     const lower = userSearch.toLowerCase();
     setFilteredUsers(users.filter(u => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower)));
@@ -113,7 +125,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setFilteredQuestions(questions.filter(q => q.text.toLowerCase().includes(lower) || q.subject?.toLowerCase().includes(lower)));
   }, [questionSearch, questions]);
 
-  // Actions
   const handleTogglePro = async (id: string, current: boolean) => {
     await toggleUserPro(id, current);
     setUsers(prev => prev.map(u => u.id === id ? { ...u, isPro: !u.isPro } : u));
@@ -145,8 +156,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       setExamConfig(newConfig);
     }
   };
-
-  // --- SMART IMPORT LOGIC ---
 
   const populateFormWithData = (data: any) => {
     setQText(data.text || '');
@@ -232,8 +241,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             moderationStatus: 'APPROVED'
         };
         await saveAdminQuestion(newQ);
-        
-        // Handle Bulk Queue
         if (bulkQueue.length > 0) {
             const nextIdx = currentQueueIndex + 1;
             if (nextIdx < bulkQueue.length) {
@@ -266,151 +273,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setIsSubmitting(false);
   };
 
-  // --- RENDER SECTIONS ---
-
+  // Render Helpers (Simplified for brevity, same structure as before)
   const renderDashboard = () => (
     <div className="space-y-6 animate-fade-in">
-        <div className="flex justify-end">
-            <Button size="sm" variant="secondary" onClick={loadAllData} isLoading={isLoading}>
-               {isLoading ? 'Refreshing...' : 'Refresh Data'}
-            </Button>
+        <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-3">
+               <div className={`w-3 h-3 rounded-full ${serverStatus === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+               <div>
+                  <p className="text-xs font-bold uppercase text-slate-500">Backend Status</p>
+                  <p className={`font-bold text-sm ${serverStatus === 'online' ? 'text-green-600' : 'text-red-500'}`}>
+                    {serverStatus === 'online' ? 'Online & Ready' : 'Disconnected / Offline'}
+                  </p>
+                  {serverStatus === 'offline' && (
+                     <p className="text-[10px] text-red-400 mt-1">
+                        Run <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">npm run server</code> in a new terminal.
+                     </p>
+                  )}
+               </div>
+            </div>
+            <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={checkServer}>
+                   {serverStatus === 'checking' ? 'Checking...' : 'Retry Connection'}
+                </Button>
+                <Button size="sm" variant="secondary" onClick={loadAllData} isLoading={isLoading}>
+                   Refresh Data
+                </Button>
+            </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Total Users</h3>
                 <p className="text-4xl font-extrabold text-slate-800 dark:text-white mt-2">{users.length}</p>
-                <p className="text-xs text-slate-400 mt-1">Registered Accounts</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Questions</h3>
                 <p className="text-4xl font-extrabold text-brand-purple mt-2">{questions.length}</p>
-                <p className="text-xs text-slate-400 mt-1">Global Bank</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Transactions</h3>
                 <p className="text-4xl font-extrabold text-green-600 dark:text-green-400 mt-2">{transactions.length}</p>
-                <p className="text-xs text-slate-400 mt-1">Total Orders</p>
             </div>
         </div>
     </div>
   );
 
-  const renderUpload = () => (
-      <div className="max-w-4xl mx-auto animate-fade-in">
-             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-8">
-               <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Upload Resource</h2>
-                  <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
-                     <button type="button" onClick={() => setUploadType('Question')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${uploadType === 'Question' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>Question</button>
-                     <button type="button" onClick={() => setUploadType('News')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${uploadType === 'News' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>News</button>
-                  </div>
-               </div>
-
-               {uploadType === 'Question' && !isReviewing && (
-                 <div className="mb-8 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-900/50 text-center">
-                    <h3 className="text-lg font-bold text-indigo-800 dark:text-indigo-300 mb-4">✨ AI Smart Import</h3>
-                    <div className="flex justify-center gap-4 mb-4">
-                        <button type="button" onClick={() => setSmartMode('SmartPaste')} className={`px-4 py-2 rounded-lg font-bold ${smartMode === 'SmartPaste' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Paste Text</button>
-                        <button type="button" onClick={() => setSmartMode('Image')} className={`px-4 py-2 rounded-lg font-bold ${smartMode === 'Image' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Upload Image</button>
-                    </div>
-
-                    {smartMode === 'SmartPaste' && (
-                       <div className="space-y-4">
-                          <textarea value={smartInput} onChange={(e) => setSmartInput(e.target.value)} placeholder="Paste raw questions here..." className="w-full h-32 p-4 rounded-xl border text-sm dark:bg-slate-900 dark:text-white" />
-                          <Button type="button" onClick={() => handleSmartAnalyze('text', smartInput)} isLoading={isAnalyzing} className="w-full">Analyze & Extract</Button>
-                       </div>
-                    )}
-
-                    {smartMode === 'Image' && (
-                        <div className="border-2 border-dashed border-indigo-300 dark:border-indigo-700 rounded-xl p-8 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                            <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
-                            {isAnalyzing ? (
-                                <div className="flex flex-col items-center"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2"></div><span className="text-indigo-600 font-bold">Scanning...</span></div>
-                            ) : (
-                                <><span className="text-3xl block mb-2">📷</span><span className="font-bold text-indigo-700 dark:text-indigo-300">Click to Upload Image</span></>
-                            )}
-                        </div>
-                    )}
-                    <div className="mt-4 text-xs text-slate-400">Or skip this and fill the form manually below ↓</div>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setIsReviewing(true)} className="mt-2">Skip to Manual Entry</Button>
-                 </div>
-               )}
-
-               {/* REVIEW & EDIT FORM */}
-               {(isReviewing || uploadType === 'News') && (
-                   <form onSubmit={handleUploadSubmit} className="space-y-6 animate-slide-up">
-                     
-                     {/* BULK QUEUE NAVIGATION UI */}
-                     {uploadType === 'Question' && bulkQueue.length > 0 && (
-                        <div className="bg-indigo-100 dark:bg-indigo-900/30 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 mb-4 flex justify-between items-center sticky top-0 z-10 backdrop-blur-md">
-                            <div>
-                                <h3 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm uppercase tracking-wide">
-                                    Reviewing {currentQueueIndex + 1} of {bulkQueue.length}
-                                </h3>
-                                <div className="w-full bg-indigo-200 h-1 mt-2 rounded-full overflow-hidden">
-                                    <div className="bg-indigo-600 h-full transition-all" style={{ width: `${((currentQueueIndex + 1) / bulkQueue.length) * 100}%` }}></div>
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button type="button" variant="secondary" size="sm" onClick={handleSkipQuestion}>Skip</Button>
-                                <Button type="button" variant="danger" size="sm" onClick={handleResetForm}>Cancel All</Button>
-                            </div>
-                        </div>
-                     )}
-
-                     {uploadType === 'Question' && bulkQueue.length === 0 && (
-                        <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-xl border border-green-200 dark:border-green-800 mb-4 flex justify-between items-center">
-                            <div>
-                                <h3 className="font-bold text-green-800 dark:text-green-300">✅ Draft Ready</h3>
-                                <p className="text-xs text-green-700 dark:text-green-400">Review details before saving.</p>
-                            </div>
-                            <Button type="button" variant="danger" size="sm" onClick={handleResetForm}>Discard</Button>
-                        </div>
-                     )}
-
-                     {uploadType === 'Question' ? (
-                       <>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <select value={uploadExam} onChange={e => setUploadExam(e.target.value)} className="p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700">{Object.keys(examConfig).map(e => <option key={e} value={e}>{e}</option>)}</select>
-                            <select value={uploadSubject} onChange={e => setUploadSubject(e.target.value)} className="p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700"><option value="">Select Subject</option>{examConfig[uploadExam]?.map(s => <option key={s} value={s}>{s}</option>)}</select>
-                         </div>
-                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Question</label>
-                            <textarea value={qText} onChange={e => setQText(e.target.value)} className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700 h-24" required />
-                         </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {qOptions.map((o, i) => (
-                                <div key={i} className="flex gap-2 items-center">
-                                    <input type="radio" name="correct" checked={qCorrect === i} onChange={() => setQCorrect(i)} className="w-5 h-5 text-indigo-600" />
-                                    <input value={o} onChange={e => {const n = [...qOptions]; n[i] = e.target.value; setQOptions(n)}} placeholder={`Option ${i+1}`} className="flex-1 p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700" required />
-                                </div>
-                            ))}
-                         </div>
-                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Explanation</label>
-                            <textarea value={qExplanation} onChange={e => setQExplanation(e.target.value)} className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700 h-20" required />
-                         </div>
-                       </>
-                     ) : (
-                       <>
-                         <input value={newsHeadline} onChange={e => setNewsHeadline(e.target.value)} placeholder="Headline" className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white" required />
-                         <textarea value={newsSummary} onChange={e => setNewsSummary(e.target.value)} placeholder="Summary" className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white h-32" required />
-                       </>
-                     )}
-                     
-                     <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
-                        <Button type="submit" isLoading={isSubmitting} className="w-full text-lg font-bold shadow-xl">
-                            {uploadType === 'Question' 
-                                ? (bulkQueue.length > 0 ? 'Save & Next Question →' : 'Confirm & Upload Question') 
-                                : 'Publish News'}
-                        </Button>
-                     </div>
-                   </form>
-               )}
-             </div>
-      </div>
-  );
-
+  // Keep other render methods (renderUsers, renderExams, renderUpload, etc.) exactly as they were in the previous file version.
+  // Assuming full content replacement, I will paste the full structure below for safety.
+  
   const renderUsers = () => (
     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
         <h3 className="font-bold text-lg dark:text-white mb-4">User Management</h3>
@@ -481,6 +390,120 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             ))}
         </div>
     </div>
+  );
+
+  const renderUpload = () => (
+      <div className="max-w-4xl mx-auto animate-fade-in">
+             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-8">
+               <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Upload Resource</h2>
+                  <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
+                     <button type="button" onClick={() => setUploadType('Question')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${uploadType === 'Question' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>Question</button>
+                     <button type="button" onClick={() => setUploadType('News')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${uploadType === 'News' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600' : 'text-slate-500'}`}>News</button>
+                  </div>
+               </div>
+
+               {uploadType === 'Question' && !isReviewing && (
+                 <div className="mb-8 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-900/50 text-center">
+                    <h3 className="text-lg font-bold text-indigo-800 dark:text-indigo-300 mb-4">✨ AI Smart Import</h3>
+                    <div className="flex justify-center gap-4 mb-4">
+                        <button type="button" onClick={() => setSmartMode('SmartPaste')} className={`px-4 py-2 rounded-lg font-bold ${smartMode === 'SmartPaste' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Paste Text</button>
+                        <button type="button" onClick={() => setSmartMode('Image')} className={`px-4 py-2 rounded-lg font-bold ${smartMode === 'Image' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Upload Image</button>
+                    </div>
+
+                    {smartMode === 'SmartPaste' && (
+                       <div className="space-y-4">
+                          <textarea value={smartInput} onChange={(e) => setSmartInput(e.target.value)} placeholder="Paste raw questions here..." className="w-full h-32 p-4 rounded-xl border text-sm dark:bg-slate-900 dark:text-white" />
+                          <Button type="button" onClick={() => handleSmartAnalyze('text', smartInput)} isLoading={isAnalyzing} className="w-full">Analyze & Extract</Button>
+                       </div>
+                    )}
+
+                    {smartMode === 'Image' && (
+                        <div className="border-2 border-dashed border-indigo-300 dark:border-indigo-700 rounded-xl p-8 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                            <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+                            {isAnalyzing ? (
+                                <div className="flex flex-col items-center"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2"></div><span className="text-indigo-600 font-bold">Scanning...</span></div>
+                            ) : (
+                                <><span className="text-3xl block mb-2">📷</span><span className="font-bold text-indigo-700 dark:text-indigo-300">Click to Upload Image</span></>
+                            )}
+                        </div>
+                    )}
+                    <div className="mt-4 text-xs text-slate-400">Or skip this and fill the form manually below ↓</div>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setIsReviewing(true)} className="mt-2">Skip to Manual Entry</Button>
+                 </div>
+               )}
+
+               {(isReviewing || uploadType === 'News') && (
+                   <form onSubmit={handleUploadSubmit} className="space-y-6 animate-slide-up">
+                     
+                     {uploadType === 'Question' && bulkQueue.length > 0 && (
+                        <div className="bg-indigo-100 dark:bg-indigo-900/30 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 mb-4 flex justify-between items-center sticky top-0 z-10 backdrop-blur-md">
+                            <div>
+                                <h3 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm uppercase tracking-wide">
+                                    Reviewing {currentQueueIndex + 1} of {bulkQueue.length}
+                                </h3>
+                                <div className="w-full bg-indigo-200 h-1 mt-2 rounded-full overflow-hidden">
+                                    <div className="bg-indigo-600 h-full transition-all" style={{ width: `${((currentQueueIndex + 1) / bulkQueue.length) * 100}%` }}></div>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button type="button" variant="secondary" size="sm" onClick={handleSkipQuestion}>Skip</Button>
+                                <Button type="button" variant="danger" size="sm" onClick={handleResetForm}>Cancel All</Button>
+                            </div>
+                        </div>
+                     )}
+
+                     {uploadType === 'Question' && bulkQueue.length === 0 && (
+                        <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-xl border border-green-200 dark:border-green-800 mb-4 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-bold text-green-800 dark:text-green-300">✅ Draft Ready</h3>
+                                <p className="text-xs text-green-700 dark:text-green-400">Review details before saving.</p>
+                            </div>
+                            <Button type="button" variant="danger" size="sm" onClick={handleResetForm}>Discard</Button>
+                        </div>
+                     )}
+
+                     {uploadType === 'Question' ? (
+                       <>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <select value={uploadExam} onChange={e => setUploadExam(e.target.value)} className="p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700">{Object.keys(examConfig).map(e => <option key={e} value={e}>{e}</option>)}</select>
+                            <select value={uploadSubject} onChange={e => setUploadSubject(e.target.value)} className="p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700"><option value="">Select Subject</option>{examConfig[uploadExam]?.map(s => <option key={s} value={s}>{s}</option>)}</select>
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Question</label>
+                            <textarea value={qText} onChange={e => setQText(e.target.value)} className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700 h-24" required />
+                         </div>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {qOptions.map((o, i) => (
+                                <div key={i} className="flex gap-2 items-center">
+                                    <input type="radio" name="correct" checked={qCorrect === i} onChange={() => setQCorrect(i)} className="w-5 h-5 text-indigo-600" />
+                                    <input value={o} onChange={e => {const n = [...qOptions]; n[i] = e.target.value; setQOptions(n)}} placeholder={`Option ${i+1}`} className="flex-1 p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700" required />
+                                </div>
+                            ))}
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Explanation</label>
+                            <textarea value={qExplanation} onChange={e => setQExplanation(e.target.value)} className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700 h-20" required />
+                         </div>
+                       </>
+                     ) : (
+                       <>
+                         <input value={newsHeadline} onChange={e => setNewsHeadline(e.target.value)} placeholder="Headline" className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white" required />
+                         <textarea value={newsSummary} onChange={e => setNewsSummary(e.target.value)} placeholder="Summary" className="w-full p-3 border rounded-xl dark:bg-slate-900 dark:text-white h-32" required />
+                       </>
+                     )}
+                     
+                     <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
+                        <Button type="submit" isLoading={isSubmitting} className="w-full text-lg font-bold shadow-xl">
+                            {uploadType === 'Question' 
+                                ? (bulkQueue.length > 0 ? 'Save & Next Question →' : 'Confirm & Upload Question') 
+                                : 'Publish News'}
+                        </Button>
+                     </div>
+                   </form>
+               )}
+             </div>
+      </div>
   );
 
   return (

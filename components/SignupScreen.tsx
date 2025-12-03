@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, ExamType } from '../types';
 import { Button } from './Button';
 import { auth, db } from '../src/firebaseConfig';
+import { getExamConfig } from '../services/storageService';
+import { EXAM_SUBJECTS } from '../constants';
 
 interface SignupScreenProps {
   onSignup: (user: User, selectedExam: ExamType) => void;
@@ -16,13 +18,24 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [selectedExam, setSelectedExam] = useState<ExamType>(ExamType.UPSC);
+  const [selectedExam, setSelectedExam] = useState<string>('UPSC');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   const [error, setError] = useState('');
+  const [availableExams, setAvailableExams] = useState<string[]>(Object.keys(EXAM_SUBJECTS));
   
   // State for immediate feedback UI
   const [isVerificationSent, setIsVerificationSent] = useState(false);
+
+  useEffect(() => {
+    getExamConfig().then(config => {
+        const exams = Object.keys(config);
+        if(exams.length > 0) {
+            setAvailableExams(exams);
+            if (!exams.includes(selectedExam)) setSelectedExam(exams[0]);
+        }
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +83,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
           setLoadingText('Sending Verification Link...');
 
           // 5. Send Verification Email
-          // IMPORTANT: Do NOT sign out. App.tsx will detect unverified state and show the VerifyScreen.
           await firebaseUser.sendEmailVerification();
           
           // 6. Show Success Screen Immediately
@@ -225,10 +237,10 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
             <div className="relative">
                 <select 
                     value={selectedExam} 
-                    onChange={(e) => setSelectedExam(e.target.value as ExamType)} 
+                    onChange={(e) => setSelectedExam(e.target.value)} 
                     className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium appearance-none cursor-pointer"
                 >
-                    {Object.values(ExamType).map((exam) => (<option key={exam} value={exam} className="text-slate-900 bg-white">{exam}</option>))}
+                    {availableExams.map((exam) => (<option key={exam} value={exam} className="text-slate-900 bg-white">{exam}</option>))}
                 </select>
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                     <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

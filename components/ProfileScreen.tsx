@@ -15,6 +15,7 @@ interface ProfileScreenProps {
   onInstall?: () => void;
   canInstall?: boolean;
   onExamChange: (exam: ExamType) => void;
+  availableExams?: string[];
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ 
@@ -26,7 +27,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onLogout,
   onInstall,
   canInstall,
-  onExamChange
+  onExamChange,
+  availableExams = []
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [notesCount, setNotesCount] = useState(0);
@@ -40,6 +42,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [address, setAddress] = useState(user.address || '');
   const [userState, setUserState] = useState(user.state || '');
   const [pincode, setPincode] = useState(user.pincode || '');
+
+  const examsList = availableExams.length > 0 ? availableExams : Object.values(ExamType);
 
   useEffect(() => {
     // Calculate total questions uploaded by user
@@ -169,7 +173,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                       onChange={(e) => onExamChange(e.target.value as ExamType)}
                       className="appearance-none bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 px-4 py-1.5 rounded-full text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-center pr-8"
                     >
-                      {Object.values(ExamType).map(e => (
+                      {examsList.map(e => (
                          <option key={e} value={e}>{e}</option>
                       ))}
                     </select>

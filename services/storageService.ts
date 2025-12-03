@@ -1,4 +1,5 @@
 
+
 import { db } from "../src/firebaseConfig";
 import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction } from '../types';
 import { ExamType } from '../types';
@@ -21,6 +22,16 @@ export const saveUser = async (user: User): Promise<void> => {
     await db.collection("users").doc(user.id).set(user, { merge: true });
   } catch (e) {
     console.error("Error saving user:", e);
+  }
+};
+
+export const updateUserActivity = async (userId: string): Promise<void> => {
+  try {
+    await db.collection("users").doc(userId).update({
+      lastSeen: Date.now()
+    });
+  } catch (e) {
+    // Fail silently
   }
 };
 
@@ -145,10 +156,21 @@ export const getGlobalStats = async () => {
   try {
     const qSnap = await db.collection("global_questions").get();
     const uSnap = await db.collection("users").get();
+    
+    // Calculate REAL Active Users (active in last 7 days)
+    const now = Date.now();
+    let activeCount = 0;
+    uSnap.forEach((doc: any) => {
+       const data = doc.data();
+       if (data.lastSeen && (now - data.lastSeen) < (7 * 24 * 60 * 60 * 1000)) {
+          activeCount++;
+       }
+    });
+
     return {
        totalQuestions: qSnap.size,
        totalUsers: uSnap.size,
-       activeUsers: Math.floor(uSnap.size * 0.7) // Mock active count
+       activeUsers: activeCount
     };
   } catch(e) {
     return { totalQuestions: 0, totalUsers: 0, activeUsers: 0 };
@@ -188,6 +210,14 @@ export const getTransactions = async (): Promise<Transaction[]> => {
       { id: 'tx-2', userId: 'u2', userName: 'Anjali', amount: 1499, planId: 'yearly', status: 'SUCCESS', date: Date.now() - 500000, method: 'Card' },
       { id: 'tx-3', userId: 'u3', userName: 'Rahul', amount: 199, planId: 'monthly', status: 'FAILED', date: Date.now() - 900000, method: 'NetBanking' }
     ];
+  }
+};
+
+export const saveTransaction = async (transaction: Transaction): Promise<void> => {
+  try {
+    await db.collection("transactions").doc(transaction.id).set(transaction);
+  } catch (e) {
+    console.error("Error saving transaction:", e);
   }
 };
 

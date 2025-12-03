@@ -1,5 +1,3 @@
-/// <reference types="vite/client" />
-
 // PWA Install Prompt Event
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];

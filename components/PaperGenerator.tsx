@@ -10,14 +10,23 @@ interface PaperGeneratorProps {
   onGenerate: (paper: any) => void;
   onBack: () => void;
   onExamChange: (exam: ExamType) => void;
+  examSubjects?: string[];
 }
 
-export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGenerate, onBack, onExamChange }) => {
-  const [subject, setSubject] = useState(EXAM_SUBJECTS[examType][0]);
+export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ 
+  examType, 
+  onGenerate, 
+  onBack, 
+  onExamChange,
+  examSubjects = EXAM_SUBJECTS[examType]
+}) => {
+  // Safe default for subject if examSubjects is provided but empty or first element is undefined
+  const defaultSubject = examSubjects?.[0] || 'General';
+  const [subject, setSubject] = useState(defaultSubject);
   const [difficulty, setDifficulty] = useState('Medium');
   const [seedData, setSeedData] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [mcqCount, setMcqCount] = useState(20); // Default increased to 20, allows up to 180
+  const [mcqCount, setMcqCount] = useState(20);
 
   const [config, setConfig] = useState({
     includeMCQ: true,
@@ -26,15 +35,15 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
     includeViva: false,
   });
 
-  // Update subject when examType changes (from props or internal switch)
+  // Update subject when examType changes
   useEffect(() => {
-    setSubject(EXAM_SUBJECTS[examType][0]);
-  }, [examType]);
+    const newSubjects = examSubjects || EXAM_SUBJECTS[examType];
+    setSubject(newSubjects?.[0] || 'General');
+  }, [examType, examSubjects]);
 
   const handleGenerate = async () => {
     setIsLoading(true);
     try {
-      // Pass mcqCount to the service
       const paper = await generateFullPaper(examType, subject, difficulty, seedData, {
         ...config,
         mcqCount: config.includeMCQ ? mcqCount : 0
@@ -57,7 +66,6 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
     return (
       <div className="max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-12 text-center animate-fade-in">
          <div className="relative w-20 h-20 mx-auto mb-6">
-            {/* Sand Timer SVG */}
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-indigo-500 animate-spin-slow">
                 <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
             </svg>
@@ -71,6 +79,8 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
       </div>
     );
   }
+
+  const subjectsList = examSubjects || EXAM_SUBJECTS[examType] || ['General'];
 
   return (
     <div className="max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 animate-fade-in transition-colors">
@@ -86,7 +96,6 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Exam</label>
-             {/* Locked Exam Display */}
              <div className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold flex items-center gap-2">
                 <span>🔒</span> {examType}
              </div>
@@ -98,7 +107,7 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({ examType, onGene
               onChange={(e) => setSubject(e.target.value)}
               className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
             >
-              {EXAM_SUBJECTS[examType].map(s => <option key={s} value={s}>{s}</option>)}
+              {subjectsList.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
         </div>
