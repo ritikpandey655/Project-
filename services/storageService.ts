@@ -44,8 +44,13 @@ export const getUser = async (userId: string): Promise<User | null> => {
 export const getAllUsers = async (): Promise<User[]> => {
   try {
     const snapshot = await db.collection("users").get();
-    return snapshot.docs.map((doc: any) => doc.data() as User);
+    // Explicitly map doc.id ensuring 'id' is present even if not in the document body
+    return snapshot.docs.map((doc: any) => ({
+      ...doc.data(),
+      id: doc.id
+    }) as User);
   } catch (e) {
+    console.error("Error fetching all users:", e);
     return [];
   }
 };
@@ -148,7 +153,7 @@ export const getGlobalStats = async () => {
     return {
        totalQuestions: qSnap.size,
        totalUsers: uSnap.size,
-       activeUsers: Math.floor(uSnap.size * 0.7) // Mock active count
+       activeUsers: Math.floor(uSnap.size * 0.7) // Mock active count until we aggregate lastActiveDate
     };
   } catch(e) {
     return { totalQuestions: 0, totalUsers: 0, activeUsers: 0 };

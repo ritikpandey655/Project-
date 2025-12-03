@@ -105,7 +105,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   // Filter Effects
   useEffect(() => {
     const lower = userSearch.toLowerCase();
-    setFilteredUsers(users.filter(u => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower)));
+    setFilteredUsers(users.filter(u => 
+      (u.name || '').toLowerCase().includes(lower) || 
+      (u.email || '').toLowerCase().includes(lower)
+    ));
   }, [userSearch, users]);
 
   useEffect(() => {
@@ -275,11 +278,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                {isLoading ? 'Refreshing...' : 'Refresh Data'}
             </Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Total Users</h3>
                 <p className="text-4xl font-extrabold text-slate-800 dark:text-white mt-2">{users.length}</p>
                 <p className="text-xs text-slate-400 mt-1">Registered Accounts</p>
+            </div>
+            {/* Active Users Card */}
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                <h3 className="text-slate-500 text-sm font-bold uppercase">Active Today</h3>
+                <p className="text-4xl font-extrabold text-blue-600 dark:text-blue-400 mt-2">{stats?.activeUsers || 0}</p>
+                <p className="text-xs text-slate-400 mt-1">Online Recently</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Questions</h3>
@@ -414,21 +423,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const renderUsers = () => (
     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
         <h3 className="font-bold text-lg dark:text-white mb-4">User Management</h3>
-        <input type="text" placeholder="Search..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="w-full p-2 mb-4 border rounded dark:bg-slate-900 dark:text-white" />
+        <input type="text" placeholder="Search by name or email..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="w-full p-2 mb-4 border rounded dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-                <thead><tr className="text-slate-500 border-b"><th className="p-2">Name</th><th className="p-2">Email</th><th className="p-2">Action</th></tr></thead>
+                <thead>
+                  <tr className="text-slate-500 border-b dark:border-slate-700">
+                    <th className="p-2">Name</th>
+                    <th className="p-2">Email</th>
+                    <th className="p-2">Action</th>
+                  </tr>
+                </thead>
                 <tbody>
-                    {filteredUsers.map(u => (
-                        <tr key={u.id} className="border-b dark:border-slate-700 dark:text-slate-300">
-                            <td className="p-2 font-bold">{u.name}</td>
-                            <td className="p-2">{u.email}</td>
-                            <td className="p-2 flex gap-2">
-                                <button onClick={() => handleTogglePro(u.id, !!u.isPro)} className="text-indigo-500 font-bold">{u.isPro ? 'Un-Pro' : 'Make Pro'}</button>
-                                <button onClick={() => handleDeleteUser(u.id)} className="text-red-500">Delete</button>
+                    {filteredUsers.length === 0 ? (
+                        <tr>
+                            <td colSpan={3} className="p-4 text-center text-slate-500 dark:text-slate-400">
+                                {users.length === 0 ? "No users found in database." : "No matches found."}
                             </td>
                         </tr>
-                    ))}
+                    ) : (
+                        filteredUsers.map(u => (
+                            <tr key={u.id} className="border-b dark:border-slate-700 dark:text-slate-300">
+                                <td className="p-2 font-bold">{u.name || 'N/A'}</td>
+                                <td className="p-2">{u.email || 'N/A'}</td>
+                                <td className="p-2 flex gap-2">
+                                    <button onClick={() => handleTogglePro(u.id, !!u.isPro)} className="text-indigo-500 font-bold hover:underline">{u.isPro ? 'Un-Pro' : 'Make Pro'}</button>
+                                    <button onClick={() => handleDeleteUser(u.id)} className="text-red-500 hover:text-red-600">Delete</button>
+                                </td>
+                            </tr>
+                        ))
+                    )}
                 </tbody>
             </table>
         </div>
