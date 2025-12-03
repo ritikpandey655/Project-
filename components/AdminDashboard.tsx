@@ -2,12 +2,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './Button';
 import { 
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, PieChart, Pie, Cell, LineChart, Line
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
-import { ExamType, Question, QuestionSource, NewsItem, User, Transaction } from '../types';
-import { EXAM_SUBJECTS, NEWS_CATEGORIES, MONTHS } from '../constants';
+import { Question, QuestionSource, NewsItem, User, Transaction } from '../types';
 import { 
-  getGlobalStats, saveAdminQuestion, getAdminQuestions, updateAdminQuestionStatus, 
+  getGlobalStats, saveAdminQuestion, getAdminQuestions, 
   saveAdminNews, getAllUsers, removeUser, toggleUserPro, deleteGlobalQuestion,
   getTransactions, saveExamConfig, getExamConfig
 } from '../services/storageService';
@@ -19,7 +18,6 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'exams' | 'upload' | 'questions' | 'payments'>('dashboard');
-  const [stats, setStats] = useState<any>(null);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [serverLatency, setServerLatency] = useState<number | null>(null);
   
@@ -75,18 +73,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   useEffect(() => {
     loadAllData();
     checkServer();
-    const interval = setInterval(checkServer, 10000); // Check every 10s for more responsive updates
+    const interval = setInterval(checkServer, 5000); // Check every 5s for live updates
     return () => clearInterval(interval);
   }, []);
 
   const checkServer = async () => {
-    // Note: Don't set status to 'checking' here to avoid UI flickering, just update latency/status on result
     const start = Date.now();
     try {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 5000);
       
-      // Add timestamp to prevent caching
+      // Timestamp prevents caching
       const res = await fetch(`/api/health?t=${start}`, { signal: controller.signal });
       clearTimeout(id);
       
@@ -104,17 +101,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-        // Parallel fetch for speed
-        const [u, s, q, t, e] = await Promise.all([
+        const [u, q, t, e] = await Promise.all([
             getAllUsers(),
-            getGlobalStats(),
             getAdminQuestions(),
             getTransactions(),
             getExamConfig()
         ]);
 
-        setUsers(u); setFilteredUsers(u);
-        setStats(s);
+        setUsers(u);
+        setFilteredUsers(u);
         setQuestions(q); setFilteredQuestions(q);
         setTransactions(t);
         setExamConfig(e);
@@ -284,29 +279,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setIsSubmitting(false);
   };
 
+  const getLatencyColor = (ms: number | null) => {
+      if (ms === null) return 'text-slate-500';
+      if (ms < 200) return 'text-green-600';
+      if (ms < 1500) return 'text-amber-500'; // Covers 1212ms
+      return 'text-red-600';
+  };
+
   const renderDashboard = () => (
     <div className="space-y-6 animate-fade-in">
         <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
                <div className={`relative w-4 h-4 flex items-center justify-center`}>
                   <div className={`absolute w-full h-full rounded-full opacity-75 animate-ping ${serverStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
                   <div className={`relative w-3 h-3 rounded-full ${serverStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></div>
                </div>
                <div>
-                  <p className="text-xs font-bold uppercase text-slate-500">Backend Status</p>
-                  <p className={`font-bold text-sm ${serverStatus === 'online' ? 'text-green-600' : 'text-red-500'}`}>
-                    {serverStatus === 'online' ? (
-                        `Online • ${serverLatency !== null ? serverLatency + 'ms' : '...'}`
-                    ) : 'Disconnected / Offline'}
-                  </p>
+                  <p className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Server Latency</p>
+                  <div className="flex items-center gap-2">
+                    <p className={`font-mono font-bold text-lg ${getLatencyColor(serverLatency)}`}>
+                        {serverLatency !== null ? `${serverLatency}ms` : '---'}
+                    </p>
+                    <span className="text-xs text-slate-400">
+                        {serverStatus === 'online' ? '● Connected' : '○ Offline'}
+                    </span>
+                  </div>
                </div>
             </div>
             <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={checkServer}>
-                   Ping Server
+                   Ping
                 </Button>
                 <Button size="sm" variant="secondary" onClick={loadAllData} isLoading={isLoading}>
-                   Sync Data
+                   Sync DB
                 </Button>
             </div>
         </div>
@@ -314,20 +319,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Total Users</h3>
                 <p className="text-4xl font-extrabold text-slate-800 dark:text-white mt-2">
-                    {isLoading ? <span className="text-2xl opacity-50">Loading...</span> : users.length}
+                    {isLoading ? <span className="text-2xl opacity-50">...</span> : users.length}
                 </p>
+                <p className="text-xs text-slate-400 mt-2">Active Accounts</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Questions</h3>
                 <p className="text-4xl font-extrabold text-brand-purple mt-2">
-                    {isLoading ? <span className="text-2xl opacity-50">Loading...</span> : questions.length}
+                    {isLoading ? <span className="text-2xl opacity-50">...</span> : questions.length}
                 </p>
+                <p className="text-xs text-slate-400 mt-2">Global Bank</p>
             </div>
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Transactions</h3>
                 <p className="text-4xl font-extrabold text-green-600 dark:text-green-400 mt-2">
-                    {isLoading ? <span className="text-2xl opacity-50">Loading...</span> : transactions.length}
+                    {isLoading ? <span className="text-2xl opacity-50">...</span> : transactions.length}
                 </p>
+                <p className="text-xs text-slate-400 mt-2">Total Revenue</p>
             </div>
         </div>
     </div>
@@ -341,7 +349,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             {isLoading ? (
                 <div className="p-8 text-center text-slate-500">Loading users...</div>
             ) : filteredUsers.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">No users found. (Check database permissions)</div>
+                <div className="p-8 text-center text-slate-500">No users found. (Check Firebase Permissions)</div>
             ) : (
                 <table className="w-full text-left text-sm">
                     <thead><tr className="text-slate-500 border-b"><th className="p-2">Name</th><th className="p-2">Email</th><th className="p-2">Action</th></tr></thead>
