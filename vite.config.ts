@@ -205,6 +205,9 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve('.'),
       },
     },
+    build: {
+      chunkSizeWarningLimit: 1600, // Increased limit to silence warnings
+    },
     define: {
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
       // REVERTED TO USE ENV VAR - CONFIGURE IN VERCEL SETTINGS

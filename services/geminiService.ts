@@ -20,15 +20,20 @@ const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().
 
 const cleanJson = (text: string) => {
   if (!text) return "[]";
-  const match = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-  let cleaned = match ? match[1] || match[0] : text;
+  // Remove markdown code blocks if present
+  let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
   
-  const endBracket = cleaned.lastIndexOf(']');
-  const endBrace = cleaned.lastIndexOf('}');
-  const lastChar = Math.max(endBracket, endBrace);
+  // Find the first { or [ and the last } or ]
+  const firstBrace = cleaned.indexOf('{');
+  const firstBracket = cleaned.indexOf('[');
+  const start = (firstBrace === -1) ? firstBracket : (firstBracket === -1) ? firstBrace : Math.min(firstBrace, firstBracket);
   
-  if (lastChar !== -1) {
-      cleaned = cleaned.substring(0, lastChar + 1);
+  const lastBrace = cleaned.lastIndexOf('}');
+  const lastBracket = cleaned.lastIndexOf(']');
+  const end = Math.max(lastBrace, lastBracket);
+
+  if (start !== -1 && end !== -1) {
+      cleaned = cleaned.substring(start, end + 1);
   }
   return cleaned.trim();
 };
@@ -59,7 +64,7 @@ const fetchFromGroq = async (prompt: string, model = "llama3-70b-8192", jsonMode
     
     try {
         const body: any = {
-            messages: [{ role: "user", content: prompt + (jsonMode ? " Respond ONLY in valid JSON." : "") }],
+            messages: [{ role: "user", content: prompt + (jsonMode ? " Respond ONLY in valid JSON. No Markdown." : "") }],
             model: model,
             temperature: 0.3, // Strict facts
         };
@@ -439,53 +444,105 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
 
 export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any): Promise<QuestionPaper | null> => {
     try {
-        // STRICTER PROMPT FOR GROQ TO ENSURE 'text' key
         const prompt = `
-            Generate a complete Mock Exam Paper for ${exam} (${subject}).
+            Act as an exam setter. Generate a Mock Exam Paper for ${exam} (${subject}).
             Difficulty: ${difficulty}.
             Total MCQs: ${config.mcqCount || 10}.
             
-            STRICT JSON STRUCTURE REQUIRED:
+            OUTPUT STRICT VALID JSON ONLY. NO MARKDOWN BLOCK.
+            
+            JSON Structure Example:
             {
-              "title": "Exam Title",
+              "title": "${exam} Mock Test",
               "totalMarks": 100,
               "duration": 60,
               "sections": [
                 {
-                  "title": "Section Name",
-                  "marksPerQuestion": 4,
+                  "title": "General Awareness",
+                  "marksPerQuestion": 2,
                   "questions": [
                     {
-                      "text": "The actual question string", 
-                      "options": ["Option A", "Option B", "Option C", "Option D"],
-                      "answer": "Option B",
-                      "explanation": "Detailed solution"
+                      "text": "Which planet is known as the Red Planet?", 
+                      "options": ["Venus", "Mars", "Jupiter", "Saturn"],
+                      "answer": "Mars",
+                      "explanation": "Mars appears red due to iron oxide."
                     }
                   ]
                 }
               ]
             }
-            Ensure valid JSON. No markdown. Use 'text' key for question body.
+            
+            CRITICAL RULES:
+            1. The question body MUST be in a key named 'text'.
+            2. 'options' must be an array of strings.
+            3. 'answer' must be the exact string from options.
         `;
         
         let data = null;
 
         // 1. Try Groq (Fastest) - Use JSON mode
         if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
-             data = await fetchFromGroq(prompt, "llama3-70b-8192", true);
+             try {
+                 data = await fetchFromGroq(prompt, "llama3-70b-8192", true);
+                 
+                 // FAIL-SAFE: If Grok returns partial or garbage data, force fallback
+                 if (!data || !data.sections || !Array.isArray(data.sections) || data.sections.length === 0) {
+                     console.warn("Grok returned invalid structure. Falling back to Gemini.");
+                     data = null;
+                 }
+             } catch(e) {
+                 console.warn("Grok Failed, using Gemini fallback", e);
+                 data = null;
+             }
         }
 
-        // 2. Fallback to Gemini
+        // 2. Fallback to Gemini with STRICT SCHEMA
         if (!data) {
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
-                config: { ...commonConfig, responseMimeType: "application/json" }
+                config: { 
+                    ...commonConfig, 
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            title: { type: Type.STRING },
+                            totalMarks: { type: Type.INTEGER },
+                            duration: { type: Type.INTEGER },
+                            sections: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        title: { type: Type.STRING },
+                                        marksPerQuestion: { type: Type.INTEGER },
+                                        questions: {
+                                            type: Type.ARRAY,
+                                            items: {
+                                                type: Type.OBJECT,
+                                                properties: {
+                                                    text: { type: Type.STRING },
+                                                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                                    answer: { type: Type.STRING },
+                                                    explanation: { type: Type.STRING }
+                                                },
+                                                required: ['text', 'options', 'answer']
+                                            }
+                                        }
+                                    },
+                                    required: ['title', 'questions']
+                                }
+                            }
+                        },
+                        required: ['title', 'sections']
+                    }
+                }
             });
             data = JSON.parse(cleanJson(response.text || "{}"));
         }
         
-        if (!data) return null;
+        if (!data || !data.sections) return null;
 
         const sections = data.sections?.map((sec: any, sIdx: number) => ({
             id: `sec-${sIdx}`,
@@ -494,8 +551,8 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
             marksPerQuestion: sec.marksPerQuestion || 1,
             questions: sec.questions?.map((q: any, qIdx: number) => ({
                 id: generateId(`p-q-${sIdx}-${qIdx}`),
-                // ROBUST FALLBACK: Sometimes AI returns 'question' instead of 'text'
-                text: q.text || q.question || "Question text unavailable",
+                // SUPER ROBUST FALLBACK: Check all possible keys Groq might hallucinate
+                text: q.text || q.question || q.question_text || q.statement || q.stem || "Question text unavailable",
                 textHindi: q.text_hi,
                 options: safeOptions(q.options),
                 correctIndex: safeOptions(q.options).findIndex((o: string) => o === q.answer),
@@ -519,5 +576,8 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
             sections: sections || [],
             createdAt: Date.now()
         };
-    } catch (e) { return null; }
+    } catch (e) { 
+        console.error("Generate Paper Error:", e);
+        return null; 
+    }
 };
