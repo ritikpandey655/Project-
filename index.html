@@ -73,8 +73,8 @@
         window.addEventListener('load', () => {
           // Wrap in try-catch to prevent console noise in restricted iframes
           try {
-            const swUrl = './sw.js'; 
-            navigator.serviceWorker.register(swUrl, { scope: './' })
+            const swUrl = '/sw.js'; 
+            navigator.serviceWorker.register(swUrl, { scope: '/' })
               .then(registration => {
                 console.log('SW Registered');
               })
@@ -162,23 +162,23 @@
         }
       }
     </script>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "express": "https://aistudiocdn.com/express@^5.2.1",
-    "cors": "https://aistudiocdn.com/cors@^2.8.5",
-    "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
-    "axios": "https://aistudiocdn.com/axios@^1.13.2",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
     "react": "https://aistudiocdn.com/react@^19.2.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
+    "cors": "https://aistudiocdn.com/cors@^2.8.5",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
     "vite-plugin-pwa": "https://aistudiocdn.com/vite-plugin-pwa@^1.2.0",
+    "axios": "https://aistudiocdn.com/axios@^1.13.2",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "express": "https://aistudiocdn.com/express@^5.2.1",
     "path": "https://aistudiocdn.com/path@^0.12.7",
-    "vite": "https://aistudiocdn.com/vite@^7.2.6"
+    "crypto": "https://aistudiocdn.com/crypto@^1.0.1"
   }
 }
 </script>
