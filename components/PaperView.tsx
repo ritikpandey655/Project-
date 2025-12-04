@@ -334,7 +334,11 @@ export const PaperView: React.FC<PaperViewProps> = ({
                 
                 <div className="space-y-8">
                     {section.questions.map((q, idx) => {
-                        const displayText = (localLang === 'hi' && q.textHindi) ? q.textHindi : q.text;
+                        // FIX: Fallback if text is missing but Question object exists
+                        const displayText = (localLang === 'hi' && q.textHindi) 
+                            ? q.textHindi 
+                            : (q.text || "Question text unavailable. Please report this issue.");
+                        
                         return (
                             <div key={q.id} className="group">
                             <div className="flex gap-4">

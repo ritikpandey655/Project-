@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
@@ -48,7 +49,7 @@ const commonConfig = {
 };
 
 // --- GROQ API HANDLER (For Super Speed) ---
-const fetchFromGroq = async (prompt: string, model = "llama3-70b-8192"): Promise<any> => {
+const fetchFromGroq = async (prompt: string, model = "llama3-70b-8192", jsonMode = false): Promise<any> => {
     // CHECK USER PREFERENCE: If Admin selected Gemini explicitly, skip Groq
     const preferredProvider = localStorage.getItem('selected_ai_provider');
     if (preferredProvider === 'gemini') return null;
@@ -57,17 +58,24 @@ const fetchFromGroq = async (prompt: string, model = "llama3-70b-8192"): Promise
     if (!key) return null;
     
     try {
+        const body: any = {
+            messages: [{ role: "user", content: prompt + (jsonMode ? " Respond ONLY in valid JSON." : "") }],
+            model: model,
+            temperature: 0.3, // Strict facts
+        };
+
+        // Llama 3 on Groq supports JSON mode for reliable output
+        if (jsonMode) {
+            body.response_format = { type: "json_object" };
+        }
+
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${key}`,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-                messages: [{ role: "user", content: prompt + " Respond ONLY in valid JSON." }],
-                model: model,
-                temperature: 0.3, // Strict facts
-            })
+            body: JSON.stringify(body)
         });
         
         if (!response.ok) throw new Error("Groq API Error");
@@ -114,15 +122,21 @@ export const generateExamQuestions = async (
           RULES:
           1. NO FAKE QUESTIONS. Verify scientifically/historically.
           2. Difficulty: ${difficulty}.
-          3. Format: JSON Array.
+          3. Format: JSON Array with keys: text, options (array), correctIndex (int), explanation.
           4. ${isNEETorJEE ? 'Strictly NCERT based.' : 'Standard Exam Pattern.'}
       `;
 
       // EXECUTE: Try Groq first (Speed), then Gemini Parallel (Reliability)
       const fetchPromise = (async () => {
           // A. Try Groq (If Key Exists & Enabled)
-          const groqData = await fetchFromGroq(prompt);
-          if (groqData && Array.isArray(groqData)) return groqData;
+          const groqData = await fetchFromGroq(prompt, "llama3-70b-8192", true); // Use JSON mode for array
+          // Groq sometimes wraps array in object { "questions": [...] } when forced to json_object
+          if (groqData) {
+             if (Array.isArray(groqData)) return groqData;
+             if (groqData.questions && Array.isArray(groqData.questions)) return groqData.questions;
+             // If single object
+             if (groqData.text) return [groqData];
+          }
 
           // B. Gemini Parallel Call
           const response = await ai.models.generateContent({
@@ -163,11 +177,15 @@ export const generateExamQuestions = async (
       
       let aiQuestions: Question[] = [];
       results.flat().forEach((q: any) => {
-          if (q && q.text) {
+          // Robust check for question text
+          const qText = q.text || q.question;
+          
+          if (q && qText) {
               const opts = safeOptions(q.options);
               if (opts.length > 0) {
                   aiQuestions.push({
                       ...q,
+                      text: qText,
                       id: generateId('ai-q'),
                       source: QuestionSource.PYQ_AI,
                       examType: exam as ExamType,
@@ -221,8 +239,8 @@ export const generateCurrentAffairs = async (
 
       const aiQs = aiData.map((q: any) => ({
           id: generateId('ca-q'),
-          text: q.text,
-          textHindi: q.text_hi || q.text,
+          text: q.text || q.question,
+          textHindi: q.text_hi || (q.text || q.question),
           options: safeOptions(q.options),
           optionsHindi: safeOptions(q.options_hi || q.options),
           correctIndex: q.correctIndex || 0,
@@ -245,8 +263,12 @@ export const generateCurrentAffairs = async (
 export const parseSmartInput = async (input: string, type: 'text' | 'image', examContext: string): Promise<any[]> => {
   // Groq is great for text parsing
   if (type === 'text') {
-      const groqResp = await fetchFromGroq(`Extract questions from this text for ${examContext}. Return JSON Array. Text: ${input}`);
-      if (groqResp) return groqResp;
+      const groqResp = await fetchFromGroq(`Extract questions from this text for ${examContext}. Return JSON Array. Text: ${input}`, "llama3-70b-8192", true);
+      // Handle wrapped JSON
+      if (groqResp) {
+          if (Array.isArray(groqResp)) return groqResp;
+          if (groqResp.questions && Array.isArray(groqResp.questions)) return groqResp.questions;
+      }
   }
 
   try {
@@ -294,16 +316,19 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
   // Groq is excellent for generating static notes
   const prompt = `Generate 8 High-Yield Formula/Notes for ${exam} (${subject}). Return JSON Array {headline, summary}.`;
   
-  const groqResp = await fetchFromGroq(prompt);
+  const groqResp = await fetchFromGroq(prompt, "llama3-70b-8192", true);
   if (groqResp) {
-      return groqResp.map((n: any) => ({
-          id: generateId('note'),
-          headline: n.headline || n.title,
-          summary: n.summary || n.content,
-          category: subject || 'Notes',
-          date: 'Key Concept',
-          tags: []
-      }));
+      const notes = Array.isArray(groqResp) ? groqResp : (groqResp.notes || groqResp.items || []);
+      if (notes.length > 0) {
+        return notes.map((n: any) => ({
+            id: generateId('note'),
+            headline: n.headline || n.title,
+            summary: n.summary || n.content,
+            category: subject || 'Notes',
+            date: 'Key Concept',
+            tags: []
+        }));
+      }
   }
 
   try {
@@ -327,8 +352,16 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
 export const generateSingleQuestion = async (exam: string, subject: string, topic: string): Promise<Partial<Question> | null> => {
   const prompt = `Generate 1 High-Quality MCQ for ${exam} (${subject}: ${topic}). JSON.`;
   
-  const groqResp = await fetchFromGroq(prompt);
-  if (groqResp) return groqResp;
+  const groqResp = await fetchFromGroq(prompt, "llama3-70b-8192", true);
+  if (groqResp) {
+      // Handle single object or array wrapped
+      const q = Array.isArray(groqResp) ? groqResp[0] : groqResp;
+      return {
+          ...q,
+          text: q.text || q.question,
+          options: safeOptions(q.options)
+      };
+  }
 
   try {
       const response = await ai.models.generateContent({
@@ -339,6 +372,7 @@ export const generateSingleQuestion = async (exam: string, subject: string, topi
       const data = JSON.parse(cleanJson(response.text || "{}"));
       return {
           ...data,
+          text: data.text || data.question,
           options: safeOptions(data.options)
       };
   } catch (e) { return null; }
@@ -355,6 +389,7 @@ export const generateQuestionFromImage = async (base64: string, mime: string, ex
       const data = JSON.parse(cleanJson(response.text || "{}"));
       return {
           ...data,
+          text: data.text || data.question,
           options: safeOptions(data.options)
       };
   } catch (e) { return null; }
@@ -363,18 +398,22 @@ export const generateQuestionFromImage = async (base64: string, mime: string, ex
 export const generatePYQList = async (exam: string, subject: string, year: number, topic?: string): Promise<Question[]> => {
     const prompt = `Simulate 10 authentic questions for ${year} ${exam} (${subject}). ${topic ? `Topic: ${topic}` : ''}. Return JSON Array.`;
     
-    const groqResp = await fetchFromGroq(prompt);
-    if (groqResp && Array.isArray(groqResp)) {
-        return groqResp.map((q: any) => ({
-            ...q,
-            id: generateId(`pyq-${year}`),
-            source: QuestionSource.PYQ_AI,
-            examType: exam as ExamType,
-            subject: subject,
-            pyqYear: year,
-            type: QuestionType.MCQ,
-            options: safeOptions(q.options)
-        }));
+    const groqResp = await fetchFromGroq(prompt, "llama3-70b-8192", true);
+    if (groqResp) {
+        const list = Array.isArray(groqResp) ? groqResp : (groqResp.questions || []);
+        if (list.length > 0) {
+            return list.map((q: any) => ({
+                ...q,
+                id: generateId(`pyq-${year}`),
+                text: q.text || q.question,
+                source: QuestionSource.PYQ_AI,
+                examType: exam as ExamType,
+                subject: subject,
+                pyqYear: year,
+                type: QuestionType.MCQ,
+                options: safeOptions(q.options)
+            }));
+        }
     }
 
     try {
@@ -387,6 +426,7 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
         return aiData.map((q: any) => ({
             ...q,
             id: generateId(`pyq-${year}`),
+            text: q.text || q.question,
             source: QuestionSource.PYQ_AI,
             examType: exam as ExamType,
             subject: subject,
@@ -401,14 +441,25 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
     try {
         const prompt = `Generate Mock Paper for ${exam} (${subject}). Diff: ${difficulty}. MCQs: ${config.mcqCount || 10}. Return complex JSON {title, totalMarks, duration, sections: [{title, marksPerQuestion, questions: []}]}.`;
         
-        // Use Gemini for large context generation
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { ...commonConfig, responseMimeType: "application/json" }
-        });
-        const data = JSON.parse(cleanJson(response.text || "{}"));
+        let data = null;
+
+        // 1. Try Groq (Fastest) - Use JSON mode
+        if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
+             data = await fetchFromGroq(prompt, "llama3-70b-8192", true);
+        }
+
+        // 2. Fallback to Gemini
+        if (!data) {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: { ...commonConfig, responseMimeType: "application/json" }
+            });
+            data = JSON.parse(cleanJson(response.text || "{}"));
+        }
         
+        if (!data) return null;
+
         const sections = data.sections?.map((sec: any, sIdx: number) => ({
             id: `sec-${sIdx}`,
             title: sec.title || `Section ${sIdx+1}`,
@@ -416,7 +467,8 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
             marksPerQuestion: sec.marksPerQuestion || 1,
             questions: sec.questions?.map((q: any, qIdx: number) => ({
                 id: generateId(`p-q-${sIdx}-${qIdx}`),
-                text: q.text,
+                // ROBUST FALLBACK: Sometimes AI returns 'question' instead of 'text'
+                text: q.text || q.question || "Question text unavailable",
                 textHindi: q.text_hi,
                 options: safeOptions(q.options),
                 correctIndex: safeOptions(q.options).findIndex((o: string) => o === q.answer),

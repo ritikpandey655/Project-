@@ -67,8 +67,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Settings State
-  const [groqKey, setGroqKey] = useState(localStorage.getItem('groq_api_key') || '');
+  // Settings State - Auto-fill from env if not in local storage
+  const [groqKey, setGroqKey] = useState(localStorage.getItem('groq_api_key') || process.env.GROQ_API_KEY || '');
   const [aiProvider, setAiProvider] = useState<'gemini' | 'groq'>(
     (localStorage.getItem('selected_ai_provider') as 'gemini' | 'groq') || 'groq'
   );
@@ -411,7 +411,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 />
                 <Button onClick={handleSaveGroqKey} size="sm">Save Key</Button>
             </div>
-            {localStorage.getItem('groq_api_key') && (
+            {(localStorage.getItem('groq_api_key') || process.env.GROQ_API_KEY) && (
                 <p className="text-green-500 text-xs mt-2 font-bold">✅ Key configured.</p>
             )}
         </div>
