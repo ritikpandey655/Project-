@@ -496,47 +496,16 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
              }
         }
 
-        // 2. Fallback to Gemini with STRICT SCHEMA
+        // 2. Fallback to Gemini WITHOUT STRICT SCHEMA
+        // Strict schema validation often fails for large/complex objects in free tier or due to minor deviations.
+        // responseMimeType: "application/json" is more robust here.
         if (!data) {
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
                 config: { 
                     ...commonConfig, 
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            title: { type: Type.STRING },
-                            totalMarks: { type: Type.INTEGER },
-                            duration: { type: Type.INTEGER },
-                            sections: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        title: { type: Type.STRING },
-                                        marksPerQuestion: { type: Type.INTEGER },
-                                        questions: {
-                                            type: Type.ARRAY,
-                                            items: {
-                                                type: Type.OBJECT,
-                                                properties: {
-                                                    text: { type: Type.STRING },
-                                                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                                    answer: { type: Type.STRING },
-                                                    explanation: { type: Type.STRING }
-                                                },
-                                                required: ['text', 'options', 'answer']
-                                            }
-                                        }
-                                    },
-                                    required: ['title', 'questions']
-                                }
-                            }
-                        },
-                        required: ['title', 'sections']
-                    }
+                    responseMimeType: "application/json"
                 }
             });
             data = JSON.parse(cleanJson(response.text || "{}"));
