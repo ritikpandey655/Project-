@@ -439,7 +439,34 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
 
 export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any): Promise<QuestionPaper | null> => {
     try {
-        const prompt = `Generate Mock Paper for ${exam} (${subject}). Diff: ${difficulty}. MCQs: ${config.mcqCount || 10}. Return complex JSON {title, totalMarks, duration, sections: [{title, marksPerQuestion, questions: []}]}.`;
+        // STRICTER PROMPT FOR GROQ TO ENSURE 'text' key
+        const prompt = `
+            Generate a complete Mock Exam Paper for ${exam} (${subject}).
+            Difficulty: ${difficulty}.
+            Total MCQs: ${config.mcqCount || 10}.
+            
+            STRICT JSON STRUCTURE REQUIRED:
+            {
+              "title": "Exam Title",
+              "totalMarks": 100,
+              "duration": 60,
+              "sections": [
+                {
+                  "title": "Section Name",
+                  "marksPerQuestion": 4,
+                  "questions": [
+                    {
+                      "text": "The actual question string", 
+                      "options": ["Option A", "Option B", "Option C", "Option D"],
+                      "answer": "Option B",
+                      "explanation": "Detailed solution"
+                    }
+                  ]
+                }
+              ]
+            }
+            Ensure valid JSON. No markdown. Use 'text' key for question body.
+        `;
         
         let data = null;
 
