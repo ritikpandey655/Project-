@@ -88,6 +88,47 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // --- SMART REMINDER LOGIC ---
+  const scheduleStudyReminder = async () => {
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+    
+    if (Notification.permission === 'granted') {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.active) {
+          // Schedule for 24 hours from now (in ms)
+          // For testing, you can change this to 10000 (10 seconds)
+          const delay = 24 * 60 * 60 * 1000; 
+          registration.active.postMessage({
+            type: 'SCHEDULE_REMINDER',
+            delay: delay
+          });
+        }
+      } catch (e) {
+        console.log("SW Message Failed:", e);
+      }
+    }
+  };
+
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      alert("This browser does not support notifications.");
+      return;
+    }
+    
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      // Send a welcome notification immediately
+      const registration = await navigator.serviceWorker.ready;
+      registration.showNotification("Notifications Enabled! 🔔", {
+        body: "We will remind you to study if you miss a day.",
+        icon: '/icon.svg'
+      });
+      // Schedule the next one
+      scheduleStudyReminder();
+    }
+  };
+
   // --- PWA Advanced Registration ---
   useEffect(() => {
     const registerPWAFeatures = async () => {
@@ -109,8 +150,6 @@ const App: React.FC = () => {
     if (!userProfile) return;
 
     // --- INSTANT ADMIN GRANT ---
-    // If the email is the support email or contains 'admin', force admin rights locally
-    // This fixes issues where the DB flag might be missing or delayed
     if (userProfile.email && (userProfile.email === 'support@pyqverse.in' || userProfile.email.includes('admin'))) {
         userProfile.isAdmin = true;
     }
@@ -143,6 +182,9 @@ const App: React.FC = () => {
       qotd: qotd,
       examConfig: dynamicExams
     }));
+
+    // Auto-schedule reminder on load if permission granted
+    scheduleStudyReminder();
 
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get('action');
@@ -208,14 +250,6 @@ const App: React.FC = () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, [loadUserData]);
-
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) return;
-    if (Notification.permission === 'granted') return;
-    try {
-      await Notification.requestPermission();
-    } catch (e) {}
-  };
 
   const navigateTo = useCallback((view: ViewState) => {
     setState(prev => ({ ...prev, view }));
@@ -285,14 +319,10 @@ const App: React.FC = () => {
        setIsLoading(false); 
        navigateTo('practice'); 
        
-       // If official questions are scarce (e.g. NEET user uploaded only 2), 
-       // immediately trigger AI to fill the buffer so user doesn't hit end.
        if (initialBatch.length < 5 || config.count > initialBatch.length) {
            const needed = config.count - initialBatch.length;
-           // Fetch in background but update state when ready
            generateExamQuestions(exam, config.subject, needed, 'Medium', config.topic ? [config.topic] : [])
            .then(moreQuestions => {
-              // Append new questions, filtering duplicates
               setPracticeQueue(prev => {
                   const existingIds = new Set(prev.map(q => q.id));
                   const uniqueMore = moreQuestions.filter(q => !existingIds.has(q.id));
@@ -301,8 +331,6 @@ const App: React.FC = () => {
            });
        }
     } else {
-       // --- LAZY LOAD STRATEGY FOR LARGE REQUESTS (Marathon 50) ---
-       // 1. Fetch a small batch first to be fast and safe
        const initialLoadCount = Math.min(config.count, 5);
        
        const questions = await generateExamQuestions(
@@ -318,7 +346,6 @@ const App: React.FC = () => {
        setIsLoading(false);
        navigateTo('practice');
 
-       // 2. Fetch the remaining questions in background if needed
        if (config.count > initialLoadCount) {
            const remaining = config.count - initialLoadCount;
            generateExamQuestions(
@@ -343,7 +370,6 @@ const App: React.FC = () => {
     if (!state.user || !exam) return;
     const nextIndex = currentQIndex + 1;
     
-    // Improved endless mode trigger
     if (practiceConfig.mode === 'endless' && nextIndex >= practiceQueue.length - 3 && !isFetchingMore) {
         setIsFetchingMore(true);
         generateExamQuestions(exam, practiceConfig.subject, 5, 'Medium', practiceConfig.topic ? [practiceConfig.topic] : [])
@@ -361,6 +387,8 @@ const App: React.FC = () => {
       setCurrentQIndex(nextIndex);
     } else {
       navigateTo('stats');
+      // Schedule reminder on session end
+      scheduleStudyReminder();
     }
   }, [currentQIndex, practiceConfig, practiceQueue.length, isFetchingMore, state.user, state.selectedExam, navigateTo]);
 
@@ -396,7 +424,6 @@ const App: React.FC = () => {
         setPracticeConfig({ mode: 'finite', count: 200, subject: 'Current Affairs' }); 
         setIsLoading(false);
         navigateTo('practice');
-        // Backfill
         generateCurrentAffairs(exam, 30).then(more => {
            setPracticeQueue(prev => [...prev, ...more]);
         });
@@ -556,6 +583,7 @@ const App: React.FC = () => {
           />
         )}
 
+        {/* ... Rest of the routing logic ... */}
         {state.view === 'upload' && state.user && state.selectedExam && (
           <UploadForm userId={state.user.id} examType={state.selectedExam} onSuccess={() => { alert("Saved!"); navigateTo('dashboard'); }} />
         )}

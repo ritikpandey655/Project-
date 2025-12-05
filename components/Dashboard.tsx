@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { UserStats, ExamType, User, Question } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from './Button';
@@ -46,6 +46,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   onStartCurrentAffairs,
   onReadCurrentAffairs,
   onReadNotes,
+  onEnableNotifications,
   darkMode,
   onUpgrade,
   qotd,
@@ -65,6 +66,15 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [showCAMenu, setShowCAMenu] = useState(false);
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+  const [showNotificationCard, setShowNotificationCard] = useState(false);
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission !== 'granted') {
+        setShowNotificationCard(true);
+    } else {
+        setShowNotificationCard(false);
+    }
+  }, []);
 
   const t = TRANSLATIONS[language];
   const isTechnical = selectedExam && TECHNICAL_EXAMS.includes(selectedExam);
@@ -106,6 +116,11 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
     setTimeout(() => {
       setFeedbackSent(false);
     }, 3000);
+  };
+
+  const handleNotificationClick = () => {
+      onEnableNotifications();
+      setTimeout(() => setShowNotificationCard(false), 2000);
   };
 
   // ADMIN/PRO UNLOCK LOGIC
@@ -229,6 +244,24 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
         <div className="absolute -right-10 -top-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-brand-blue/30 rounded-full blur-2xl"></div>
       </div>
+
+      {/* Notification Permission Card (New Feature) */}
+      {showNotificationCard && (
+        <div 
+            onClick={handleNotificationClick}
+            className="bg-gradient-to-r from-teal-500 to-emerald-600 rounded-2xl p-4 sm:p-5 text-white shadow-lg cursor-pointer transform transition-transform hover:scale-[1.01] active:scale-[0.99] relative overflow-hidden group flex items-center justify-between"
+        >
+            <div className="relative z-10">
+                <h3 className="text-lg font-bold font-display flex items-center gap-2">
+                    <span>🔔</span> Enable Daily Reminders
+                </h3>
+                <p className="text-teal-100 text-xs sm:text-sm mt-1">Get study alerts if you forget to practice.</p>
+            </div>
+            <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl font-bold text-sm group-hover:bg-white/30 transition-colors">
+                Enable
+            </div>
+        </div>
+      )}
 
       {/* Quick Actions Grid */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
