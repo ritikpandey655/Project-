@@ -96,8 +96,6 @@ const App: React.FC = () => {
       try {
         const registration = await navigator.serviceWorker.ready;
         if (registration.active) {
-          // Schedule for 24 hours from now (in ms)
-          // For testing, you can change this to 10000 (10 seconds)
           const delay = 24 * 60 * 60 * 1000; 
           registration.active.postMessage({
             type: 'SCHEDULE_REMINDER',
@@ -118,13 +116,11 @@ const App: React.FC = () => {
     
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
-      // Send a welcome notification immediately
       const registration = await navigator.serviceWorker.ready;
       registration.showNotification("Notifications Enabled! 🔔", {
         body: "We will remind you to study if you miss a day.",
         icon: '/icon.svg'
       });
-      // Schedule the next one
       scheduleStudyReminder();
     }
   };
@@ -144,28 +140,23 @@ const App: React.FC = () => {
     registerPWAFeatures();
   }, [state.user]);
 
-  // Helper to load async user data
   const loadUserData = useCallback(async (userId: string) => {
     const userProfile = await getUser(userId);
     if (!userProfile) return;
 
-    // --- INSTANT ADMIN GRANT ---
     if (userProfile.email && (userProfile.email === 'support@pyqverse.in' || userProfile.email.includes('admin'))) {
         userProfile.isAdmin = true;
     }
 
-    // Track real activity
     updateUserActivity(userId);
 
-    // Load heavy data in background, set User immediately
     const prefsPromise = getUserPref(userId);
     const statsPromise = getStats(userId);
     const qotdPromise = getStoredQOTD(userId);
-    const examsPromise = getExamConfig(); // Load dynamic exams
+    const examsPromise = getExamConfig();
 
     const [prefs, stats, qotd, dynamicExams] = await Promise.all([prefsPromise, statsPromise, qotdPromise, examsPromise]);
 
-    // Set Theme/Mode immediately
     if (prefs.darkMode) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
     applyTheme(prefs.theme || 'PYQverse Prime');
@@ -183,7 +174,6 @@ const App: React.FC = () => {
       examConfig: dynamicExams
     }));
 
-    // Auto-schedule reminder on load if permission granted
     scheduleStudyReminder();
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -202,7 +192,6 @@ const App: React.FC = () => {
           setState(prev => ({ ...prev, view: prefs.hasSeenTutorial ? 'dashboard' : 'tutorial' }));
        }
        
-       // Generate QOTD if missing
        if (!qotd && navigator.onLine) {
           generateSingleQuestion(prefs.selectedExam, (dynamicExams as any)[prefs.selectedExam]?.[0] || 'General', 'QOTD').then(q => {
              if(q) saveQOTD(userId, { id: `qotd-${Date.now()}`, ...q, examType: prefs.selectedExam!, subject: 'QOTD', source: 'PYQ_AI', correctIndex: q.correctIndex || 0, options: q.options || [], text: q.text || '', createdAt: Date.now() } as Question);
@@ -216,7 +205,6 @@ const App: React.FC = () => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (isAppInitializing) {
-        // Fallback if auth is slow
       }
     }, 8000);
 
@@ -303,6 +291,58 @@ const App: React.FC = () => {
      if(state.user) saveUserPref(state.user.id, { theme: t });
   }, [state.user, applyTheme]);
 
+  // --- PROGRESSIVE STREAMING HELPER ---
+  const progressiveFetch = useCallback((
+    exam: string,
+    subject: string,
+    targetCount: number,
+    currentCount: number,
+    topic?: string,
+    isCurrentAffairs: boolean = false
+  ) => {
+      // Background Loader Logic
+      let loaded = currentCount;
+      const BATCH_SIZE = 5; // Fetch in small batches for responsiveness
+
+      const fetchNext = async () => {
+          // Check if we already have enough questions in the queue
+          // Note: accessing state in async loop is tricky, relying on 'loaded' tracker
+          if (loaded >= targetCount) return;
+          
+          const needed = Math.min(BATCH_SIZE, targetCount - loaded);
+          if (needed <= 0) return;
+          
+          try {
+              setIsFetchingMore(true);
+              let newQs: Question[] = [];
+              if (isCurrentAffairs) {
+                  newQs = await generateCurrentAffairs(exam, needed);
+              } else {
+                  newQs = await generateExamQuestions(exam, subject, needed, 'Medium', topic ? [topic] : []);
+              }
+
+              if (newQs.length > 0) {
+                  setPracticeQueue(prev => {
+                      const existingIds = new Set(prev.map(q => q.id));
+                      const unique = newQs.filter(q => !existingIds.has(q.id));
+                      return [...prev, ...unique];
+                  });
+                  loaded += newQs.length;
+                  // Recursive call for next batch
+                  setTimeout(fetchNext, 800); 
+              } else {
+                  // Stop if generation fails to return items (avoids infinite loop)
+                  setIsFetchingMore(false);
+              }
+          } catch (e) {
+              console.error("Stream error", e);
+              setIsFetchingMore(false);
+          }
+      };
+      
+      fetchNext();
+  }, []);
+
   const startPracticeSession = useCallback(async (config: { subject: string; count: number; mode: 'finite' | 'endless'; topic?: string }) => {
     const exam = state.selectedExam;
     if (!state.user || !exam) return;
@@ -310,87 +350,57 @@ const App: React.FC = () => {
     setIsLoading(true);
     setPracticeConfig(config);
     
-    // Quick Fetch from Cache/Admin
-    const initialBatch = await getOfficialQuestions(exam, config.subject, 5);
-    
-    if (initialBatch.length > 0) {
-       setPracticeQueue(initialBatch);
-       setCurrentQIndex(0);
-       setIsLoading(false); 
-       navigateTo('practice'); 
-       
-       if (initialBatch.length < 5 || config.count > initialBatch.length) {
-           const needed = config.count - initialBatch.length;
-           generateExamQuestions(exam, config.subject, needed, 'Medium', config.topic ? [config.topic] : [])
-           .then(moreQuestions => {
-              setPracticeQueue(prev => {
-                  const existingIds = new Set(prev.map(q => q.id));
-                  const uniqueMore = moreQuestions.filter(q => !existingIds.has(q.id));
-                  return [...prev, ...uniqueMore];
-              });
-           });
-       }
-    } else {
-       const initialLoadCount = Math.min(config.count, 5);
-       
-       const questions = await generateExamQuestions(
-          exam, 
-          config.subject, 
-          initialLoadCount, 
-          'Medium', 
-          config.topic ? [config.topic] : []
-       );
-       
-       setPracticeQueue(questions);
-       setCurrentQIndex(0);
-       setIsLoading(false);
-       navigateTo('practice');
+    const INITIAL_BATCH_SIZE = 10; // "Phle 10 question show kare"
+    const initialLoadCount = Math.min(config.count, INITIAL_BATCH_SIZE);
 
-       if (config.count > initialLoadCount) {
-           const remaining = config.count - initialLoadCount;
-           generateExamQuestions(
-              exam,
-              config.subject,
-              remaining,
-              'Medium',
-              config.topic ? [config.topic] : []
-           ).then(moreQs => {
-               setPracticeQueue(prev => {
-                   const existingIds = new Set(prev.map(q => q.id));
-                   const uniqueMore = moreQs.filter(q => !existingIds.has(q.id));
-                   return [...prev, ...uniqueMore];
-               });
-           });
-       }
+    // 1. Fetch First Batch (Fast)
+    let initialQuestions: Question[] = [];
+    
+    // Try cache first
+    const cacheQs = await getOfficialQuestions(exam, config.subject, initialLoadCount);
+    if (cacheQs.length >= initialLoadCount) {
+        initialQuestions = cacheQs;
+    } else {
+        const needed = initialLoadCount - cacheQs.length;
+        const aiQs = await generateExamQuestions(exam, config.subject, needed, 'Medium', config.topic ? [config.topic] : []);
+        initialQuestions = [...cacheQs, ...aiQs];
     }
-  }, [state.user, state.selectedExam, navigateTo]);
+
+    if (initialQuestions.length === 0) {
+        // Fallback retry
+        initialQuestions = await generateExamQuestions(exam, config.subject, 5, 'Medium', config.topic ? [config.topic] : []);
+    }
+
+    setPracticeQueue(initialQuestions);
+    setCurrentQIndex(0);
+    setIsLoading(false); 
+    navigateTo('practice'); 
+
+    // 2. Stream Remaining Questions (Background)
+    if (config.count > initialQuestions.length || config.mode === 'endless') {
+        const target = config.mode === 'endless' ? 1000 : config.count;
+        progressiveFetch(exam, config.subject, target, initialQuestions.length, config.topic, false);
+    }
+
+  }, [state.user, state.selectedExam, navigateTo, progressiveFetch]);
 
   const handleNextQuestion = useCallback(async () => {
     const exam = state.selectedExam;
     if (!state.user || !exam) return;
     const nextIndex = currentQIndex + 1;
     
+    // Trigger more if endless and running low
     if (practiceConfig.mode === 'endless' && nextIndex >= practiceQueue.length - 3 && !isFetchingMore) {
-        setIsFetchingMore(true);
-        generateExamQuestions(exam, practiceConfig.subject, 5, 'Medium', practiceConfig.topic ? [practiceConfig.topic] : [])
-        .then(moreQs => {
-            setPracticeQueue(prev => {
-                const existingIds = new Set(prev.map(q => q.id));
-                const uniqueMore = moreQs.filter(q => !existingIds.has(q.id));
-                return [...prev, ...uniqueMore];
-            });
-            setIsFetchingMore(false);
-        });
+        progressiveFetch(exam, practiceConfig.subject, practiceQueue.length + 10, practiceQueue.length, practiceConfig.topic, false);
     }
 
     if (nextIndex < practiceQueue.length) {
       setCurrentQIndex(nextIndex);
     } else {
       navigateTo('stats');
-      // Schedule reminder on session end
       scheduleStudyReminder();
     }
-  }, [currentQIndex, practiceConfig, practiceQueue.length, isFetchingMore, state.user, state.selectedExam, navigateTo]);
+  }, [currentQIndex, practiceConfig, practiceQueue.length, isFetchingMore, state.user, state.selectedExam, navigateTo, progressiveFetch]);
 
   const handleAnswer = useCallback(async (isCorrect: boolean) => {
     const exam = state.selectedExam;
@@ -418,17 +428,18 @@ const App: React.FC = () => {
     if (!state.user || !exam) return;
     setIsLoading(true);
     
+    // Initial 10
     generateCurrentAffairs(exam, 10).then(questions => {
         setPracticeQueue(questions);
         setCurrentQIndex(0);
-        setPracticeConfig({ mode: 'finite', count: 200, subject: 'Current Affairs' }); 
+        setPracticeConfig({ mode: 'finite', count: 50, subject: 'Current Affairs' }); // Increased to 50
         setIsLoading(false);
         navigateTo('practice');
-        generateCurrentAffairs(exam, 30).then(more => {
-           setPracticeQueue(prev => [...prev, ...more]);
-        });
+        
+        // Stream remaining 40
+        progressiveFetch(exam, 'Current Affairs', 50, questions.length, undefined, true);
     });
-  }, [state.user, state.selectedExam, navigateTo]);
+  }, [state.user, state.selectedExam, navigateTo, progressiveFetch]);
 
   const handleNewsFilterChange = useCallback(async (filters: { month?: string; year?: number; category?: string; subject?: string }, isLoadMore: boolean = false) => {
     const exam = state.selectedExam;
@@ -583,22 +594,33 @@ const App: React.FC = () => {
           />
         )}
 
-        {/* ... Rest of the routing logic ... */}
         {state.view === 'upload' && state.user && state.selectedExam && (
           <UploadForm userId={state.user.id} examType={state.selectedExam} onSuccess={() => { alert("Saved!"); navigateTo('dashboard'); }} />
         )}
 
         {state.view === 'practice' && practiceQueue.length > 0 && (
-          <div className="h-full flex flex-col justify-between max-w-2xl mx-auto">
-             <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 mb-6">
-                <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${((currentQIndex) / practiceQueue.length) * 100}%` }}></div>
+          <div className="h-full flex flex-col justify-between max-w-2xl mx-auto animate-slide-up">
+             <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 mb-6 overflow-hidden">
+                <div 
+                  className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300" 
+                  style={{ width: `${((currentQIndex + 1) / (practiceConfig.mode === 'endless' ? Math.max(practiceQueue.length, 100) : practiceConfig.count)) * 100}%` }}
+                ></div>
              </div>
+             
+             {/* Streaming Indicator */}
+             {isFetchingMore && (
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 bg-indigo-600/90 text-white text-xs px-3 py-1 rounded-full shadow-lg flex items-center gap-2 animate-bounce-slight">
+                   <span className="w-2 h-2 bg-white rounded-full animate-ping"></span>
+                   Streaming Questions...
+                </div>
+             )}
+
              <QuestionCard 
                question={practiceQueue[currentQIndex]} 
                onAnswer={handleAnswer} 
                onNext={handleNextQuestion}
-               isLast={practiceConfig.mode !== 'endless' && currentQIndex === practiceQueue.length - 1}
-               isLoadingNext={isFetchingMore && currentQIndex >= practiceQueue.length - 2}
+               isLast={practiceConfig.mode !== 'endless' && currentQIndex === practiceConfig.count - 1}
+               isLoadingNext={currentQIndex >= practiceQueue.length - 1 && isFetchingMore}
                language={state.language}
                onToggleLanguage={toggleLanguage}
                onBookmarkToggle={async (q) => { if(state.user) { const added = await toggleBookmark(state.user.id, q); const updatedQ = { ...q, isBookmarked: added }; const newQueue = [...practiceQueue]; newQueue[currentQIndex] = updatedQ; setPracticeQueue(newQueue); } }}

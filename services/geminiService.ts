@@ -202,18 +202,26 @@ export const generateExamQuestions = async (
           // A. Try Groq (Fastest)
           let batchData = await fetchFromGroq(batchPrompt, "llama3-70b-8192", true);
           
-          // B. Fallback to Gemini if Groq fails or returns nothing
+          // B. Fallback to Gemini if Groq fails
           if (!batchData) {
-              const response = await callGeminiBackend({
-                  model: 'gemini-2.5-flash',
-                  contents: batchPrompt,
-                  config: {
-                    ...commonConfig,
-                    temperature: 0.4, // Slightly higher for variety in loops
-                    responseMimeType: "application/json" 
-                  }
-              });
-              batchData = JSON.parse(cleanJson(response.text || "[]"));
+              try {
+                  // Try Primary Model (2.5)
+                  const response = await callGeminiBackend({
+                      model: 'gemini-2.5-flash',
+                      contents: batchPrompt,
+                      config: { ...commonConfig, temperature: 0.4, responseMimeType: "application/json" }
+                  });
+                  batchData = JSON.parse(cleanJson(response.text || "[]"));
+              } catch (err) {
+                  // Retry with Fallback Model (1.5) if 2.5 fails/overloaded
+                  console.warn("Gemini 2.5 failed, retrying with 1.5-flash...");
+                  const responseRetry = await callGeminiBackend({
+                      model: 'gemini-1.5-flash',
+                      contents: batchPrompt,
+                      config: { ...commonConfig, temperature: 0.4, responseMimeType: "application/json" }
+                  });
+                  batchData = JSON.parse(cleanJson(responseRetry.text || "[]"));
+              }
           }
 
           // Normalize and Add to List
@@ -241,7 +249,7 @@ export const generateExamQuestions = async (
           aiQuestions = [...aiQuestions, ...validItems];
 
           // Small delay to prevent rate limiting (429) during large generation
-          if (batches > 1) await new Promise(r => setTimeout(r, 500));
+          if (batches > 1) await new Promise(r => setTimeout(r, 800));
 
       } catch (e) {
           console.warn(`Batch ${i+1} failed. Continuing...`, e);
@@ -250,11 +258,29 @@ export const generateExamQuestions = async (
 
   const finalQuestions = [...officialQs, ...aiQuestions];
 
-  // FINAL SAFETY NET: If we have 0 questions, return fallback. 
-  // If we have even 1 question, return it (Better than fallback).
+  // FINAL SAFETY NET MODIFICATION:
+  // Only use MOCK_QUESTIONS_FALLBACK if subject allows (Mixed/General)
+  // Otherwise return empty array/error object to force "Try Again" instead of showing wrong subject questions.
   if (finalQuestions.length === 0) {
-      console.warn("Generation completely failed. Using Fallback.");
-      return MOCK_QUESTIONS_FALLBACK.map(q => ({...q, id: generateId('fall'), examType: exam as ExamType})) as unknown as Question[];
+      if (subject === 'Mixed' || subject === 'General Awareness') {
+          console.warn("Generation failed. Using Generic Fallback.");
+          return MOCK_QUESTIONS_FALLBACK.map(q => ({...q, id: generateId('fall'), examType: exam as ExamType})) as unknown as Question[];
+      } else {
+          console.error(`Generation failed for ${subject}. Returning empty to avoid subject mixing.`);
+          // Create ONE dummy error question if absolutely nothing to avoid crash, but relevant to failure
+          return [{
+             id: generateId('err'),
+             text: `AI Server Busy: Could not generate questions for ${subject}. Please try again in a few seconds.`,
+             options: ["Retry", "Wait", "Check Internet", "Contact Support"],
+             correctIndex: 0,
+             explanation: "The AI model is currently overloaded or your request timed out. We prevented showing you wrong subject questions.",
+             source: QuestionSource.PYQ_AI,
+             examType: exam as ExamType,
+             subject: subject,
+             createdAt: Date.now(),
+             type: QuestionType.MCQ
+          }];
+      }
   }
 
   return finalQuestions;
@@ -543,7 +569,6 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
         if (!blueprint || !blueprint.sections) return null;
 
         // STEP 2: GENERATE CONTENT FOR SECTIONS (Parallel with Batching)
-        // We use sequential processing for robust content generation instead of all-at-once
         const filledSections = [];
         
         for (const [sIdx, sec] of blueprint.sections.entries()) {
