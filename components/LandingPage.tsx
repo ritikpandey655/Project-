@@ -58,7 +58,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
           </h1>
           
           <p className="max-w-2xl mx-auto text-lg sm:text-xl text-slate-600 dark:text-slate-300 mb-8 leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            Master UPSC, SSC, JEE, NEET & more. 
+            Master UPSC, SSC, JEE, NEET, and now <span className="font-bold text-indigo-600 dark:text-indigo-400">UP Board (10th & 12th)</span>. 
             Free AI-powered Previous Year Questions, Mock Tests, and Smart Analytics for the ultimate exam prep.
           </p>
           

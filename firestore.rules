@@ -13,11 +13,13 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      // PROD: Replace 'your-admin-email' or rely on custom claims
-      return isAuthenticated() && (
-        request.auth.token.email == 'support@pyqverse.in' || 
-        request.auth.token.email == 'admin@pyqverse.com'
-      );
+      // SECURITY FIX: Require email_verified to prevent spoofing
+      return isAuthenticated() && 
+             request.auth.token.email_verified == true &&
+             (
+                request.auth.token.email == 'support@pyqverse.in' || 
+                request.auth.token.email == 'admin@pyqverse.com'
+             );
     }
 
     // --- USERS COLLECTION (Strict Privacy) ---
@@ -34,7 +36,7 @@ service cloud.firestore {
     // --- GLOBAL QUESTIONS (Public Read, Admin Write) ---
     match /global_questions/{questionId} {
       allow read: if true; // Anyone can read practice questions
-      allow write: if isAdmin(); // Only admin can add/edit official questions
+      allow write: if isAdmin(); // Only verified admin can add/edit official questions
     }
 
     // --- GLOBAL NEWS (Public Read, Admin Write) ---

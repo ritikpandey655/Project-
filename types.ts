@@ -1,5 +1,4 @@
 
-
 export enum ExamType {
   UPSC = 'UPSC',
   SSC_CGL = 'SSC CGL',
@@ -7,6 +6,8 @@ export enum ExamType {
   SSC_MTS = 'SSC MTS',
   JEE_MAINS = 'JEE Mains',
   NEET = 'NEET',
+  UP_BOARD_10 = 'UP Board Class 10',
+  UP_BOARD_12 = 'UP Board Class 12',
   BANKING = 'Banking',
   RAILWAYS = 'Railways',
   RRB_NTPC = 'RRB NTPC',

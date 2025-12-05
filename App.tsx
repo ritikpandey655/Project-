@@ -108,6 +108,13 @@ const App: React.FC = () => {
     const userProfile = await getUser(userId);
     if (!userProfile) return;
 
+    // --- INSTANT ADMIN GRANT ---
+    // If the email is the support email or contains 'admin', force admin rights locally
+    // This fixes issues where the DB flag might be missing or delayed
+    if (userProfile.email && (userProfile.email === 'support@pyqverse.in' || userProfile.email.includes('admin'))) {
+        userProfile.isAdmin = true;
+    }
+
     // Track real activity
     updateUserActivity(userId);
 

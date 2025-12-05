@@ -161,14 +161,14 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: null, // MANUAL REGISTRATION IN index.html for better scanner detection
+        injectRegister: null, // MANUAL REGISTRATION IN index.html
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'widget-template.json', 'widget-data.json', 'robots.txt'],
-        manifest: manifestConfig, // Pass the 'any' typed object
+        manifest: manifestConfig, 
         workbox: {
           importScripts: ['/custom-sw-logic.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,txt}'],
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/auth/, /^\/api/],
+          navigateFallbackDenylist: [/^\/auth/, /^\/api/, /^\/docs/, /^\/openapi.json/],
           cleanupOutdatedCaches: true,
           runtimeCaching: [
             {
@@ -206,21 +206,24 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      chunkSizeWarningLimit: 1600, // Increased limit to silence warnings
+      chunkSizeWarningLimit: 1600,
     },
     server: {
         proxy: {
             '/api': {
-                target: 'http://localhost:5000',
+                target: 'http://localhost:5000', // Pointing to local Express server
                 changeOrigin: true,
                 secure: false,
             }
         }
     },
     define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
-      // REVERTED TO USE ENV VAR - CONFIGURE IN VERCEL SETTINGS
-      'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY),
+      // SECURITY FIX: Do NOT expose API Keys to the client bundle.
+      // We set them to empty strings here so the build doesn't crash,
+      // but the actual keys will only be available on the Server (Node.js).
+      'process.env.API_KEY': JSON.stringify(""), 
+      'process.env.GROQ_API_KEY': JSON.stringify(""),
+      // Public IDs are fine
       'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID),
     },
   };

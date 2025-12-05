@@ -29,10 +29,9 @@ const callGeminiBackend = async (params: { model: string, contents: any, config?
   }
 };
 
-// 2. Groq Client Helper
-const getGroqKey = () => {
-  // Priority: 1. LocalStorage (User setting) 2. Environment Variable
-  return localStorage.getItem('groq_api_key') || process.env.GROQ_API_KEY || "";
+// 2. Groq Client Helper (Now only for local override)
+const getLocalGroqKey = () => {
+  return localStorage.getItem('groq_api_key') || "";
 };
 
 // Helpers
@@ -79,36 +78,51 @@ const fetchFromGroq = async (prompt: string, model = "llama3-70b-8192", jsonMode
     const preferredProvider = localStorage.getItem('selected_ai_provider');
     if (preferredProvider === 'gemini') return null;
 
-    const key = getGroqKey();
-    if (!key) return null;
-    
     try {
         const body: any = {
             messages: [{ role: "user", content: prompt + (jsonMode ? " Respond ONLY in valid JSON. No Markdown." : "") }],
             model: model,
-            temperature: 0.3, // Strict facts
+            jsonMode: jsonMode // Passed to proxy to handle formatting
         };
 
-        // Llama 3 on Groq supports JSON mode for reliable output
-        if (jsonMode) {
-            body.response_format = { type: "json_object" };
+        // Case 1: User has their own custom key in LocalStorage (BYOK)
+        const customKey = getLocalGroqKey();
+        
+        if (customKey) {
+            // Direct Client Call (User's Key)
+            const reqBody = { ...body, temperature: 0.2 }; // STRICT FACTUALITY
+            if (jsonMode) reqBody.response_format = { type: "json_object" };
+            
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${customKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(reqBody)
+            });
+            if (!response.ok) throw new Error("Groq API Error");
+            const data = await response.json();
+            return JSON.parse(cleanJson(data.choices[0].message.content));
+        } 
+        
+        // Case 2: Use Backend Proxy (Server Key) - SECURE
+        else {
+            const response = await fetch('/api/ai/groq', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error);
+            const content = result.data.choices[0].message.content;
+            return JSON.parse(cleanJson(content));
         }
 
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${key}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(body)
-        });
-        
-        if (!response.ok) throw new Error("Groq API Error");
-        
-        const data = await response.json();
-        return JSON.parse(cleanJson(data.choices[0].message.content));
     } catch (e) {
-        console.warn("Groq failed, falling back to Gemini", e);
+        // Fail silently so Gemini fallback kicks in
+        // console.warn("Groq failed, falling back to Gemini", e);
         return null;
     }
 };
@@ -129,6 +143,7 @@ export const generateExamQuestions = async (
   
   const needed = count - officialQs.length;
   const isNEETorJEE = exam.includes('NEET') || exam.includes('JEE');
+  const isUPBoard = exam.includes('UP Board');
 
   // 2. PARALLEL PROCESSING STRATEGY
   const batchSize = 5;
@@ -139,16 +154,29 @@ export const generateExamQuestions = async (
       const currentBatchCount = Math.min(batchSize, needed - (i * batchSize));
       if(currentBatchCount <= 0) continue;
 
-      // PROMPT
+      // STRICT PROMPT ENGINEERING
       const prompt = `
-          Generate ${currentBatchCount} MCQs for ${exam} (${subject}).
-          ${topics.length > 0 ? `Topic: ${topics.join(', ')}` : 'Topic: Important Chapters'}
+          ACT AS A STRICT ACADEMIC EXAMINER for ${exam}.
+          Generate ${currentBatchCount} High-Quality MCQs for subject: ${subject}.
+          ${topics.length > 0 ? `Specific Topic: ${topics.join(', ')}` : 'Topic: Standard Syllabus Chapters'}
           
-          RULES:
-          1. NO FAKE QUESTIONS. Verify scientifically/historically.
-          2. Difficulty: ${difficulty}.
-          3. Format: JSON Array with keys: text, options (array), correctIndex (int), explanation.
-          4. ${isNEETorJEE ? 'Strictly NCERT based.' : 'Standard Exam Pattern.'}
+          CRITICAL RULES (ZERO HALLUCINATION):
+          1. FACTUAL ACCURACY IS PARAMOUNT. Every question must be 100% factually correct based on Standard Textbooks (NCERT).
+          2. IF YOU ARE NOT 100% SURE ABOUT A FACT, DO NOT GENERATE THAT QUESTION. Skip it.
+          3. Options must be distinct. One and only one correct answer.
+          4. ${isUPBoard ? 'Language: Use Hinglish (Hindi terms in Roman script) or Hindi for UP Board context. STRICTLY UP BOARD/NCERT SYLLABUS.' : 'Language: English'}
+          5. Difficulty: ${difficulty}.
+          
+          OUTPUT FORMAT (JSON ARRAY ONLY):
+          [
+            {
+              "text": "Question Statement",
+              "text_hi": "Hindi Translation (Optional)",
+              "options": ["Option A", "Option B", "Option C", "Option D"],
+              "correctIndex": 0, (Integer 0-3)
+              "explanation": "Scientific/Historical reason for the answer."
+            }
+          ]
       `;
 
       // EXECUTE: Try Groq first (Speed), then Gemini Parallel (Reliability)
@@ -169,7 +197,7 @@ export const generateExamQuestions = async (
             contents: prompt,
             config: {
               ...commonConfig,
-              temperature: 0.3,
+              temperature: 0.2, // LOWER TEMPERATURE = MORE FACTUAL, LESS CREATIVE
               responseMimeType: "application/json",
               responseSchema: {
                 type: Type.ARRAY,
@@ -245,8 +273,9 @@ export const generateCurrentAffairs = async (
   try {
       const fetchCount = Math.min(count - officialCA.length, 10);
       const prompt = `
-        Search for ${fetchCount} LATEST & REAL Current Affairs news for ${exam} exams (India).
+        Search for ${fetchCount} LATEST & VERIFIED Current Affairs news for ${exam} exams (India).
         Based on results, create ${fetchCount} MCQs.
+        STRICTLY NO FAKE NEWS. Verify dates and facts.
         Format: JSON Array of objects with text, options, correctIndex, explanation.
       `;
       
@@ -255,6 +284,7 @@ export const generateCurrentAffairs = async (
         contents: prompt,
         config: {
           ...commonConfig,
+          temperature: 0.2, // Strict
           tools: [{ googleSearch: {} }],
         }
       });
@@ -297,7 +327,7 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
   }
 
   try {
-    const prompt = `Extract questions from input for ${examContext}. Return JSON Array.`;
+    const prompt = `Extract questions from input for ${examContext}. Return JSON Array. Verify answers if possible.`;
     const contents = { parts: [] as any[] };
     if(type === 'image') {
         contents.parts.push({ inlineData: { mimeType: 'image/jpeg', data: input } });
@@ -308,7 +338,7 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
     const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: contents,
-        config: { ...commonConfig, responseMimeType: "application/json" }
+        config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
     });
     return JSON.parse(cleanJson(response.text || "[]"));
   } catch (e) { return []; }
@@ -317,11 +347,11 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
 export const generateNews = async (exam: string, month?: string, year?: number, category?: string): Promise<NewsItem[]> => {
   // News needs Gemini Search
   try {
-      const prompt = `Search verified news for ${exam} (${month} ${year}, ${category}). Return 8 items as JSON Array {headline, summary, date, category}.`;
+      const prompt = `Search verified news for ${exam} (${month} ${year}, ${category}). Return 8 items as JSON Array {headline, summary, date, category}. Ensure facts are correct.`;
       const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: { ...commonConfig, tools: [{ googleSearch: {} }] }
+        config: { ...commonConfig, temperature: 0.2, tools: [{ googleSearch: {} }] }
       });
       const aiData = JSON.parse(cleanJson(response.text || "[]"));
       return aiData.map((n: any) => ({
@@ -339,7 +369,7 @@ export const generateNews = async (exam: string, month?: string, year?: number, 
 
 export const generateStudyNotes = async (exam: string, subject?: string): Promise<NewsItem[]> => {
   // Groq is excellent for generating static notes
-  const prompt = `Generate 8 High-Yield Formula/Notes for ${exam} (${subject}). Return JSON Array {headline, summary}.`;
+  const prompt = `Generate 8 High-Yield Formula/Notes for ${exam} (${subject}). Return JSON Array {headline, summary}. Strictly accurate formulas.`;
   
   const groqResp = await fetchFromGroq(prompt, "llama3-70b-8192", true);
   if (groqResp) {
@@ -360,7 +390,7 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
       const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: { ...commonConfig, responseMimeType: "application/json" } 
+        config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" } 
       });
       const aiData = JSON.parse(cleanJson(response.text || "[]"));
       return aiData.map((n: any) => ({
@@ -375,7 +405,7 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
 };
 
 export const generateSingleQuestion = async (exam: string, subject: string, topic: string): Promise<Partial<Question> | null> => {
-  const prompt = `Generate 1 High-Quality MCQ for ${exam} (${subject}: ${topic}). JSON.`;
+  const prompt = `Generate 1 High-Quality, Factually Correct MCQ for ${exam} (${subject}: ${topic}). JSON.`;
   
   const groqResp = await fetchFromGroq(prompt, "llama3-70b-8192", true);
   if (groqResp) {
@@ -392,7 +422,7 @@ export const generateSingleQuestion = async (exam: string, subject: string, topi
       const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: { ...commonConfig, responseMimeType: "application/json" }
+        config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
       });
       const data = JSON.parse(cleanJson(response.text || "{}"));
       return {
@@ -408,8 +438,8 @@ export const generateQuestionFromImage = async (base64: string, mime: string, ex
   try {
       const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
-        contents: { parts: [{ inlineData: { mimeType: mime, data: base64 } }, { text: `Solve this ${exam} question. Return JSON {text, options, correctIndex, explanation}.` }] },
-        config: { ...commonConfig, responseMimeType: "application/json" }
+        contents: { parts: [{ inlineData: { mimeType: mime, data: base64 } }, { text: `Solve this ${exam} question accurately. Return JSON {text, options, correctIndex, explanation}.` }] },
+        config: { ...commonConfig, temperature: 0.1, responseMimeType: "application/json" } // Very strict for solving
       });
       const data = JSON.parse(cleanJson(response.text || "{}"));
       return {
@@ -421,7 +451,7 @@ export const generateQuestionFromImage = async (base64: string, mime: string, ex
 };
 
 export const generatePYQList = async (exam: string, subject: string, year: number, topic?: string): Promise<Question[]> => {
-    const prompt = `Simulate 10 authentic questions for ${year} ${exam} (${subject}). ${topic ? `Topic: ${topic}` : ''}. Return JSON Array.`;
+    const prompt = `Simulate 10 authentic questions for ${year} ${exam} (${subject}). ${topic ? `Topic: ${topic}` : ''}. Return JSON Array. Ensure questions are historically accurate to that year's pattern.`;
     
     const groqResp = await fetchFromGroq(prompt, "llama3-70b-8192", true);
     if (groqResp) {
@@ -445,7 +475,7 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
         const response = await callGeminiBackend({
             model: 'gemini-2.5-flash',
             contents: prompt,
-            config: { ...commonConfig, responseMimeType: "application/json" }
+            config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
         });
         const aiData = JSON.parse(cleanJson(response.text || "[]"));
         return aiData.map((q: any) => ({
@@ -502,7 +532,7 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
             const response = await callGeminiBackend({
                 model: 'gemini-2.5-flash',
                 contents: blueprintPrompt,
-                config: { ...commonConfig, responseMimeType: "application/json" }
+                config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
             });
             blueprint = JSON.parse(cleanJson(response.text || "{}"));
         }
@@ -510,7 +540,6 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
         if (!blueprint || !blueprint.sections) return null;
 
         // STEP 2: GENERATE CONTENT FOR SECTIONS (Parallel)
-        // This splits the large request into smaller, manageable chunks for the AI
         const filledSections = await Promise.all(blueprint.sections.map(async (sec: any, sIdx: number) => {
             if (!sec.questionCount || sec.questionCount <= 0) return { ...sec, id: `sec-${sIdx}`, questions: [] };
 
@@ -519,6 +548,8 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
                 Section: ${sec.title}.
                 Difficulty: ${difficulty}.
                 Instructions: ${sec.instructions}.
+                
+                CRITICAL: Questions must be factually correct and syllabus-compliant.
                 
                 OUTPUT STRICT VALID JSON ARRAY of objects:
                 {
@@ -543,7 +574,7 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
                 const response = await callGeminiBackend({
                     model: 'gemini-2.5-flash',
                     contents: qPrompt,
-                    config: { ...commonConfig, responseMimeType: "application/json" }
+                    config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
                 });
                 questions = JSON.parse(cleanJson(response.text || "[]"));
                 if (!Array.isArray(questions) && (questions as any).questions) questions = (questions as any).questions;

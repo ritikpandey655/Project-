@@ -8,6 +8,44 @@ export const EXAM_SUBJECTS: Record<ExamType, string[]> = {
   [ExamType.SSC_MTS]: ['Numerical Aptitude', 'Reasoning', 'English', 'General Awareness'],
   [ExamType.JEE_MAINS]: ['Physics', 'Chemistry', 'Mathematics'],
   [ExamType.NEET]: ['Physics', 'Chemistry', 'Biology (Botany & Zoology)'],
+  
+  // Updated UP Board Class 10 (High School)
+  [ExamType.UP_BOARD_10]: [
+    'Hindi', 
+    'English', 
+    'Mathematics', 
+    'Science', // Covers Physics, Chemistry, Biology
+    'Social Science', 
+    'Sanskrit', 
+    'Home Science', 
+    'Computer', 
+    'Agriculture', 
+    'Art', 
+    'Music', 
+    'Anthropology'
+  ],
+
+  // Updated UP Board Class 12 (Intermediate - All Streams)
+  [ExamType.UP_BOARD_12]: [
+    'General Hindi', 
+    'English', 
+    'Mathematics', 
+    'Physics', 
+    'Chemistry', 
+    'Biology', 
+    'Accountancy', 
+    'Business Studies', 
+    'Economics', 
+    'History', 
+    'Geography', 
+    'Civics', 
+    'Psychology', 
+    'Sanskrit', 
+    'Urdu', 
+    'Computer Science', 
+    'Home Science'
+  ],
+
   [ExamType.BANKING]: ['Quantitative Aptitude', 'Reasoning Ability', 'English Language', 'Banking Awareness', 'Computer Aptitude'],
   [ExamType.RAILWAYS]: ['Mathematics', 'General Intelligence', 'General Science', 'General Awareness'],
   [ExamType.RRB_NTPC]: ['Mathematics', 'General Intelligence', 'General Awareness'],
@@ -22,7 +60,9 @@ export const EXAM_SUBJECTS: Record<ExamType, string[]> = {
 export const TECHNICAL_EXAMS = [
   ExamType.JEE_MAINS,
   ExamType.NEET,
-  ExamType.GATE
+  ExamType.GATE,
+  ExamType.UP_BOARD_10,
+  ExamType.UP_BOARD_12
 ];
 
 export const NEWS_CATEGORIES = [
