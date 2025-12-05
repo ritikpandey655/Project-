@@ -12,27 +12,37 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 // Security Middleware
 app.use(helmet());
 
-const allowedOrigins = [
-  'https://pyqverse.in',
-  'https://www.pyqverse.in',
-  'https://pyqverse.vercel.app',
-  'http://localhost:5173', 
-  'http://localhost:4173'
-];
-
-app.use(cors({
+// Dynamic CORS to allow Vercel Previews & Localhost
+const corsOptions = {
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      return callback(new Error('CORS Not Allowed'), false);
-    }
-    return callback(null, true);
-  }
-}));
+    
+    // Allowed static domains
+    const allowedDomains = [
+      'https://pyqverse.in',
+      'https://www.pyqverse.in',
+      'https://pyqverse.vercel.app'
+    ];
 
-app.use(express.json({ limit: '10mb' }));
+    if (allowedDomains.includes(origin)) return callback(null, true);
+    
+    // Allow any Vercel Preview URL (e.g., pyqverse-git-main-user.vercel.app)
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
+    
+    // Allow Localhost
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) return callback(null, true);
 
-// Rate Limiting (Simple In-Memory for Serverless warm instances)
+    console.warn(`Blocked CORS for origin: ${origin}`);
+    return callback(new Error('CORS Not Allowed'), false);
+  },
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '2mb' })); // Reduced limit for security
+
+// Rate Limiting
 const requestCounts = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000; 
 const MAX_REQUESTS = 50; 
@@ -54,17 +64,27 @@ const rateLimiter = (req, res, next) => {
   next();
 };
 
-app.use('/api/ai', rateLimiter);
+// --- ROUTER SETUP ---
+const router = express.Router();
+
+router.use('/ai', rateLimiter);
 
 // Whitelist
 const ALLOWED_MODELS = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-pro'];
 
-app.post('/api/ai/generate', async (req, res) => {
+router.post('/ai/generate', async (req, res) => {
   try {
     const { model, contents, config } = req.body;
     
+    // 1. Model Validation
     if (model && !ALLOWED_MODELS.includes(model)) {
        return res.status(400).json({ success: false, error: "Unauthorized model." });
+    }
+
+    // 2. Input Validation (Prevent huge payloads)
+    const inputString = JSON.stringify(contents);
+    if (inputString.length > 50000) { // Limit to ~50KB text
+        return res.status(400).json({ success: false, error: "Input too long." });
     }
 
     const response = await ai.models.generateContent({
@@ -80,8 +100,12 @@ app.post('/api/ai/generate', async (req, res) => {
   }
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'online', secure: true, timestamp: Date.now() });
+router.get('/health', (req, res) => {
+  res.json({ status: 'online', secure: true, timestamp: Date.now(), env: 'serverless' });
 });
+
+// Mount router at both /api (standard) and / (fallback if rewritten)
+app.use('/api', router);
+app.use('/', router);
 
 export default app;
