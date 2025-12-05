@@ -168,7 +168,7 @@ export default defineConfig(({ mode }) => {
           importScripts: ['/custom-sw-logic.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,txt}'],
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/auth/],
+          navigateFallbackDenylist: [/^\/auth/, /^\/api/],
           cleanupOutdatedCaches: true,
           runtimeCaching: [
             {
@@ -207,6 +207,15 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       chunkSizeWarningLimit: 1600, // Increased limit to silence warnings
+    },
+    server: {
+        proxy: {
+            '/api': {
+                target: 'http://localhost:5000',
+                changeOrigin: true,
+                secure: false,
+            }
+        }
     },
     define: {
       'process.env.API_KEY': JSON.stringify(env.API_KEY),

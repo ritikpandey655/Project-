@@ -1,0 +1,68 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- HELPER FUNCTIONS ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      // PROD: Replace 'your-admin-email' or rely on custom claims
+      return isAuthenticated() && (
+        request.auth.token.email == 'support@pyqverse.in' || 
+        request.auth.token.email == 'admin@pyqverse.com'
+      );
+    }
+
+    // --- USERS COLLECTION (Strict Privacy) ---
+    // Only the user can read/write their own profile and subcollections
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Allow user to manage their subcollections (bookmarks, questions, history)
+      match /{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // --- GLOBAL QUESTIONS (Public Read, Admin Write) ---
+    match /global_questions/{questionId} {
+      allow read: if true; // Anyone can read practice questions
+      allow write: if isAdmin(); // Only admin can add/edit official questions
+    }
+
+    // --- GLOBAL NEWS (Public Read, Admin Write) ---
+    match /global_news/{newsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- SETTINGS/CONFIG (Public Read, Admin Write) ---
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- TRANSACTIONS (User Create, User/Admin Read) ---
+    match /transactions/{txId} {
+      // Users can create a transaction record (handled by client after payment)
+      allow create: if isAuthenticated(); 
+      // Only owner or admin can read specific transaction
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      // No updates/deletes allowed for integrity
+      allow update, delete: if false; 
+    }
+    
+    // --- FEEDBACK (Create Only) ---
+    match /feedback/{feedbackId} {
+      allow create: if true; // Anyone can send feedback
+      allow read, write: if isAdmin();
+    }
+  }
+}

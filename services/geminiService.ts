@@ -1,13 +1,33 @@
 
-import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions, getOfficialNews } from "./storageService";
 
 // --- CONFIGURATION ---
-// 1. Gemini Client (Default)
-const apiKey = process.env.API_KEY || "dummy-key";
-const ai = new GoogleGenAI({ apiKey });
+
+// Helper to call Backend Proxy instead of Direct SDK
+const callGeminiBackend = async (params: { model: string, contents: any, config?: any }) => {
+  try {
+    const response = await fetch('/api/ai/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Backend generation failed');
+    }
+    // Return object mimicking SDK response structure for compatibility
+    return { text: result.data }; 
+  } catch (error) {
+    console.error("Backend Call Failed:", error);
+    throw error;
+  }
+};
 
 // 2. Groq Client Helper
 const getGroqKey = () => {
@@ -143,8 +163,8 @@ export const generateExamQuestions = async (
              if (groqData.text) return [groqData];
           }
 
-          // B. Gemini Parallel Call
-          const response = await ai.models.generateContent({
+          // B. Gemini Parallel Call via Backend
+          const response = await callGeminiBackend({
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
@@ -230,7 +250,7 @@ export const generateCurrentAffairs = async (
         Format: JSON Array of objects with text, options, correctIndex, explanation.
       `;
       
-      const response = await ai.models.generateContent({
+      const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
@@ -285,7 +305,7 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
     } else {
         contents.parts.push({ text: `${prompt}\n\n${input}` });
     }
-    const response = await ai.models.generateContent({
+    const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: contents,
         config: { ...commonConfig, responseMimeType: "application/json" }
@@ -298,7 +318,7 @@ export const generateNews = async (exam: string, month?: string, year?: number, 
   // News needs Gemini Search
   try {
       const prompt = `Search verified news for ${exam} (${month} ${year}, ${category}). Return 8 items as JSON Array {headline, summary, date, category}.`;
-      const response = await ai.models.generateContent({
+      const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: { ...commonConfig, tools: [{ googleSearch: {} }] }
@@ -337,7 +357,7 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
   }
 
   try {
-      const response = await ai.models.generateContent({
+      const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: { ...commonConfig, responseMimeType: "application/json" } 
@@ -369,7 +389,7 @@ export const generateSingleQuestion = async (exam: string, subject: string, topi
   }
 
   try {
-      const response = await ai.models.generateContent({
+      const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: { ...commonConfig, responseMimeType: "application/json" }
@@ -386,7 +406,7 @@ export const generateSingleQuestion = async (exam: string, subject: string, topi
 export const generateQuestionFromImage = async (base64: string, mime: string, exam: string, subject: string): Promise<Partial<Question> | null> => {
   // Images require Gemini
   try {
-      const response = await ai.models.generateContent({
+      const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: { parts: [{ inlineData: { mimeType: mime, data: base64 } }, { text: `Solve this ${exam} question. Return JSON {text, options, correctIndex, explanation}.` }] },
         config: { ...commonConfig, responseMimeType: "application/json" }
@@ -422,7 +442,7 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
     }
 
     try {
-        const response = await ai.models.generateContent({
+        const response = await callGeminiBackend({
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { ...commonConfig, responseMimeType: "application/json" }
@@ -444,107 +464,138 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
 
 export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any): Promise<QuestionPaper | null> => {
     try {
-        const prompt = `
-            Act as an exam setter. Generate a Mock Exam Paper for ${exam} (${subject}).
+        // STEP 1: GENERATE BLUEPRINT (Small, fast, robust)
+        const blueprintPrompt = `
+            Act as an exam setter. Create a blueprint for a ${exam} (${subject}) Mock Paper.
             Difficulty: ${difficulty}.
-            Total MCQs: ${config.mcqCount || 10}.
+            Context: ${seed || 'Standard Syllabus'}.
+            Configuration:
+            - Total MCQs: ${config.mcqCount || 10} (Split into logical sections)
+            - Include Short/Long answers if typically present: ${config.includeShort ? 'Yes' : 'No'}
             
-            OUTPUT STRICT VALID JSON ONLY. NO MARKDOWN BLOCK.
-            
-            JSON Structure Example:
+            OUTPUT STRICT VALID JSON ONLY:
             {
-              "title": "${exam} Mock Test",
-              "totalMarks": 100,
-              "duration": 60,
+              "title": "string",
+              "totalMarks": number,
+              "duration": number (minutes),
               "sections": [
-                {
-                  "title": "General Awareness",
-                  "marksPerQuestion": 2,
-                  "questions": [
-                    {
-                      "text": "Which planet is known as the Red Planet?", 
-                      "options": ["Venus", "Mars", "Jupiter", "Saturn"],
-                      "answer": "Mars",
-                      "explanation": "Mars appears red due to iron oxide."
-                    }
-                  ]
+                { 
+                  "title": "string", 
+                  "instructions": "string",
+                  "questionCount": number, 
+                  "marksPerQuestion": number,
+                  "type": "MCQ" | "SHORT_ANSWER" | "LONG_ANSWER"
                 }
               ]
             }
-            
-            CRITICAL RULES:
-            1. The question body MUST be in a key named 'text'.
-            2. 'options' must be an array of strings.
-            3. 'answer' must be the exact string from options.
         `;
-        
-        let data = null;
 
-        // 1. Try Groq (Fastest) - Use JSON mode
-        if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
-             try {
-                 data = await fetchFromGroq(prompt, "llama3-70b-8192", true);
-                 
-                 // FAIL-SAFE: If Grok returns partial or garbage data, force fallback
-                 if (!data || !data.sections || !Array.isArray(data.sections) || data.sections.length === 0) {
-                     console.warn("Grok returned invalid structure. Falling back to Gemini.");
-                     data = null;
-                 }
-             } catch(e) {
-                 console.warn("Grok Failed, using Gemini fallback", e);
-                 data = null;
+        let blueprint = null;
+        try {
+             // Try Groq for structure (fast)
+             if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
+                 blueprint = await fetchFromGroq(blueprintPrompt, "llama3-70b-8192", true);
              }
-        }
+        } catch(e) {}
 
-        // 2. Fallback to Gemini WITHOUT STRICT SCHEMA
-        // Strict schema validation often fails for large/complex objects in free tier or due to minor deviations.
-        // responseMimeType: "application/json" is more robust here.
-        if (!data) {
-            const response = await ai.models.generateContent({
+        if (!blueprint) {
+            const response = await callGeminiBackend({
                 model: 'gemini-2.5-flash',
-                contents: prompt,
-                config: { 
-                    ...commonConfig, 
-                    responseMimeType: "application/json"
-                }
+                contents: blueprintPrompt,
+                config: { ...commonConfig, responseMimeType: "application/json" }
             });
-            data = JSON.parse(cleanJson(response.text || "{}"));
+            blueprint = JSON.parse(cleanJson(response.text || "{}"));
         }
-        
-        if (!data || !data.sections) return null;
 
-        const sections = data.sections?.map((sec: any, sIdx: number) => ({
-            id: `sec-${sIdx}`,
-            title: sec.title || `Section ${sIdx+1}`,
-            instructions: "Attempt all questions",
-            marksPerQuestion: sec.marksPerQuestion || 1,
-            questions: sec.questions?.map((q: any, qIdx: number) => ({
-                id: generateId(`p-q-${sIdx}-${qIdx}`),
-                // SUPER ROBUST FALLBACK: Check all possible keys Groq might hallucinate
-                text: q.text || q.question || q.question_text || q.statement || q.stem || "Question text unavailable",
-                textHindi: q.text_hi,
-                options: safeOptions(q.options),
-                correctIndex: safeOptions(q.options).findIndex((o: string) => o === q.answer),
-                answer: q.answer,
-                explanation: q.explanation,
-                type: (q.options && q.options.length > 0) ? QuestionType.MCQ : QuestionType.SHORT_ANSWER,
-                examType: exam as ExamType,
-                source: QuestionSource.PYQ_AI,
-                createdAt: Date.now(),
-                marks: sec.marksPerQuestion
-            }))
+        if (!blueprint || !blueprint.sections) return null;
+
+        // STEP 2: GENERATE CONTENT FOR SECTIONS (Parallel)
+        // This splits the large request into smaller, manageable chunks for the AI
+        const filledSections = await Promise.all(blueprint.sections.map(async (sec: any, sIdx: number) => {
+            if (!sec.questionCount || sec.questionCount <= 0) return { ...sec, id: `sec-${sIdx}`, questions: [] };
+
+            const qPrompt = `
+                Generate ${sec.questionCount} ${sec.type} questions for ${exam} (${subject}).
+                Section: ${sec.title}.
+                Difficulty: ${difficulty}.
+                Instructions: ${sec.instructions}.
+                
+                OUTPUT STRICT VALID JSON ARRAY of objects:
+                {
+                  "text": "Question text",
+                  "options": ["Option A", "Option B", ...], (Required for MCQs)
+                  "answer": "Correct Answer Text",
+                  "explanation": "Reasoning"
+                }
+            `;
+
+            let questions = [];
+            try {
+                if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
+                    const qData = await fetchFromGroq(qPrompt, "llama3-70b-8192", true);
+                    if (qData) {
+                       questions = Array.isArray(qData) ? qData : (qData.questions || []);
+                    }
+                }
+            } catch(e) {}
+
+            if (questions.length === 0) {
+                const response = await callGeminiBackend({
+                    model: 'gemini-2.5-flash',
+                    contents: qPrompt,
+                    config: { ...commonConfig, responseMimeType: "application/json" }
+                });
+                questions = JSON.parse(cleanJson(response.text || "[]"));
+                if (!Array.isArray(questions) && (questions as any).questions) questions = (questions as any).questions;
+            }
+
+            return {
+                id: `sec-${sIdx}`,
+                title: sec.title,
+                instructions: sec.instructions || "Attempt all questions",
+                marksPerQuestion: sec.marksPerQuestion || 1,
+                questions: (questions || []).map((q: any, qIdx: number) => {
+                    const opts = safeOptions(q.options);
+                    // Smart correct index finder
+                    let cIndex = q.correctIndex;
+                    if (cIndex === undefined || cIndex === -1) {
+                        cIndex = opts.findIndex((o: string) => o === q.answer);
+                        if (cIndex === -1 && q.answer) {
+                             cIndex = opts.findIndex((o: string) => o.toLowerCase().includes(q.answer.toLowerCase()));
+                        }
+                        if (cIndex === -1) cIndex = 0; // Fallback
+                    }
+
+                    return {
+                        id: generateId(`p-q-${sIdx}-${qIdx}`),
+                        text: q.text || q.question || "Question text missing",
+                        textHindi: q.text_hi,
+                        options: opts,
+                        correctIndex: cIndex,
+                        answer: q.answer || (opts.length > cIndex ? opts[cIndex] : ""),
+                        explanation: q.explanation,
+                        type: sec.type === 'MCQ' ? QuestionType.MCQ : QuestionType.SHORT_ANSWER,
+                        examType: exam as ExamType,
+                        source: QuestionSource.PYQ_AI,
+                        createdAt: Date.now(),
+                        marks: sec.marksPerQuestion
+                    };
+                })
+            };
         }));
+
         return {
             id: generateId('paper'),
-            title: data.title || `${exam} Mock Paper`,
+            title: blueprint.title || `${exam} Mock Paper`,
             examType: exam as ExamType,
             subject: subject,
             difficulty: difficulty,
-            totalMarks: data.totalMarks || 100,
-            durationMinutes: data.duration || 60,
-            sections: sections || [],
+            totalMarks: blueprint.totalMarks || 100,
+            durationMinutes: blueprint.duration || 60,
+            sections: filledSections,
             createdAt: Date.now()
         };
+
     } catch (e) { 
         console.error("Generate Paper Error:", e);
         return null; 
