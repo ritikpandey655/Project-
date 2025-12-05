@@ -42,9 +42,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-sm font-bold mb-6 animate-fade-in border border-indigo-100 dark:border-indigo-800">
-            <span>✨</span> 
-            <span>AI-Powered Exam Preparation</span>
+          
+          {/* UP BOARD LIVE BANNER */}
+          <div 
+            onClick={onSignup}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 text-sm font-bold mb-8 animate-bounce-slight border border-orange-200 dark:border-orange-800 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors shadow-sm"
+          >
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-600"></span>
+            </span>
+            <span className="tracking-wide">🔥 New: UP Board Special (10th & 12th) is LIVE!</span>
           </div>
           
           <h1 className="text-5xl sm:text-7xl font-display font-extrabold text-slate-900 dark:text-white mb-6 leading-tight animate-slide-up">
@@ -58,8 +66,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
           </h1>
           
           <p className="max-w-2xl mx-auto text-lg sm:text-xl text-slate-600 dark:text-slate-300 mb-8 leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            Master UPSC, SSC, JEE, NEET, and now <span className="font-bold text-indigo-600 dark:text-indigo-400">UP Board (10th & 12th)</span>. 
-            Free AI-powered Previous Year Questions, Mock Tests, and Smart Analytics for the ultimate exam prep.
+            Master UPSC, SSC, JEE, NEET, and <span className="font-extrabold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-1 rounded">UP Board</span> with AI-powered Previous Year Questions, Mock Tests, and Smart Analytics.
           </p>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>

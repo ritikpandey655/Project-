@@ -122,9 +122,27 @@ const fetchFromGroq = async (prompt: string, model = "llama3-70b-8192", jsonMode
 
     } catch (e) {
         // Fail silently so Gemini fallback kicks in
-        // console.warn("Groq failed, falling back to Gemini", e);
         return null;
     }
+};
+
+// --- SUBJECT ISOLATION LOGIC ---
+const getSubjectConstraint = (subject: string): string => {
+    const s = subject.toLowerCase();
+    
+    if (s.includes('history')) return "STRICTLY History (Ancient, Medieval, Modern, Art & Culture). DO NOT ask Science, Polity, or Geography questions.";
+    if (s.includes('polity') || s.includes('civics')) return "STRICTLY Polity, Constitution, Governance. DO NOT ask History or Science.";
+    if (s.includes('geography')) return "STRICTLY Geography (Physical, Indian, World). NO History/Economy.";
+    if (s.includes('economy') || s.includes('economics')) return "STRICTLY Economy. NO History/Polity.";
+    if (s.includes('physics')) return "STRICTLY Physics. NO Biology, Chemistry, or General Knowledge.";
+    if (s.includes('chemistry')) return "STRICTLY Chemistry. NO Physics, Biology.";
+    if (s.includes('biology') || s.includes('botany') || s.includes('zoology')) return "STRICTLY Biology. NO Physics/Maths.";
+    if (s.includes('math') || s.includes('quantitative')) return "STRICTLY Mathematics/Quant. NO Theory/GK.";
+    if (s.includes('hindi')) return "STRICTLY Hindi Vyakaran (Grammar) & Sahitya (Literature). ABSOLUTELY NO History, Science, or Social Science allowed.";
+    if (s.includes('english')) return "STRICTLY English Grammar, Vocab, Comprehension. NO GK/History.";
+    if (s.includes('computer')) return "STRICTLY Computer Science/Application. NO General Subjects.";
+    
+    return `STRICTLY ${subject}. Do not stray into other subjects.`;
 };
 
 // --- MAIN GENERATION FUNCTIONS ---
@@ -137,129 +155,109 @@ export const generateExamQuestions = async (
   topics: string[] = []
 ): Promise<Question[]> => {
   
-  // 1. Try Official DB
+  // 1. Try Official DB First
   const officialQs = await getOfficialQuestions(exam, subject, count);
   if (officialQs.length >= count) return officialQs;
   
   const needed = count - officialQs.length;
-  const isNEETorJEE = exam.includes('NEET') || exam.includes('JEE');
   const isUPBoard = exam.includes('UP Board');
+  
+  // Get Strict Constraints
+  const subjectConstraint = getSubjectConstraint(subject);
+  
+  const basePrompt = `
+      ACT AS A STRICT EXAMINER for ${exam}.
+      SUBJECT: ${subject}.
+      CONSTRAINT: ${subjectConstraint}
+      DIFFICULTY: ${difficulty}.
+      ${topics.length > 0 ? `SPECIFIC TOPICS: ${topics.join(', ')}` : ''}
+      ${isUPBoard ? 'LANGUAGE: Hinglish (Hindi terms in Roman) or Hindi (Devanagari) where appropriate.' : ''}
+      
+      Create distinct, high-quality MCQs.
+      OUTPUT FORMAT (JSON ARRAY ONLY):
+      [
+        {
+          "text": "Question Statement",
+          "text_hi": "Hindi Translation (Optional)",
+          "options": ["A", "B", "C", "D"],
+          "correctIndex": 0,
+          "explanation": "Reason"
+        }
+      ]
+  `;
 
-  // 2. PARALLEL PROCESSING STRATEGY
-  const batchSize = 5;
+  // 2. SEQUENTIAL BATCHING STRATEGY (Fixes "10 out of 50" issue)
+  // Instead of firing all requests at once (which hits rate limits), we do it in chunks.
+  const batchSize = 10;
   const batches = Math.ceil(needed / batchSize);
-  const promises = [];
+  let aiQuestions: Question[] = [];
 
   for (let i = 0; i < batches; i++) {
-      const currentBatchCount = Math.min(batchSize, needed - (i * batchSize));
-      if(currentBatchCount <= 0) continue;
+      const currentBatchCount = Math.min(batchSize, needed - aiQuestions.length);
+      if (currentBatchCount <= 0) break;
 
-      // STRICT PROMPT ENGINEERING
-      const prompt = `
-          ACT AS A STRICT ACADEMIC EXAMINER for ${exam}.
-          Generate ${currentBatchCount} High-Quality MCQs for subject: ${subject}.
-          ${topics.length > 0 ? `Specific Topic: ${topics.join(', ')}` : 'Topic: Standard Syllabus Chapters'}
-          
-          CRITICAL RULES (ZERO HALLUCINATION):
-          1. FACTUAL ACCURACY IS PARAMOUNT. Every question must be 100% factually correct based on Standard Textbooks (NCERT).
-          2. IF YOU ARE NOT 100% SURE ABOUT A FACT, DO NOT GENERATE THAT QUESTION. Skip it.
-          3. Options must be distinct. One and only one correct answer.
-          4. ${isUPBoard ? 'Language: Use Hinglish (Hindi terms in Roman script) or Hindi for UP Board context. STRICTLY UP BOARD/NCERT SYLLABUS.' : 'Language: English'}
-          5. Difficulty: ${difficulty}.
-          
-          OUTPUT FORMAT (JSON ARRAY ONLY):
-          [
-            {
-              "text": "Question Statement",
-              "text_hi": "Hindi Translation (Optional)",
-              "options": ["Option A", "Option B", "Option C", "Option D"],
-              "correctIndex": 0, (Integer 0-3)
-              "explanation": "Scientific/Historical reason for the answer."
-            }
-          ]
-      `;
+      const batchPrompt = `${basePrompt} \n Generate ${currentBatchCount} unique questions. Ensure no repetition from previous sets.`;
 
-      // EXECUTE: Try Groq first (Speed), then Gemini Parallel (Reliability)
-      const fetchPromise = (async () => {
-          // A. Try Groq (If Key Exists & Enabled)
-          const groqData = await fetchFromGroq(prompt, "llama3-70b-8192", true); // Use JSON mode for array
-          // Groq sometimes wraps array in object { "questions": [...] } when forced to json_object
-          if (groqData) {
-             if (Array.isArray(groqData)) return groqData;
-             if (groqData.questions && Array.isArray(groqData.questions)) return groqData.questions;
-             // If single object
-             if (groqData.text) return [groqData];
+      try {
+          // A. Try Groq (Fastest)
+          let batchData = await fetchFromGroq(batchPrompt, "llama3-70b-8192", true);
+          
+          // B. Fallback to Gemini if Groq fails or returns nothing
+          if (!batchData) {
+              const response = await callGeminiBackend({
+                  model: 'gemini-2.5-flash',
+                  contents: batchPrompt,
+                  config: {
+                    ...commonConfig,
+                    temperature: 0.4, // Slightly higher for variety in loops
+                    responseMimeType: "application/json" 
+                  }
+              });
+              batchData = JSON.parse(cleanJson(response.text || "[]"));
           }
 
-          // B. Gemini Parallel Call via Backend
-          const response = await callGeminiBackend({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-              ...commonConfig,
-              temperature: 0.2, // LOWER TEMPERATURE = MORE FACTUAL, LESS CREATIVE
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    text: { type: Type.STRING },
-                    text_hi: { type: Type.STRING },
-                    options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    correctIndex: { type: Type.INTEGER },
-                    explanation: { type: Type.STRING },
-                    explanation_hi: { type: Type.STRING },
-                    type: { type: Type.STRING },
-                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-                  },
-                  required: ['text', 'options', 'correctIndex', 'explanation']
-                }
-              } as Schema
-            }
-          });
-          const text = response.text || "[]";
-          return JSON.parse(cleanJson(text));
-      })();
+          // Normalize and Add to List
+          let items = [];
+          if (Array.isArray(batchData)) items = batchData;
+          else if (batchData && batchData.questions) items = batchData.questions;
+          
+          const validItems = items.map((q: any) => {
+              const qText = q.text || q.question;
+              if (!qText) return null;
+              return {
+                  ...q,
+                  text: qText,
+                  textHindi: q.text_hi || (isUPBoard ? qText : undefined),
+                  id: generateId('ai-q'),
+                  source: QuestionSource.PYQ_AI,
+                  examType: exam as ExamType,
+                  subject: subject,
+                  type: QuestionType.MCQ,
+                  options: safeOptions(q.options),
+                  correctIndex: q.correctIndex ?? 0
+              };
+          }).filter((q: any) => q !== null);
 
-      promises.push(fetchPromise);
+          aiQuestions = [...aiQuestions, ...validItems];
+
+          // Small delay to prevent rate limiting (429) during large generation
+          if (batches > 1) await new Promise(r => setTimeout(r, 500));
+
+      } catch (e) {
+          console.warn(`Batch ${i+1} failed. Continuing...`, e);
+      }
   }
 
-  try {
-      const results = await Promise.all(promises);
-      
-      let aiQuestions: Question[] = [];
-      results.flat().forEach((q: any) => {
-          // Robust check for question text
-          const qText = q.text || q.question;
-          
-          if (q && qText) {
-              const opts = safeOptions(q.options);
-              if (opts.length > 0) {
-                  aiQuestions.push({
-                      ...q,
-                      text: qText,
-                      id: generateId('ai-q'),
-                      source: QuestionSource.PYQ_AI,
-                      examType: exam as ExamType,
-                      subject: subject,
-                      type: QuestionType.MCQ,
-                      options: opts,
-                      correctIndex: q.correctIndex ?? 0
-                  });
-              }
-          }
-      });
+  const finalQuestions = [...officialQs, ...aiQuestions];
 
-      if (aiQuestions.length === 0 && officialQs.length === 0) throw new Error("No Qs generated");
-
-      return [...officialQs, ...aiQuestions];
-
-  } catch (e) {
-      console.warn("Generation Failed:", e);
-      if (officialQs.length > 0) return officialQs;
+  // FINAL SAFETY NET: If we have 0 questions, return fallback. 
+  // If we have even 1 question, return it (Better than fallback).
+  if (finalQuestions.length === 0) {
+      console.warn("Generation completely failed. Using Fallback.");
       return MOCK_QUESTIONS_FALLBACK.map(q => ({...q, id: generateId('fall'), examType: exam as ExamType})) as unknown as Question[];
   }
+
+  return finalQuestions;
 };
 
 export const generateCurrentAffairs = async (
@@ -494,9 +492,14 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
 
 export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any): Promise<QuestionPaper | null> => {
     try {
+        // SUBJECT CLARITY
+        const subjectConstraint = getSubjectConstraint(subject);
+        
         // STEP 1: GENERATE BLUEPRINT (Small, fast, robust)
         const blueprintPrompt = `
-            Act as an exam setter. Create a blueprint for a ${exam} (${subject}) Mock Paper.
+            Act as an exam setter. Create a blueprint for a ${exam} Mock Paper.
+            Subject: ${subject}
+            Constraint: ${subjectConstraint}
             Difficulty: ${difficulty}.
             Context: ${seed || 'Standard Syllabus'}.
             Configuration:
@@ -539,12 +542,20 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
 
         if (!blueprint || !blueprint.sections) return null;
 
-        // STEP 2: GENERATE CONTENT FOR SECTIONS (Parallel)
-        const filledSections = await Promise.all(blueprint.sections.map(async (sec: any, sIdx: number) => {
-            if (!sec.questionCount || sec.questionCount <= 0) return { ...sec, id: `sec-${sIdx}`, questions: [] };
+        // STEP 2: GENERATE CONTENT FOR SECTIONS (Parallel with Batching)
+        // We use sequential processing for robust content generation instead of all-at-once
+        const filledSections = [];
+        
+        for (const [sIdx, sec] of blueprint.sections.entries()) {
+            if (!sec.questionCount || sec.questionCount <= 0) {
+                filledSections.push({ ...sec, id: `sec-${sIdx}`, questions: [] });
+                continue;
+            }
 
             const qPrompt = `
-                Generate ${sec.questionCount} ${sec.type} questions for ${exam} (${subject}).
+                Generate ${sec.questionCount} ${sec.type} questions for ${exam}.
+                Subject: ${subject}
+                Constraint: ${subjectConstraint}
                 Section: ${sec.title}.
                 Difficulty: ${difficulty}.
                 Instructions: ${sec.instructions}.
@@ -556,7 +567,7 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
                   "text": "Question text",
                   "options": ["Option A", "Option B", ...], (Required for MCQs)
                   "answer": "Correct Answer Text",
-                  "explanation": "Reasoning"
+                  "explanation": "Reason"
                 }
             `;
 
@@ -574,13 +585,13 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
                 const response = await callGeminiBackend({
                     model: 'gemini-2.5-flash',
                     contents: qPrompt,
-                    config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
+                    config: { ...commonConfig, temperature: 0.3, responseMimeType: "application/json" }
                 });
                 questions = JSON.parse(cleanJson(response.text || "[]"));
                 if (!Array.isArray(questions) && (questions as any).questions) questions = (questions as any).questions;
             }
 
-            return {
+            filledSections.push({
                 id: `sec-${sIdx}`,
                 title: sec.title,
                 instructions: sec.instructions || "Attempt all questions",
@@ -612,8 +623,11 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
                         marks: sec.marksPerQuestion
                     };
                 })
-            };
-        }));
+            });
+            
+            // Add slight delay between sections
+            if (sIdx < blueprint.sections.length - 1) await new Promise(r => setTimeout(r, 200));
+        }
 
         return {
             id: generateId('paper'),
