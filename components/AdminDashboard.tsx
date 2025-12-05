@@ -19,6 +19,12 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'exams' | 'upload' | 'questions' | 'payments' | 'settings'>('dashboard');
   
+  // System Health States
+  const [backendStatus, setBackendStatus] = useState<'Checking' | 'Online' | 'Offline'>('Checking');
+  const [ping, setPing] = useState<number>(0);
+  const [isSecure, setIsSecure] = useState<boolean>(false);
+  const [lastChecked, setLastChecked] = useState<string>('-');
+
   // Data States
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -76,7 +82,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   // Load Data
   useEffect(() => {
     loadAllData();
+    checkSystemHealth();
   }, []);
+
+  const checkSystemHealth = async () => {
+    setBackendStatus('Checking');
+    const start = performance.now();
+    try {
+      const response = await fetch('/api/health');
+      const end = performance.now();
+      const latency = Math.round(end - start);
+      setPing(latency);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setBackendStatus('Online');
+        setIsSecure(!!data.secure);
+      } else {
+        setBackendStatus('Offline');
+      }
+    } catch (e) {
+      console.error("Backend Health Check Failed", e);
+      setBackendStatus('Offline');
+      setPing(0);
+    }
+    setLastChecked(new Date().toLocaleTimeString());
+  };
 
   const loadAllData = async () => {
     setIsLoading(true);
@@ -270,24 +301,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setIsSubmitting(false);
   };
 
-  // ... (Render functions for other tabs remain same)
   const renderDashboard = () => (
     <div className="space-y-6 animate-fade-in">
-        <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-4">
+        {/* Backend Health Monitor Card */}
+        <div className="flex flex-col sm:flex-row justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-6 w-full sm:w-auto">
                <div>
-                  <p className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Status</p>
+                  <p className="text-[10px] font-bold uppercase text-slate-500 tracking-wider mb-1">Backend Status</p>
                   <div className="flex items-center gap-2">
-                    <p className="font-bold text-green-600">Client-Side Mode</p>
+                    <span className={`w-3 h-3 rounded-full ${backendStatus === 'Online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                    <p className={`font-bold text-lg ${backendStatus === 'Online' ? 'text-slate-800 dark:text-white' : 'text-red-500'}`}>
+                        {backendStatus === 'Checking' ? 'Connecting...' : backendStatus}
+                    </p>
                   </div>
                </div>
+               
+               <div className="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
+
+               <div>
+                  <p className="text-[10px] font-bold uppercase text-slate-500 tracking-wider mb-1">Latency (Ping)</p>
+                  <p className={`font-mono font-bold text-lg ${ping < 100 ? 'text-green-600' : ping < 300 ? 'text-yellow-600' : 'text-red-600'}`}>
+                     {ping} ms
+                  </p>
+               </div>
+
+               <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
+
+               <div className="hidden sm:block">
+                  <p className="text-[10px] font-bold uppercase text-slate-500 tracking-wider mb-1">Security</p>
+                  <p className="font-bold text-sm text-slate-800 dark:text-white flex items-center gap-1">
+                     {isSecure ? '🔒 Secured' : '⚠️ Unsecured'}
+                  </p>
+               </div>
             </div>
-            <div className="flex gap-2">
+
+            <div className="flex gap-3 mt-4 sm:mt-0 w-full sm:w-auto">
+                <Button size="sm" variant="outline" onClick={checkSystemHealth} title="Refresh Ping">
+                   ⚡ Refresh
+                </Button>
                 <Button size="sm" variant="secondary" onClick={loadAllData} isLoading={isLoading}>
-                   Sync DB
+                   🔄 Sync DB
                 </Button>
             </div>
         </div>
+
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <h3 className="text-slate-500 text-sm font-bold uppercase">Total Users</h3>
