@@ -294,18 +294,40 @@ const App: React.FC = () => {
            });
        }
     } else {
-       // No official questions at all, force AI immediately
+       // --- LAZY LOAD STRATEGY FOR LARGE REQUESTS (Marathon 50) ---
+       // 1. Fetch a small batch first to be fast and safe
+       const initialLoadCount = Math.min(config.count, 5);
+       
        const questions = await generateExamQuestions(
           exam, 
           config.subject, 
-          config.count, 
+          initialLoadCount, 
           'Medium', 
           config.topic ? [config.topic] : []
        );
+       
        setPracticeQueue(questions);
        setCurrentQIndex(0);
        setIsLoading(false);
        navigateTo('practice');
+
+       // 2. Fetch the remaining questions in background if needed
+       if (config.count > initialLoadCount) {
+           const remaining = config.count - initialLoadCount;
+           generateExamQuestions(
+              exam,
+              config.subject,
+              remaining,
+              'Medium',
+              config.topic ? [config.topic] : []
+           ).then(moreQs => {
+               setPracticeQueue(prev => {
+                   const existingIds = new Set(prev.map(q => q.id));
+                   const uniqueMore = moreQs.filter(q => !existingIds.has(q.id));
+                   return [...prev, ...uniqueMore];
+               });
+           });
+       }
     }
   }, [state.user, state.selectedExam, navigateTo]);
 

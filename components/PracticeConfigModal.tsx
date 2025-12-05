@@ -48,7 +48,9 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
 
   const handleStart = () => {
     const selectedMode = modes.find(m => m.id === mode)!;
-    if (selectedMode.pro && !isPro) {
+    
+    // Allow if Pro OR Admin
+    if (selectedMode.pro && !isPro && !isAdmin) {
       if (onUpgrade) onUpgrade();
       return;
     }
@@ -63,7 +65,8 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
 
   const selectMode = (modeId: any) => {
     const selectedMode = modes.find(m => m.id === modeId)!;
-    if (selectedMode.pro && !isPro) {
+    // Allow if Pro OR Admin
+    if (selectedMode.pro && !isPro && !isAdmin) {
       if(onUpgrade) onUpgrade();
       return;
     }
@@ -142,7 +145,8 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Session Length</label>
             <div className="grid grid-cols-2 gap-3">
               {modes.map((m) => {
-                const isLocked = m.pro && !isPro;
+                // Determine if locked: Pro required, user is NOT pro, and user is NOT admin
+                const isLocked = m.pro && !isPro && !isAdmin;
                 return (
                   <button
                     key={m.id}
@@ -151,7 +155,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
                       mode === m.id 
                         ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 ring-1 ring-indigo-600' 
                         : isLocked
-                        ? 'border-slate-100 dark:border-slate-700 opacity-60 bg-slate-50 dark:bg-slate-900'
+                        ? 'border-slate-100 dark:border-slate-700 opacity-60 bg-slate-50 dark:bg-slate-900 cursor-not-allowed'
                         : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
