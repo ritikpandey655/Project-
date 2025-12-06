@@ -97,44 +97,38 @@ export default defineConfig(({ mode }) => {
         name: "Start Practice",
         short_name: "Practice",
         url: "/?action=practice",
-        icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/png" }]
+        icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
       },
       {
         name: "Doubt Solver",
         short_name: "Doubts",
         url: "/?action=upload",
-        icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/png" }]
+        icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
       }
     ],
     icons: [
       {
         src: "/icon.svg",
-        sizes: "48x48 72x72 96x96 128x128 256x256",
+        sizes: "192x192",
+        type: "image/svg+xml",
+        purpose: "any"
+      },
+      {
+        src: "/icon.svg",
+        sizes: "512x512",
         type: "image/svg+xml",
         purpose: "any"
       },
       {
         src: "/icon.svg",
         sizes: "192x192",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: "/icon.svg",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: "/icon.svg",
-        sizes: "192x192",
-        type: "image/png",
+        type: "image/svg+xml",
         purpose: "maskable"
       },
       {
         src: "/icon.svg",
         sizes: "512x512",
-        type: "image/png",
+        type: "image/svg+xml",
         purpose: "maskable"
       }
     ],
