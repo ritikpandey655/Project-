@@ -38,6 +38,7 @@ import { SmartAnalytics } from './components/SmartAnalytics';
 import { Leaderboard } from './components/Leaderboard';
 import { CurrentAffairsFeed } from './components/CurrentAffairsFeed';
 import { PYQLibrary } from './components/PYQLibrary';
+import { BackgroundAnimation } from './components/BackgroundAnimation';
 import { auth } from './src/firebaseConfig';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
@@ -502,25 +503,31 @@ const App: React.FC = () => {
   if (state.view === 'forgotPassword') return <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />;
   if (state.view === 'onboarding') return (
       <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center animate-fade-in p-4">
-         <div className="text-center mb-8">
-            <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">Select Your Goal</h1>
-            <p className="text-slate-500 dark:text-slate-400">Choose the exam you want to master.</p>
-         </div>
-         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-4xl">
-           {Object.keys(state.examConfig || EXAM_SUBJECTS).map((exam) => (
-             <button key={exam} onClick={() => { handleExamSelect(exam as ExamType); navigateTo('tutorial'); }} className="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-purple hover:ring-2 hover:ring-brand-purple/20 transition-all text-left group">
-                <span className="text-2xl block mb-2 group-hover:scale-110 transition-transform duration-300">🎯</span>
-                <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-brand-purple transition-colors">{exam}</h3>
-                <p className="text-xs text-slate-500 mt-1">Start Preparation →</p>
-             </button>
-           ))}
+         <BackgroundAnimation />
+         <div className="relative z-10 w-full flex flex-col items-center">
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">Select Your Goal</h1>
+                <p className="text-slate-500 dark:text-slate-400">Choose the exam you want to master.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-4xl">
+            {Object.keys(state.examConfig || EXAM_SUBJECTS).map((exam) => (
+                <button key={exam} onClick={() => { handleExamSelect(exam as ExamType); navigateTo('tutorial'); }} className="p-6 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-purple hover:ring-2 hover:ring-brand-purple/20 transition-all text-left group">
+                    <span className="text-2xl block mb-2 group-hover:scale-110 transition-transform duration-300">🎯</span>
+                    <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-brand-purple transition-colors">{exam}</h3>
+                    <p className="text-xs text-slate-500 mt-1">Start Preparation →</p>
+                </button>
+            ))}
+            </div>
          </div>
       </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200 select-none">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200 select-none relative overflow-hidden">
       
+      {/* Background Animation Layer */}
+      {state.view !== 'paperView' && <BackgroundAnimation />}
+
       <Sidebar 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)}
@@ -542,7 +549,7 @@ const App: React.FC = () => {
       />
 
       {state.view !== 'tutorial' && (
-        <nav className="bg-white dark:bg-slate-900 p-4 flex justify-between items-center shadow-sm sticky top-0 z-30 transition-colors">
+        <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 flex justify-between items-center shadow-sm sticky top-0 z-30 transition-colors border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-purple to-brand-blue flex items-center justify-center text-white font-bold font-display shadow-lg shadow-brand-purple/30">PV</div>
              <span className="font-display font-bold text-lg text-slate-800 dark:text-white hidden sm:block">PYQverse</span>
@@ -629,7 +636,7 @@ const App: React.FC = () => {
         )}
 
         {state.view === 'stats' && (
-          <div className="text-center py-12 animate-fade-in">
+          <div className="text-center py-12 animate-fade-in relative z-10">
              <div className="text-6xl mb-4">🎉</div>
              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Session Complete!</h2>
              <div className="flex justify-center gap-4 mt-8">
