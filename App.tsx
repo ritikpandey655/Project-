@@ -305,13 +305,24 @@ const App: React.FC = () => {
       let loaded = currentCount;
       const BATCH_SIZE = 5; // Fetch in small batches for responsiveness
 
+      // Force stop if we already met the target before starting recursion
+      if (loaded >= targetCount) {
+          setIsFetchingMore(false);
+          return;
+      }
+
       const fetchNext = async () => {
           // Check if we already have enough questions in the queue
-          // Note: accessing state in async loop is tricky, relying on 'loaded' tracker
-          if (loaded >= targetCount) return;
+          if (loaded >= targetCount) {
+              setIsFetchingMore(false);
+              return;
+          }
           
           const needed = Math.min(BATCH_SIZE, targetCount - loaded);
-          if (needed <= 0) return;
+          if (needed <= 0) {
+              setIsFetchingMore(false);
+              return;
+          }
           
           try {
               setIsFetchingMore(true);
@@ -329,8 +340,14 @@ const App: React.FC = () => {
                       return [...prev, ...unique];
                   });
                   loaded += newQs.length;
-                  // Recursive call for next batch
-                  setTimeout(fetchNext, 800); 
+                  
+                  if (loaded < targetCount) {
+                      // Recursive call for next batch if still needed
+                      setTimeout(fetchNext, 800); 
+                  } else {
+                      // Done fetching
+                      setIsFetchingMore(false);
+                  }
               } else {
                   // Stop if generation fails to return items (avoids infinite loop)
                   setIsFetchingMore(false);
@@ -381,6 +398,9 @@ const App: React.FC = () => {
     if (config.count > initialQuestions.length || config.mode === 'endless') {
         const target = config.mode === 'endless' ? 1000 : config.count;
         progressiveFetch(exam, config.subject, target, initialQuestions.length, config.topic, false);
+    } else {
+        // Ensure fetching state is OFF if we have enough
+        setIsFetchingMore(false);
     }
 
   }, [state.user, state.selectedExam, navigateTo, progressiveFetch]);
@@ -626,8 +646,9 @@ const App: React.FC = () => {
                question={practiceQueue[currentQIndex]} 
                onAnswer={handleAnswer} 
                onNext={handleNextQuestion}
-               isLast={practiceConfig.mode !== 'endless' && currentQIndex === practiceConfig.count - 1}
-               isLoadingNext={currentQIndex >= practiceQueue.length - 1 && isFetchingMore}
+               // Force finish logic: if we are at the end AND the queue has met the target, allow finish.
+               isLast={practiceConfig.mode !== 'endless' && (currentQIndex === practiceConfig.count - 1 || practiceQueue.length === practiceConfig.count && currentQIndex === practiceQueue.length - 1)}
+               isLoadingNext={isFetchingMore && currentQIndex >= practiceQueue.length - 1}
                language={state.language}
                onToggleLanguage={toggleLanguage}
                onBookmarkToggle={async (q) => { if(state.user) { const added = await toggleBookmark(state.user.id, q); const updatedQ = { ...q, isBookmarked: added }; const newQueue = [...practiceQueue]; newQueue[currentQIndex] = updatedQ; setPracticeQueue(newQueue); } }}
