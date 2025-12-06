@@ -38,6 +38,17 @@ export const updateUserActivity = async (userId: string): Promise<void> => {
   }
 };
 
+export const updateUserSession = async (userId: string, sessionId: string): Promise<void> => {
+  try {
+    await updateDoc(doc(db, "users", userId), {
+      sessionId: sessionId
+    });
+  } catch (e) {
+    // If update fails (e.g. user doc doesn't exist yet), setDoc will handle it
+    await setDoc(doc(db, "users", userId), { sessionId: sessionId }, { merge: true });
+  }
+};
+
 export const getUser = async (userId: string): Promise<User | null> => {
   try {
     const docSnap = await getDoc(doc(db, "users", userId));

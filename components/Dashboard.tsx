@@ -149,6 +149,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-20">
+      
       {/* Offline Indicator */}
       {!isOnline && (
         <div className="bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md flex items-center justify-between animate-fade-in">

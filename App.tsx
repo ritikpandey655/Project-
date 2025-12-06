@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState } from './types';
 import { EXAM_SUBJECTS, THEME_PALETTES, TECHNICAL_EXAMS, MONTHS } from './constants';
 import { 
@@ -15,7 +15,8 @@ import {
   saveQOTD,
   getOfficialQuestions,
   getExamConfig,
-  updateUserActivity
+  updateUserActivity,
+  updateUserSession
 } from './services/storageService';
 import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion, generateNews, generateStudyNotes } from './services/geminiService';
 import { Dashboard } from './components/Dashboard';
@@ -39,14 +40,15 @@ import { Leaderboard } from './components/Leaderboard';
 import { CurrentAffairsFeed } from './components/CurrentAffairsFeed';
 import { PYQLibrary } from './components/PYQLibrary';
 import { BackgroundAnimation } from './components/BackgroundAnimation';
-import { auth } from './src/firebaseConfig';
+import { auth, db } from './src/firebaseConfig';
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onSnapshot, doc } from "firebase/firestore";
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
-    view: 'login', // Default to login for app-like feel
+    view: 'login', // Direct to login instead of landing
     selectedExam: null,
     stats: INITIAL_STATS,
     user: null,
@@ -57,7 +59,7 @@ const App: React.FC = () => {
     theme: 'PYQverse Prime',
     qotd: null,
     newsFeed: [],
-    examConfig: EXAM_SUBJECTS as unknown as Record<string, string[]> // Default to static
+    examConfig: EXAM_SUBJECTS as unknown as Record<string, string[]> 
   });
 
   const [practiceQueue, setPracticeQueue] = useState<Question[]>([]);
@@ -79,6 +81,9 @@ const App: React.FC = () => {
 
   // Payment State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  // Single Session Ref
+  const currentSessionId = useRef<string>(Date.now().toString() + Math.random().toString());
 
   const applyTheme = useCallback((themeName: string) => {
     const palette = THEME_PALETTES[themeName] || THEME_PALETTES['PYQverse Prime'];
@@ -149,6 +154,17 @@ const App: React.FC = () => {
         userProfile.isAdmin = true;
     }
 
+    // --- SINGLE SESSION ENFORCEMENT START ---
+    // 1. Generate new ID for this specific browser session instance
+    const mySessionId = currentSessionId.current;
+    
+    // 2. Update Firestore with this ID (Claiming the session)
+    await updateUserSession(userId, mySessionId);
+    
+    // 3. Listen for changes. If Firestore sessionId changes (another device logged in), kick us out.
+    // Note: The listener is set up in a separate useEffect below to persist.
+    // --- SINGLE SESSION ENFORCEMENT END ---
+
     updateUserActivity(userId);
 
     const prefsPromise = getUserPref(userId);
@@ -203,6 +219,29 @@ const App: React.FC = () => {
     }
   }, [applyTheme]);
 
+  // Session Listener Effect
+  useEffect(() => {
+    let unsubscribe: () => void;
+
+    if (state.user?.id) {
+        unsubscribe = onSnapshot(doc(db, "users", state.user.id), (doc) => {
+            const data = doc.data();
+            // If the session ID on the server doesn't match our local one, it means
+            // someone else logged in on another device.
+            if (data?.sessionId && data.sessionId !== currentSessionId.current) {
+                alert("You have been logged out because your account was accessed from another device.");
+                signOut(auth).then(() => {
+                    window.location.reload(); // Refresh to clean state
+                });
+            }
+        });
+    }
+
+    return () => {
+        if (unsubscribe) unsubscribe();
+    };
+  }, [state.user?.id]);
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (isAppInitializing) {
@@ -214,6 +253,7 @@ const App: React.FC = () => {
       if (currentUser) {
         loadUserData(currentUser.uid).then(() => setIsAppInitializing(false));
       } else {
+        // If not logged in, go straight to LOGIN view
         setState(prev => ({ ...prev, user: null, view: 'login' }));
         setIsAppInitializing(false);
       }
@@ -243,7 +283,7 @@ const App: React.FC = () => {
   const navigateTo = useCallback((view: ViewState) => {
     setState(prev => ({ ...prev, view }));
     setIsSidebarOpen(false);
-    if (!['practice', 'paperView', 'paperGenerator', 'login', 'signup'].includes(view)) {
+    if (!['practice', 'paperView', 'paperGenerator', 'login', 'signup', 'landing'].includes(view)) {
        localStorage.setItem(LAST_VIEW_KEY, view);
     }
   }, []);
@@ -256,7 +296,8 @@ const App: React.FC = () => {
 
   const handleLogout = useCallback(async () => {
     await signOut(auth);
-  }, []);
+    navigateTo('login');
+  }, [navigateTo]);
 
   const handleExamSelect = useCallback(async (exam: ExamType) => {
     if (!state.user) return;
@@ -301,18 +342,15 @@ const App: React.FC = () => {
     topic?: string,
     isCurrentAffairs: boolean = false
   ) => {
-      // Background Loader Logic
       let loaded = currentCount;
-      const BATCH_SIZE = 5; // Fetch in small batches for responsiveness
+      const BATCH_SIZE = 5;
 
-      // Force stop if we already met the target before starting recursion
       if (loaded >= targetCount) {
           setIsFetchingMore(false);
           return;
       }
 
       const fetchNext = async () => {
-          // Check if we already have enough questions in the queue
           if (loaded >= targetCount) {
               setIsFetchingMore(false);
               return;
@@ -342,14 +380,11 @@ const App: React.FC = () => {
                   loaded += newQs.length;
                   
                   if (loaded < targetCount) {
-                      // Recursive call for next batch if still needed
                       setTimeout(fetchNext, 800); 
                   } else {
-                      // Done fetching
                       setIsFetchingMore(false);
                   }
               } else {
-                  // Stop if generation fails to return items (avoids infinite loop)
                   setIsFetchingMore(false);
               }
           } catch (e) {
@@ -368,13 +403,10 @@ const App: React.FC = () => {
     setIsLoading(true);
     setPracticeConfig(config);
     
-    const INITIAL_BATCH_SIZE = 10; // "Phle 10 question show kare"
+    const INITIAL_BATCH_SIZE = 10;
     const initialLoadCount = Math.min(config.count, INITIAL_BATCH_SIZE);
 
-    // 1. Fetch First Batch (Fast)
     let initialQuestions: Question[] = [];
-    
-    // Try cache first
     const cacheQs = await getOfficialQuestions(exam, config.subject, initialLoadCount);
     if (cacheQs.length >= initialLoadCount) {
         initialQuestions = cacheQs;
@@ -385,7 +417,6 @@ const App: React.FC = () => {
     }
 
     if (initialQuestions.length === 0) {
-        // Fallback retry
         initialQuestions = await generateExamQuestions(exam, config.subject, 5, 'Medium', config.topic ? [config.topic] : []);
     }
 
@@ -394,12 +425,10 @@ const App: React.FC = () => {
     setIsLoading(false); 
     navigateTo('practice'); 
 
-    // 2. Stream Remaining Questions (Background)
     if (config.count > initialQuestions.length || config.mode === 'endless') {
         const target = config.mode === 'endless' ? 1000 : config.count;
         progressiveFetch(exam, config.subject, target, initialQuestions.length, config.topic, false);
     } else {
-        // Ensure fetching state is OFF if we have enough
         setIsFetchingMore(false);
     }
 
@@ -410,7 +439,6 @@ const App: React.FC = () => {
     if (!state.user || !exam) return;
     const nextIndex = currentQIndex + 1;
     
-    // Trigger more if endless and running low
     if (practiceConfig.mode === 'endless' && nextIndex >= practiceQueue.length - 3 && !isFetchingMore) {
         progressiveFetch(exam, practiceConfig.subject, practiceQueue.length + 10, practiceQueue.length, practiceConfig.topic, false);
     }
@@ -449,15 +477,12 @@ const App: React.FC = () => {
     if (!state.user || !exam) return;
     setIsLoading(true);
     
-    // Initial 10
     generateCurrentAffairs(exam, 10).then(questions => {
         setPracticeQueue(questions);
         setCurrentQIndex(0);
-        setPracticeConfig({ mode: 'finite', count: 50, subject: 'Current Affairs' }); // Increased to 50
+        setPracticeConfig({ mode: 'finite', count: 50, subject: 'Current Affairs' });
         setIsLoading(false);
         navigateTo('practice');
-        
-        // Stream remaining 40
         progressiveFetch(exam, 'Current Affairs', 50, questions.length, undefined, true);
     });
   }, [state.user, state.selectedExam, navigateTo, progressiveFetch]);
@@ -518,7 +543,8 @@ const App: React.FC = () => {
   }, [state.selectedExam, navigateTo]);
 
   // View Routing
-  if (state.view === 'login') return <LoginScreen onLogin={handleLogin} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} isInitializing={isAppInitializing} />;
+  // Landing Page Removed. Direct to LoginScreen.
+  if (state.view === 'login' || state.view === 'landing') return <LoginScreen onLogin={handleLogin} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} isInitializing={isAppInitializing} />;
   if (state.view === 'signup') return <SignupScreen onSignup={handleSignup} onBackToLogin={() => navigateTo('login')} />;
   if (state.view === 'forgotPassword') return <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />;
   if (state.view === 'onboarding') return (
@@ -545,7 +571,6 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col transition-colors duration-200 select-none relative overflow-hidden">
       
-      {/* Background Animation Layer */}
       {state.view !== 'paperView' && <BackgroundAnimation />}
 
       <Sidebar 
@@ -634,7 +659,6 @@ const App: React.FC = () => {
                 ></div>
              </div>
              
-             {/* Streaming Indicator */}
              {isFetchingMore && (
                 <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 bg-indigo-600/90 text-white text-xs px-3 py-1 rounded-full shadow-lg flex items-center gap-2 animate-bounce-slight">
                    <span className="w-2 h-2 bg-white rounded-full animate-ping"></span>
@@ -646,7 +670,6 @@ const App: React.FC = () => {
                question={practiceQueue[currentQIndex]} 
                onAnswer={handleAnswer} 
                onNext={handleNextQuestion}
-               // Force finish logic: if we are at the end AND the queue has met the target, allow finish.
                isLast={practiceConfig.mode !== 'endless' && (currentQIndex === practiceConfig.count - 1 || practiceQueue.length === practiceConfig.count && currentQIndex === practiceQueue.length - 1)}
                isLoadingNext={isFetchingMore && currentQIndex >= practiceQueue.length - 1}
                language={state.language}

@@ -132,6 +132,7 @@ export interface User {
   pincode?: string;
   isPro?: boolean;
   isAdmin?: boolean; // Admin Flag
+  sessionId?: string; // For Single Session Enforcement
 }
 
 export interface Transaction {

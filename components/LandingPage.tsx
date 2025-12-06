@@ -43,18 +43,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           
-          {/* UP BOARD LIVE BANNER */}
-          <div 
-            onClick={onSignup}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-100 text-sm font-bold mb-10 animate-bounce-slight border border-orange-200 dark:border-orange-700 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-800/50 transition-colors shadow-md ring-2 ring-orange-100 dark:ring-orange-900/20"
-          >
-            <span className="flex h-2.5 w-2.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-600"></span>
-            </span>
-            <span className="tracking-wide">🔥 New: UP Board Special (10th & 12th) is LIVE!</span>
-          </div>
-          
           <h1 className="text-5xl sm:text-7xl font-display font-extrabold text-slate-900 dark:text-white mb-6 leading-tight animate-slide-up">
             All exams ka <br className="hidden sm:block"/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-blue relative">
