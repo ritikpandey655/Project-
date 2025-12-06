@@ -258,16 +258,12 @@ export const generateExamQuestions = async (
 
   const finalQuestions = [...officialQs, ...aiQuestions];
 
-  // FINAL SAFETY NET MODIFICATION:
-  // Only use MOCK_QUESTIONS_FALLBACK if subject allows (Mixed/General)
-  // Otherwise return empty array/error object to force "Try Again" instead of showing wrong subject questions.
   if (finalQuestions.length === 0) {
       if (subject === 'Mixed' || subject === 'General Awareness') {
           console.warn("Generation failed. Using Generic Fallback.");
           return MOCK_QUESTIONS_FALLBACK.map(q => ({...q, id: generateId('fall'), examType: exam as ExamType})) as unknown as Question[];
       } else {
           console.error(`Generation failed for ${subject}. Returning empty to avoid subject mixing.`);
-          // Create ONE dummy error question if absolutely nothing to avoid crash, but relevant to failure
           return [{
              id: generateId('err'),
              text: `AI Server Busy: Could not generate questions for ${subject}. Please try again in a few seconds.`,
@@ -286,10 +282,216 @@ export const generateExamQuestions = async (
   return finalQuestions;
 };
 
-export const generateCurrentAffairs = async (
-  exam: string,
-  count: number = 10
-): Promise<Question[]> => {
+// ... (Rest of existing functions remain largely unchanged) ...
+
+export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any): Promise<QuestionPaper | null> => {
+    try {
+        const subjectConstraint = getSubjectConstraint(subject);
+        
+        // --- 1. SYLLABUS & CONTEXT HANDLING ---
+        const hasSyllabus = config.syllabus && config.syllabus.data;
+        let syllabusContext = "";
+
+        if (hasSyllabus) {
+            syllabusContext = `
+            CRITICAL INSTRUCTION: A specific syllabus/content file has been uploaded by the user.
+            1. ANALYZE the provided image/PDF content strictly.
+            2. GENERATE questions **ONLY** based on the topics, chapters, or concepts visible in the file.
+            3. Do NOT include topics outside this provided syllabus file.
+            `;
+        } else {
+            syllabusContext = `
+            INSTRUCTION: No specific syllabus file provided. 
+            1. Use your **EXPERT KNOWLEDGE** of the official ${exam} syllabus for ${subject}.
+            2. Generate questions that are **standard**, **historically accurate** (based on PYQ patterns), and **factually verified**.
+            3. STRICTLY AVOID hallucinations or fake concepts. If the user provided a hint ("${seed}"), focus on that. Otherwise, cover high-yield topics.
+            4. Ensure the difficulty level matches: ${difficulty}.
+            `;
+        }
+
+        // STEP 1: GENERATE BLUEPRINT (Structure)
+        const blueprintPromptText = `
+            Act as a strict exam setter for ${exam}. Create a blueprint for a Mock Paper.
+            Subject: ${subject}
+            Constraint: ${subjectConstraint}
+            Difficulty: ${difficulty}.
+            ${syllabusContext}
+            Configuration:
+            - Total MCQs: ${config.mcqCount || 10}
+            - Include Short/Long answers: ${config.includeShort ? 'Yes' : 'No'}
+            
+            OUTPUT STRICT VALID JSON ONLY:
+            {
+              "title": "string",
+              "totalMarks": number,
+              "duration": number (minutes),
+              "sections": [
+                { 
+                  "title": "string", 
+                  "instructions": "string",
+                  "questionCount": number, 
+                  "marksPerQuestion": number,
+                  "type": "MCQ" | "SHORT_ANSWER" | "LONG_ANSWER"
+                }
+              ]
+            }
+        `;
+
+        let blueprint = null;
+        
+        // If syllabus provided, we MUST use Gemini to see the image/pdf
+        if (hasSyllabus) {
+             const contents = { parts: [
+                 { inlineData: { mimeType: config.syllabus.mimeType, data: config.syllabus.data } },
+                 { text: blueprintPromptText }
+             ]};
+             
+             const response = await callGeminiBackend({
+                model: 'gemini-2.5-flash',
+                contents: contents,
+                config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
+             });
+             blueprint = JSON.parse(cleanJson(response.text || "{}"));
+        } else {
+            // Standard Flow (Try Groq first)
+            try {
+                 if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
+                     blueprint = await fetchFromGroq(blueprintPromptText, "llama3-70b-8192", true);
+                 }
+            } catch(e) {}
+
+            if (!blueprint) {
+                const response = await callGeminiBackend({
+                    model: 'gemini-2.5-flash',
+                    contents: blueprintPromptText,
+                    config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
+                });
+                blueprint = JSON.parse(cleanJson(response.text || "{}"));
+            }
+        }
+
+        if (!blueprint || !blueprint.sections) return null;
+
+        // STEP 2: GENERATE CONTENT FOR SECTIONS
+        const filledSections = [];
+        
+        for (const [sIdx, sec] of blueprint.sections.entries()) {
+            if (!sec.questionCount || sec.questionCount <= 0) {
+                filledSections.push({ ...sec, id: `sec-${sIdx}`, questions: [] });
+                continue;
+            }
+
+            const qPromptText = `
+                Generate ${sec.questionCount} ${sec.type} questions for ${exam}.
+                Subject: ${subject}
+                Section: ${sec.title}.
+                Difficulty: ${difficulty}.
+                ${syllabusContext}
+                
+                CRITICAL: Questions must be factually correct.
+                
+                OUTPUT STRICT VALID JSON ARRAY of objects:
+                {
+                  "text": "Question text",
+                  "options": ["Option A", "Option B", ...], (Required for MCQs)
+                  "answer": "Correct Answer Text",
+                  "explanation": "Reason"
+                }
+            `;
+
+            let questions = [];
+            
+            // If syllabus exists, continue using Gemini with the image context for EVERY section generation
+            if (hasSyllabus) {
+                 const contents = { parts: [
+                     { inlineData: { mimeType: config.syllabus.mimeType, data: config.syllabus.data } },
+                     { text: qPromptText }
+                 ]};
+                 const response = await callGeminiBackend({
+                    model: 'gemini-2.5-flash',
+                    contents: contents,
+                    config: { ...commonConfig, temperature: 0.3, responseMimeType: "application/json" }
+                 });
+                 questions = JSON.parse(cleanJson(response.text || "[]"));
+            } else {
+                // Standard text-only generation
+                try {
+                    if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
+                        const qData = await fetchFromGroq(qPromptText, "llama3-70b-8192", true);
+                        if (qData) questions = Array.isArray(qData) ? qData : (qData.questions || []);
+                    }
+                } catch(e) {}
+
+                if (questions.length === 0) {
+                    const response = await callGeminiBackend({
+                        model: 'gemini-2.5-flash',
+                        contents: qPromptText,
+                        config: { ...commonConfig, temperature: 0.3, responseMimeType: "application/json" }
+                    });
+                    questions = JSON.parse(cleanJson(response.text || "[]"));
+                }
+            }
+            
+            if (!Array.isArray(questions) && (questions as any).questions) questions = (questions as any).questions;
+
+            filledSections.push({
+                id: `sec-${sIdx}`,
+                title: sec.title,
+                instructions: sec.instructions || "Attempt all questions",
+                marksPerQuestion: sec.marksPerQuestion || 1,
+                questions: (questions || []).map((q: any, qIdx: number) => {
+                    const opts = safeOptions(q.options);
+                    // Smart correct index finder
+                    let cIndex = q.correctIndex;
+                    if (cIndex === undefined || cIndex === -1) {
+                        cIndex = opts.findIndex((o: string) => o === q.answer);
+                        if (cIndex === -1 && q.answer) {
+                             cIndex = opts.findIndex((o: string) => o.toLowerCase().includes(q.answer.toLowerCase()));
+                        }
+                        if (cIndex === -1) cIndex = 0; // Fallback
+                    }
+
+                    return {
+                        id: generateId(`p-q-${sIdx}-${qIdx}`),
+                        text: q.text || q.question || "Question text missing",
+                        textHindi: q.text_hi,
+                        options: opts,
+                        correctIndex: cIndex,
+                        answer: q.answer || (opts.length > cIndex ? opts[cIndex] : ""),
+                        explanation: q.explanation,
+                        type: sec.type === 'MCQ' ? QuestionType.MCQ : QuestionType.SHORT_ANSWER,
+                        examType: exam as ExamType,
+                        source: QuestionSource.PYQ_AI,
+                        createdAt: Date.now(),
+                        marks: sec.marksPerQuestion
+                    };
+                })
+            });
+            
+            // Add slight delay between sections
+            if (sIdx < blueprint.sections.length - 1) await new Promise(r => setTimeout(r, 200));
+        }
+
+        return {
+            id: generateId('paper'),
+            title: blueprint.title || `${exam} Mock Paper`,
+            examType: exam as ExamType,
+            subject: subject,
+            difficulty: difficulty,
+            totalMarks: blueprint.totalMarks || 100,
+            durationMinutes: blueprint.duration || 60,
+            sections: filledSections,
+            createdAt: Date.now()
+        };
+
+    } catch (e) { 
+        console.error("Generate Paper Error:", e);
+        return null; 
+    }
+};
+
+// ... (Export other existing functions to ensure file integrity) ...
+export const generateCurrentAffairs = async (exam: string, count: number = 10): Promise<Question[]> => {
   // Groq cannot search the web, so we MUST use Gemini for News
   const officialCA = await getOfficialQuestions(exam, 'Current Affairs', count);
   if (officialCA.length >= count) return officialCA;
@@ -340,7 +542,7 @@ export const generateCurrentAffairs = async (
 };
 
 export const parseSmartInput = async (input: string, type: 'text' | 'image', examContext: string): Promise<any[]> => {
-  // Groq is great for text parsing
+  // Use Groq for text only
   if (type === 'text') {
       const groqResp = await fetchFromGroq(`Extract questions from this text for ${examContext}. Return JSON Array. Text: ${input}`, "llama3-70b-8192", true);
       // Handle wrapped JSON
@@ -350,8 +552,36 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
       }
   }
 
+  // Use Gemini for Image or Fallback
   try {
-    const prompt = `Extract questions from input for ${examContext}. Return JSON Array. Verify answers if possible.`;
+    const prompt = `
+      Analyze this ${type === 'image' ? 'Image' : 'Input'} related to ${examContext}.
+      
+      TASK:
+      1. If the image contains explicit questions (MCQs), extract them exactly.
+      2. If the image contains CONTENT (like News, Notes, Bullet Points, Current Affairs facts), GENERATE high-quality MCQs based on that content.
+      
+      RULES:
+      - Detect language (English, Hindi, or Hinglish). Return explicit 'text' and 'text_hi' if possible.
+      - If converting notes to questions, ensure the question is factual and derived directly from the image text.
+      - Provide 4 distinct options for MCQs.
+      - Identify the correct answer (index 0-3).
+      - Add a short explanation based on the text.
+      
+      OUTPUT FORMAT (Strict JSON Array):
+      [
+        {
+          "text": "Question in English (or transliterated)",
+          "text_hi": "Question in Hindi (Devanagari)",
+          "options": ["A", "B", "C", "D"],
+          "options_hi": ["A (Hindi)", "B (Hindi)", ...],
+          "correct_index": 0,
+          "explanation": "Derived explanation",
+          "subject": "Current Affairs or specific subject"
+        }
+      ]
+    `;
+    
     const contents = { parts: [] as any[] };
     if(type === 'image') {
         contents.parts.push({ inlineData: { mimeType: 'image/jpeg', data: input } });
@@ -359,13 +589,19 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
     } else {
         contents.parts.push({ text: `${prompt}\n\n${input}` });
     }
+    
     const response = await callGeminiBackend({
         model: 'gemini-2.5-flash',
         contents: contents,
-        config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
+        config: { ...commonConfig, temperature: 0.1, responseMimeType: "application/json" }
     });
-    return JSON.parse(cleanJson(response.text || "[]"));
-  } catch (e) { return []; }
+    
+    const parsed = JSON.parse(cleanJson(response.text || "[]"));
+    return Array.isArray(parsed) ? parsed : (parsed.questions || []);
+  } catch (e) { 
+      console.error("Smart Parse Error:", e);
+      return []; 
+  }
 };
 
 export const generateNews = async (exam: string, month?: string, year?: number, category?: string): Promise<NewsItem[]> => {
@@ -514,160 +750,4 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
             options: safeOptions(q.options)
         }));
     } catch(e) { return []; }
-};
-
-export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any): Promise<QuestionPaper | null> => {
-    try {
-        // SUBJECT CLARITY
-        const subjectConstraint = getSubjectConstraint(subject);
-        
-        // STEP 1: GENERATE BLUEPRINT (Small, fast, robust)
-        const blueprintPrompt = `
-            Act as an exam setter. Create a blueprint for a ${exam} Mock Paper.
-            Subject: ${subject}
-            Constraint: ${subjectConstraint}
-            Difficulty: ${difficulty}.
-            Context: ${seed || 'Standard Syllabus'}.
-            Configuration:
-            - Total MCQs: ${config.mcqCount || 10} (Split into logical sections)
-            - Include Short/Long answers if typically present: ${config.includeShort ? 'Yes' : 'No'}
-            
-            OUTPUT STRICT VALID JSON ONLY:
-            {
-              "title": "string",
-              "totalMarks": number,
-              "duration": number (minutes),
-              "sections": [
-                { 
-                  "title": "string", 
-                  "instructions": "string",
-                  "questionCount": number, 
-                  "marksPerQuestion": number,
-                  "type": "MCQ" | "SHORT_ANSWER" | "LONG_ANSWER"
-                }
-              ]
-            }
-        `;
-
-        let blueprint = null;
-        try {
-             // Try Groq for structure (fast)
-             if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
-                 blueprint = await fetchFromGroq(blueprintPrompt, "llama3-70b-8192", true);
-             }
-        } catch(e) {}
-
-        if (!blueprint) {
-            const response = await callGeminiBackend({
-                model: 'gemini-2.5-flash',
-                contents: blueprintPrompt,
-                config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
-            });
-            blueprint = JSON.parse(cleanJson(response.text || "{}"));
-        }
-
-        if (!blueprint || !blueprint.sections) return null;
-
-        // STEP 2: GENERATE CONTENT FOR SECTIONS (Parallel with Batching)
-        const filledSections = [];
-        
-        for (const [sIdx, sec] of blueprint.sections.entries()) {
-            if (!sec.questionCount || sec.questionCount <= 0) {
-                filledSections.push({ ...sec, id: `sec-${sIdx}`, questions: [] });
-                continue;
-            }
-
-            const qPrompt = `
-                Generate ${sec.questionCount} ${sec.type} questions for ${exam}.
-                Subject: ${subject}
-                Constraint: ${subjectConstraint}
-                Section: ${sec.title}.
-                Difficulty: ${difficulty}.
-                Instructions: ${sec.instructions}.
-                
-                CRITICAL: Questions must be factually correct and syllabus-compliant.
-                
-                OUTPUT STRICT VALID JSON ARRAY of objects:
-                {
-                  "text": "Question text",
-                  "options": ["Option A", "Option B", ...], (Required for MCQs)
-                  "answer": "Correct Answer Text",
-                  "explanation": "Reason"
-                }
-            `;
-
-            let questions = [];
-            try {
-                if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
-                    const qData = await fetchFromGroq(qPrompt, "llama3-70b-8192", true);
-                    if (qData) {
-                       questions = Array.isArray(qData) ? qData : (qData.questions || []);
-                    }
-                }
-            } catch(e) {}
-
-            if (questions.length === 0) {
-                const response = await callGeminiBackend({
-                    model: 'gemini-2.5-flash',
-                    contents: qPrompt,
-                    config: { ...commonConfig, temperature: 0.3, responseMimeType: "application/json" }
-                });
-                questions = JSON.parse(cleanJson(response.text || "[]"));
-                if (!Array.isArray(questions) && (questions as any).questions) questions = (questions as any).questions;
-            }
-
-            filledSections.push({
-                id: `sec-${sIdx}`,
-                title: sec.title,
-                instructions: sec.instructions || "Attempt all questions",
-                marksPerQuestion: sec.marksPerQuestion || 1,
-                questions: (questions || []).map((q: any, qIdx: number) => {
-                    const opts = safeOptions(q.options);
-                    // Smart correct index finder
-                    let cIndex = q.correctIndex;
-                    if (cIndex === undefined || cIndex === -1) {
-                        cIndex = opts.findIndex((o: string) => o === q.answer);
-                        if (cIndex === -1 && q.answer) {
-                             cIndex = opts.findIndex((o: string) => o.toLowerCase().includes(q.answer.toLowerCase()));
-                        }
-                        if (cIndex === -1) cIndex = 0; // Fallback
-                    }
-
-                    return {
-                        id: generateId(`p-q-${sIdx}-${qIdx}`),
-                        text: q.text || q.question || "Question text missing",
-                        textHindi: q.text_hi,
-                        options: opts,
-                        correctIndex: cIndex,
-                        answer: q.answer || (opts.length > cIndex ? opts[cIndex] : ""),
-                        explanation: q.explanation,
-                        type: sec.type === 'MCQ' ? QuestionType.MCQ : QuestionType.SHORT_ANSWER,
-                        examType: exam as ExamType,
-                        source: QuestionSource.PYQ_AI,
-                        createdAt: Date.now(),
-                        marks: sec.marksPerQuestion
-                    };
-                })
-            });
-            
-            // Add slight delay between sections
-            if (sIdx < blueprint.sections.length - 1) await new Promise(r => setTimeout(r, 200));
-        }
-
-        return {
-            id: generateId('paper'),
-            title: blueprint.title || `${exam} Mock Paper`,
-            examType: exam as ExamType,
-            subject: subject,
-            difficulty: difficulty,
-            totalMarks: blueprint.totalMarks || 100,
-            durationMinutes: blueprint.duration || 60,
-            sections: filledSections,
-            createdAt: Date.now()
-        };
-
-    } catch (e) { 
-        console.error("Generate Paper Error:", e);
-        return null; 
-    }
 };

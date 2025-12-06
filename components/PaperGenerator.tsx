@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ExamType } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
 import { Button } from './Button';
@@ -20,13 +20,16 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
   onExamChange,
   examSubjects = EXAM_SUBJECTS[examType]
 }) => {
-  // Safe default for subject if examSubjects is provided but empty or first element is undefined
   const defaultSubject = examSubjects?.[0] || 'General';
   const [subject, setSubject] = useState(defaultSubject);
   const [difficulty, setDifficulty] = useState('Medium');
   const [seedData, setSeedData] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mcqCount, setMcqCount] = useState(20);
+  
+  // Syllabus Upload State
+  const [syllabusFile, setSyllabusFile] = useState<{name: string, data: string, mimeType: string} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [config, setConfig] = useState({
     includeMCQ: true,
@@ -35,18 +38,40 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
     includeViva: false,
   });
 
-  // Update subject when examType changes
   useEffect(() => {
     const newSubjects = examSubjects || EXAM_SUBJECTS[examType];
     setSubject(newSubjects?.[0] || 'General');
   }, [examType, examSubjects]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        // Validate size (max 10MB for client performance)
+        if (file.size > 10 * 1024 * 1024) {
+            alert("File is too large. Please upload an image/pdf under 10MB.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const base64 = (ev.target?.result as string).split(',')[1];
+            setSyllabusFile({
+                name: file.name,
+                mimeType: file.type || 'image/jpeg',
+                data: base64
+            });
+        };
+        reader.readAsDataURL(file);
+    }
+  };
 
   const handleGenerate = async () => {
     setIsLoading(true);
     try {
       const paper = await generateFullPaper(examType, subject, difficulty, seedData, {
         ...config,
-        mcqCount: config.includeMCQ ? mcqCount : 0
+        mcqCount: config.includeMCQ ? mcqCount : 0,
+        syllabus: syllabusFile // Pass syllabus to service
       });
       
       if (paper) {
@@ -72,7 +97,10 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
             <div className="absolute inset-0 flex items-center justify-center text-3xl animate-bounce">⏳</div>
          </div>
          <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Structuring Your Paper...</h3>
-         <p className="text-slate-500 dark:text-slate-400 text-sm">AI is generating questions for {subject} ({difficulty})</p>
+         <p className="text-slate-500 dark:text-slate-400 text-sm">AI is reading your syllabus & creating questions.</p>
+         {syllabusFile && (
+             <p className="text-xs text-indigo-500 mt-2 font-bold animate-pulse">Analyzing: {syllabusFile.name}</p>
+         )}
          {config.includeMCQ && mcqCount > 30 && (
             <p className="text-xs text-amber-500 mt-4 animate-pulse">Large papers may take up to a minute.</p>
          )}
@@ -125,6 +153,52 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
             </select>
         </div>
 
+        {/* Syllabus Upload Section - NEW */}
+        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-700">
+            <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase">
+                    📤 Upload Specific Syllabus
+                </label>
+                <span className="text-[10px] text-slate-500 bg-white dark:bg-slate-800 px-2 py-0.5 rounded">Optional</span>
+            </div>
+            
+            {!syllabusFile ? (
+                <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center p-6 cursor-pointer hover:bg-white/50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                >
+                    <svg className="w-8 h-8 text-indigo-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">Click to upload Syllabus Image/PDF</p>
+                    <p className="text-xs text-slate-500 mt-1">AI will generate questions strictly from this file.</p>
+                    <input 
+                        type="file" 
+                        accept="image/*,application/pdf" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        onChange={handleFileSelect}
+                    />
+                </div>
+            ) : (
+                <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <span className="text-2xl">{syllabusFile.mimeType.includes('pdf') ? '📄' : '🖼️'}</span>
+                        <div className="truncate">
+                            <p className="text-sm font-bold text-slate-800 dark:text-white truncate max-w-[200px]">{syllabusFile.name}</p>
+                            <p className="text-xs text-green-600 dark:text-green-400 font-bold">Ready for Analysis</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setSyllabusFile(null); if(fileInputRef.current) fileInputRef.current.value=''; }}
+                        className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-full transition-colors"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
+        </div>
+
         <div>
           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Paper Sections</label>
           <div className="grid grid-cols-2 gap-3">
@@ -174,7 +248,7 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
         )}
 
         <div>
-          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Seed Data / Custom Topics (Optional)</label>
+          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Topic Hints / Instructions</label>
           <textarea 
             value={seedData}
             onChange={(e) => setSeedData(e.target.value)}

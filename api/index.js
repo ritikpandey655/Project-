@@ -48,8 +48,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// 3. Payload Limit (Prevent DOS via large payload)
-app.use(express.json({ limit: '500kb' })); 
+// 3. Payload Limit (Increased for Image Uploads)
+app.use(express.json({ limit: '50mb' })); 
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // 4. Manual HPP (HTTP Parameter Pollution) Protection
 app.use((req, res, next) => {

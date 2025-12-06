@@ -57,11 +57,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   // Smart Import State
   const [smartInput, setSmartInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [smartMode, setSmartMode] = useState<'Manual' | 'SmartPaste' | 'Image'>('Manual');
+  const [smartMode, setSmartMode] = useState<'Manual' | 'SmartPaste' | 'Image' | 'Syllabus'>('Syllabus');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isReviewing, setIsReviewing] = useState(false); 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Syllabus specific state
+  const [syllabusFile, setSyllabusFile] = useState<{name: string, data: string, mimeType: string} | null>(null);
+  const syllabusInputRef = useRef<HTMLInputElement>(null);
+
   // Bulk Queue
   const [bulkQueue, setBulkQueue] = useState<any[]>([]);
   const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
@@ -191,11 +195,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   };
 
   const populateFormWithData = (data: any) => {
-    setQText(data.text || '');
+    setQText(data.text || data.question || '');
     setQTextHindi(data.text_hi || '');
     if (Array.isArray(data.options)) setQOptions(data.options.slice(0, 4));
     if (Array.isArray(data.options_hi)) setQOptionsHindi(data.options_hi.slice(0, 4));
-    setQCorrect(data.correct_index || 0);
+    setQCorrect(data.correct_index || data.correctIndex || 0);
     setQExplanation(data.explanation || '');
     if (data.subject) setUploadSubject(data.subject);
   };
@@ -216,14 +220,98 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     finally { setIsAnalyzing(false); }
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSyllabusGenerate = async () => {
+      if (!syllabusFile) return alert("Please select a file first");
+      setIsAnalyzing(true);
+      
+      try {
+          // Construct prompt for Bulk Generation from Syllabus
+          const prompt = `
+            ACT AS A STRICT EXAMINER for ${uploadExam}.
+            SUBJECT: ${uploadSubject || 'General'}.
+            
+            TASK: Analyze the provided Syllabus/Content image/PDF carefully.
+            GENERATE 10 High-Quality MCQs strictly based on the topics visible in this file.
+            
+            RULES:
+            1. Questions must be factually correct and relevant to the syllabus.
+            2. Provide 4 options and identify the correct one.
+            3. Provide a short explanation.
+            4. STRICTLY NO Hallucinations. If topic is unclear, focus on standard ${uploadSubject} topics.
+            
+            OUTPUT JSON ARRAY:
+            [{ "text": "...", "options": ["A","B","C","D"], "correct_index": 0, "explanation": "..." }]
+          `;
+          
+          // Use parseSmartInput logic but with our custom prompting if needed, 
+          // or just call the same image handler which is robust enough.
+          // We'll reuse parseSmartInput with type 'image' but pass the prompt as the "text" part implicitly handled.
+          // Wait, parseSmartInput takes raw base64.
+          
+          // Let's modify the call to send the prompt *with* the image
+          // Actually parseSmartInput handles the prompt internally. 
+          // We'll trust the Gemini service to handle the "Content" extraction style.
+          // But to be specific, let's call the backend directly here for custom instruction.
+          
+          const response = await fetch('/api/ai/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  model: 'gemini-2.5-flash',
+                  contents: {
+                      parts: [
+                          { inlineData: { mimeType: syllabusFile.mimeType, data: syllabusFile.data } },
+                          { text: prompt }
+                      ]
+                  },
+                  config: { responseMimeType: "application/json" }
+              })
+          });
+          
+          const result = await response.json();
+          if(result.success && result.data) {
+              const cleaned = result.data.replace(/```json/g, '').replace(/```/g, '').trim();
+              const parsed = JSON.parse(cleaned);
+              const items = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+              
+              if(items.length > 0) {
+                  setBulkQueue(items);
+                  setCurrentQueueIndex(0);
+                  populateFormWithData(items[0]);
+                  setIsReviewing(true);
+              } else {
+                  alert("AI generated no questions. Try a clearer image.");
+              }
+          } else {
+              throw new Error("Generation failed");
+          }
+
+      } catch(e) {
+          console.error(e);
+          alert("Error generating from syllabus.");
+      } finally {
+          setIsAnalyzing(false);
+      }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'syllabus') => {
     const file = e.target.files?.[0];
     if (file) {
-        setImagePreview(URL.createObjectURL(file));
+        if (file.size > 10 * 1024 * 1024) return alert("File too large (>10MB)");
+        
         const reader = new FileReader();
         reader.onload = (ev) => {
             const base64 = (ev.target?.result as string).split(',')[1];
-            handleSmartAnalyze('image', base64);
+            if (type === 'image') {
+                setImagePreview(URL.createObjectURL(file));
+                handleSmartAnalyze('image', base64);
+            } else {
+                setSyllabusFile({
+                    name: file.name,
+                    mimeType: file.type || 'image/jpeg',
+                    data: base64
+                });
+            }
         };
         reader.readAsDataURL(file);
     }
@@ -236,7 +324,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setSmartInput('');
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImagePreview(null);
+    setSyllabusFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (syllabusInputRef.current) syllabusInputRef.current.value = '';
     setIsReviewing(false);
     setBulkQueue([]);
     setCurrentQueueIndex(0);
@@ -535,32 +625,79 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                </div>
 
                {uploadType === 'Question' && !isReviewing && (
-                 <div className="mb-8 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-900/50 text-center">
-                    <h3 className="text-lg font-bold text-indigo-800 dark:text-indigo-300 mb-4">✨ AI Smart Import</h3>
-                    <div className="flex justify-center gap-4 mb-4">
-                        <button type="button" onClick={() => setSmartMode('SmartPaste')} className={`px-4 py-2 rounded-lg font-bold ${smartMode === 'SmartPaste' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Paste Text</button>
-                        <button type="button" onClick={() => setSmartMode('Image')} className={`px-4 py-2 rounded-lg font-bold ${smartMode === 'Image' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>Upload Image</button>
+                 <div className="space-y-6">
+                    {/* SYLLABUS UPLOAD SECTION (NEW) */}
+                    <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-6 border border-dashed border-indigo-300 dark:border-indigo-700 text-center relative overflow-hidden">
+                        <h3 className="text-lg font-bold text-indigo-800 dark:text-indigo-300 mb-2">📚 Bulk Generate from Syllabus</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 max-w-md mx-auto">
+                            Upload an official syllabus or textbook page (PDF/Image). AI will generate 10 official questions strictly based on it.
+                        </p>
+                        
+                        {!syllabusFile ? (
+                            <div 
+                                onClick={() => syllabusInputRef.current?.click()}
+                                className="cursor-pointer bg-white dark:bg-slate-800 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800 hover:shadow-md transition-shadow inline-flex items-center gap-3"
+                            >
+                                <span className="text-2xl">📤</span>
+                                <div className="text-left">
+                                    <span className="font-bold text-slate-700 dark:text-slate-200 text-sm block">Upload Syllabus File</span>
+                                    <span className="text-[10px] text-slate-400">PDF or Image (Max 10MB)</span>
+                                </div>
+                                <input 
+                                    type="file" 
+                                    ref={syllabusInputRef} 
+                                    accept="image/*,application/pdf" 
+                                    className="hidden" 
+                                    onChange={(e) => handleFileSelect(e, 'syllabus')} 
+                                />
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="flex items-center gap-3 bg-white dark:bg-slate-800 px-4 py-2 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                                    <span className="text-xl">📄</span>
+                                    <span className="font-bold text-sm text-indigo-600 dark:text-indigo-400 truncate max-w-[200px]">{syllabusFile.name}</span>
+                                    <button onClick={() => { setSyllabusFile(null); if(syllabusInputRef.current) syllabusInputRef.current.value=''; }} className="text-red-500 hover:bg-red-50 rounded-full p-1">✕</button>
+                                </div>
+                                <Button onClick={handleSyllabusGenerate} isLoading={isAnalyzing} className="shadow-lg shadow-indigo-200 dark:shadow-none">
+                                    Generate 10 Questions
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+                        <span className="text-xs font-bold text-slate-400 uppercase">OR MANUAL ENTRY</span>
+                        <div className="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+                    </div>
+
+                    {/* Quick Smart Import */}
+                    <div className="bg-slate-50 dark:bg-slate-900/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700 flex justify-center gap-4">
+                        <button type="button" onClick={() => setSmartMode('SmartPaste')} className={`px-4 py-2 rounded-lg font-bold text-sm ${smartMode === 'SmartPaste' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>Paste Text</button>
+                        <button type="button" onClick={() => setSmartMode('Image')} className={`px-4 py-2 rounded-lg font-bold text-sm ${smartMode === 'Image' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>Scan Image</button>
                     </div>
 
                     {smartMode === 'SmartPaste' && (
                        <div className="space-y-4">
-                          <textarea value={smartInput} onChange={(e) => setSmartInput(e.target.value)} placeholder="Paste raw questions here..." className="w-full h-32 p-4 rounded-xl border text-sm dark:bg-slate-900 dark:text-white" />
+                          <textarea value={smartInput} onChange={(e) => setSmartInput(e.target.value)} placeholder="Paste raw questions here..." className="w-full h-32 p-4 rounded-xl border text-sm dark:bg-slate-900 dark:text-white dark:border-slate-700" />
                           <Button type="button" onClick={() => handleSmartAnalyze('text', smartInput)} isLoading={isAnalyzing} className="w-full">Analyze & Extract</Button>
                        </div>
                     )}
 
                     {smartMode === 'Image' && (
-                        <div className="border-2 border-dashed border-indigo-300 dark:border-indigo-700 rounded-xl p-8 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                            <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+                        <div className="border-2 border-dashed border-indigo-300 dark:border-indigo-700 rounded-xl p-8 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer text-center" onClick={() => fileInputRef.current?.click()}>
+                            <input type="file" ref={fileInputRef} onChange={(e) => handleFileSelect(e, 'image')} accept="image/*" className="hidden" />
                             {isAnalyzing ? (
                                 <div className="flex flex-col items-center"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2"></div><span className="text-indigo-600 font-bold">Scanning...</span></div>
                             ) : (
-                                <><span className="text-3xl block mb-2">📷</span><span className="font-bold text-indigo-700 dark:text-indigo-300">Click to Upload Image</span></>
+                                <><span className="text-3xl block mb-2">📷</span><span className="font-bold text-indigo-700 dark:text-indigo-300">Click to Scan Question Image</span></>
                             )}
                         </div>
                     )}
-                    <div className="mt-4 text-xs text-slate-400">Or skip this and fill the form manually below ↓</div>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setIsReviewing(true)} className="mt-2">Skip to Manual Entry</Button>
+                    
+                    <div className="text-center">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setIsReviewing(true)}>Skip to Manual Form</Button>
+                    </div>
                  </div>
                )}
 
