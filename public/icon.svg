@@ -31,10 +31,10 @@
     </g>
     <circle r="170" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
 
-    <!-- TEXT AT EXACT y = 48 -->
-    <text x="0" y="48"
+    <!-- TEXT CENTERED -->
+    <text x="0" y="0"
           text-anchor="middle"
-          dominant-baseline="middle"
+          dominant-baseline="central"
           font-family="Helvetica, Arial, sans-serif"
           font-weight="700"
           font-size="158"
