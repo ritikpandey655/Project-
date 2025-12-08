@@ -106,7 +106,7 @@ router.post('/ai/groq', async (req, res) => {
     
     if (!keyToUse) return res.status(503).json({ success: false, error: "Groq Config Error: No API Key found." });
 
-    const body = { model: model || "llama3-70b-8192", messages: messages, temperature: 0.3 };
+    const body = { model: model || "llama-3.3-70b-versatile", messages: messages, temperature: 0.3 };
     if (jsonMode) body.response_format = { type: "json_object" };
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {

@@ -172,7 +172,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                  model: 'llama3-70b-8192',
+                  model: 'llama-3.3-70b-versatile',
                   messages: [{ role: 'user', content: 'Say OK' }],
                   apiKey: groqKey // Explicitly send the new key to test
               })
