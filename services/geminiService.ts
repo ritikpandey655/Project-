@@ -1,5 +1,4 @@
-
-import { Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions, getOfficialNews } from "./storageService";

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { 
@@ -20,7 +21,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'exams' | 'upload' | 'questions' | 'payments' | 'settings'>('dashboard');
   
   // System Health States
-  const [backendStatus, setBackendStatus] = useState<'Checking' | 'Online' | 'Offline'>('Checking');
+  const [backendStatus, setBackendStatus] = useState<'Checking' | 'Online' | 'Offline' | 'Error'>('Checking');
   const [ping, setPing] = useState<number>(0);
   
   // Data States
@@ -58,21 +59,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [smartInput, setSmartInput] = useState('');
   const [isProcessingSmart, setIsProcessingSmart] = useState(false);
 
+  // Settings State
+  const [groqKey, setGroqKey] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState('gemini');
+
   useEffect(() => {
     loadInitialData();
+    // Load Settings
+    setGroqKey(localStorage.getItem('groq_api_key') || '');
+    setSelectedProvider(localStorage.getItem('selected_ai_provider') || 'gemini');
+
+    // Real-time Health Check Loop (Every 2 seconds)
+    checkHealth(); // Immediate check
+    const healthInterval = setInterval(checkHealth, 2000);
+    return () => clearInterval(healthInterval);
   }, []);
 
-  const loadInitialData = async () => {
-    // Check Health
+  const checkHealth = async () => {
     const start = Date.now();
     try {
-        await fetch('/api/health');
-        setBackendStatus('Online');
-        setPing(Date.now() - start);
+        // Cache busting to ensure real network request
+        const res = await fetch(`/api/health?t=${start}`);
+        if (res.ok) {
+            const latency = Date.now() - start;
+            setBackendStatus('Online');
+            setPing(latency);
+        } else {
+            setBackendStatus('Error');
+        }
     } catch(e) {
         setBackendStatus('Offline');
     }
+  };
 
+  const loadInitialData = async () => {
     // Load Data
     const usersData = await getAllUsers();
     setUsers(usersData);
@@ -206,6 +226,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       setNewExamSubjects('');
   };
 
+  const saveSettings = () => {
+      localStorage.setItem('groq_api_key', groqKey);
+      localStorage.setItem('selected_ai_provider', selectedProvider);
+      alert("AI Settings Saved!");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white p-4 sm:p-6 animate-fade-in">
       
@@ -217,9 +243,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             </button>
             <div>
                 <h1 className="text-2xl font-bold font-display">Admin Console</h1>
-                <div className="flex items-center gap-2 text-xs">
-                    <span className={`w-2 h-2 rounded-full ${backendStatus === 'Online' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                    <span className="text-slate-500 dark:text-slate-400">{backendStatus} ({ping}ms)</span>
+                <div className="flex items-center gap-3 text-xs font-mono mt-1">
+                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border ${
+                        backendStatus === 'Online' 
+                        ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400' 
+                        : backendStatus === 'Offline'
+                        ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400'
+                        : 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-400'
+                    }`}>
+                        <span className={`w-2 h-2 rounded-full ${
+                            backendStatus === 'Online' ? 'bg-green-500 animate-pulse' : 
+                            backendStatus === 'Offline' ? 'bg-red-500' : 'bg-yellow-500'
+                        }`}></span>
+                        <span className="font-bold">{backendStatus.toUpperCase()}</span>
+                    </div>
+                    
+                    {backendStatus === 'Online' && (
+                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+                            <span>📡</span>
+                            <span className="font-bold">{ping}ms</span>
+                        </div>
+                    )}
                 </div>
             </div>
          </div>
@@ -250,7 +294,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
       {/* Tabs */}
       <div className="flex overflow-x-auto gap-2 pb-4 mb-4 border-b border-slate-200 dark:border-slate-700 no-scrollbar">
-         {['dashboard', 'users', 'questions', 'upload', 'exams', 'payments'].map((tab) => (
+         {['dashboard', 'users', 'questions', 'upload', 'exams', 'payments', 'settings'].map((tab) => (
              <button
                key={tab}
                onClick={() => setActiveTab(tab as any)}
@@ -459,6 +503,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                      </tbody>
                  </table>
              </div>
+         )}
+
+         {activeTab === 'settings' && (
+            <div className="max-w-2xl mx-auto space-y-8 animate-fade-in">
+                
+                {/* AI Provider Section */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <span>🧠</span> AI Model Configuration
+                    </h3>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Active Provider</label>
+                            <div className="grid grid-cols-3 gap-3">
+                                {['gemini', 'groq', 'local'].map(p => (
+                                    <button
+                                        key={p}
+                                        onClick={() => setSelectedProvider(p)}
+                                        className={`p-3 rounded-xl border-2 capitalize font-bold text-sm transition-all ${
+                                            selectedProvider === p 
+                                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' 
+                                            : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-indigo-300'
+                                        }`}
+                                    >
+                                        {p === 'local' ? 'Local (Device)' : p}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-2">
+                                {selectedProvider === 'gemini' && "Uses Google Gemini Flash 2.5 (Fast & Free). Recommended."}
+                                {selectedProvider === 'groq' && "Uses Llama-3 via Groq (Ultra Fast). Requires API Key."}
+                                {selectedProvider === 'local' && "Runs Gemma-2B in browser. Offline capable but heavy (1.5GB)."}
+                            </p>
+                        </div>
+
+                        {selectedProvider === 'groq' && (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Groq API Key</label>
+                                <input 
+                                    type="password" 
+                                    value={groqKey}
+                                    onChange={(e) => setGroqKey(e.target.value)}
+                                    placeholder="gsk_..."
+                                    className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* System Actions */}
+                <div className="bg-red-50 dark:bg-red-900/10 p-6 rounded-2xl border border-red-100 dark:border-red-900/30">
+                    <h3 className="text-lg font-bold text-red-700 dark:text-red-400 mb-4">Danger Zone</h3>
+                    <div className="flex gap-4">
+                        <Button variant="danger" onClick={() => { localStorage.clear(); window.location.reload(); }}>
+                            Reset App Cache
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="fixed bottom-6 right-6">
+                    <Button onClick={saveSettings} className="shadow-xl">Save Changes</Button>
+                </div>
+            </div>
          )}
 
       </div>
