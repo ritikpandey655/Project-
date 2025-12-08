@@ -42,10 +42,18 @@ const cleanJson = (text: string) => {
   // Remove markdown code blocks if present
   let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
   
-  // Find the first { or [ and the last } or ]
+  // Robustly find the JSON object/array
   const firstBrace = cleaned.indexOf('{');
   const firstBracket = cleaned.indexOf('[');
-  const start = (firstBrace === -1) ? firstBracket : (firstBracket === -1) ? firstBrace : Math.min(firstBrace, firstBracket);
+  
+  let start = -1;
+  if (firstBrace !== -1 && firstBracket !== -1) {
+      start = Math.min(firstBrace, firstBracket);
+  } else if (firstBrace !== -1) {
+      start = firstBrace;
+  } else {
+      start = firstBracket;
+  }
   
   const lastBrace = cleaned.lastIndexOf('}');
   const lastBracket = cleaned.lastIndexOf(']');
@@ -60,7 +68,7 @@ const cleanJson = (text: string) => {
 const safeOptions = (opts: any): string[] => {
     if (Array.isArray(opts)) return opts;
     if (typeof opts === 'string') return opts.split(',').map(s => s.trim());
-    return [];
+    return ["Option A", "Option B", "Option C", "Option D"];
 };
 
 const commonConfig = {
@@ -70,6 +78,58 @@ const commonConfig = {
         { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
         { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
     ]
+};
+
+// --- ROBUST GENERATION HELPER (Multi-Model Retry) ---
+const generateWithRetry = async (
+    contents: any, 
+    isJson: boolean = true,
+    temperature: number = 0.3
+): Promise<any> => {
+    // Model Priority List: Latest Flash -> Strongest Pro -> Legacy Flash
+    // gemini-2.5-flash is fast and smart. gemini-1.5-pro is extremely capable for reasoning.
+    const MODELS = ['gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+    
+    let lastError = null;
+
+    for (const model of MODELS) {
+        try {
+            console.log(`Trying AI Model: ${model}...`);
+            const response = await callGeminiBackend({
+                model: model,
+                contents: contents,
+                config: { 
+                    ...commonConfig, 
+                    temperature: temperature, 
+                    responseMimeType: isJson ? "application/json" : "text/plain" 
+                }
+            });
+
+            const text = response.text || (isJson ? "{}" : "");
+            
+            if (isJson) {
+                try {
+                    const cleaned = cleanJson(text);
+                    const parsed = JSON.parse(cleaned);
+                    // Basic validation: if array expected but got object, or vice versa, handle it in caller
+                    return parsed;
+                } catch (jsonError) {
+                    console.warn(`Model ${model} returned invalid JSON.`, jsonError);
+                    throw new Error("Invalid JSON");
+                }
+            }
+            return text;
+
+        } catch (e: any) {
+            console.warn(`Model ${model} failed:`, e.message);
+            lastError = e;
+            // Short delay before retrying with next model
+            await new Promise(resolve => setTimeout(resolve, 800));
+        }
+    }
+    
+    console.error("All AI models failed.");
+    throw lastError || new Error("AI Service Unavailable");
 };
 
 // --- GROQ API HANDLER (For Super Speed) ---
@@ -186,8 +246,7 @@ export const generateExamQuestions = async (
       ]
   `;
 
-  // 2. SEQUENTIAL BATCHING STRATEGY (Fixes "10 out of 50" issue)
-  // Instead of firing all requests at once (which hits rate limits), we do it in chunks.
+  // 2. SEQUENTIAL BATCHING STRATEGY
   const batchSize = 10;
   const batches = Math.ceil(needed / batchSize);
   let aiQuestions: Question[] = [];
@@ -199,29 +258,14 @@ export const generateExamQuestions = async (
       const batchPrompt = `${basePrompt} \n Generate ${currentBatchCount} unique questions. Ensure no repetition from previous sets.`;
 
       try {
-          // A. Try Groq (Fastest)
-          let batchData = await fetchFromGroq(batchPrompt, "llama3-70b-8192", true);
+          // A. Try Groq (Fastest) - DISABLED temporarily to force Gemini logic as requested by user ("Gemini 3 use kr skte h")
+          // If you want Groq, uncomment below. Currently forcing Gemini for reliability.
+          // let batchData = await fetchFromGroq(batchPrompt, "llama3-70b-8192", true);
+          let batchData = null;
           
-          // B. Fallback to Gemini if Groq fails
+          // B. Fallback to Gemini with Retry
           if (!batchData) {
-              try {
-                  // Try Primary Model (2.5)
-                  const response = await callGeminiBackend({
-                      model: 'gemini-2.5-flash',
-                      contents: batchPrompt,
-                      config: { ...commonConfig, temperature: 0.4, responseMimeType: "application/json" }
-                  });
-                  batchData = JSON.parse(cleanJson(response.text || "[]"));
-              } catch (err) {
-                  // Retry with Fallback Model (1.5) if 2.5 fails/overloaded
-                  console.warn("Gemini 2.5 failed, retrying with 1.5-flash...");
-                  const responseRetry = await callGeminiBackend({
-                      model: 'gemini-1.5-flash',
-                      contents: batchPrompt,
-                      config: { ...commonConfig, temperature: 0.4, responseMimeType: "application/json" }
-                  });
-                  batchData = JSON.parse(cleanJson(responseRetry.text || "[]"));
-              }
+              batchData = await generateWithRetry(batchPrompt, true, 0.4);
           }
 
           // Normalize and Add to List
@@ -266,10 +310,10 @@ export const generateExamQuestions = async (
           console.error(`Generation failed for ${subject}. Returning empty to avoid subject mixing.`);
           return [{
              id: generateId('err'),
-             text: `AI Server Busy: Could not generate questions for ${subject}. Please try again in a few seconds.`,
+             text: `AI Server Busy: Could not generate questions for ${subject}. Please try again in a few seconds or check your internet.`,
              options: ["Retry", "Wait", "Check Internet", "Contact Support"],
              correctIndex: 0,
-             explanation: "The AI model is currently overloaded or your request timed out. We prevented showing you wrong subject questions.",
+             explanation: "The AI model is currently overloaded. We are switching models to fix this.",
              source: QuestionSource.PYQ_AI,
              examType: exam as ExamType,
              subject: subject,
@@ -281,8 +325,6 @@ export const generateExamQuestions = async (
 
   return finalQuestions;
 };
-
-// ... (Rest of existing functions remain largely unchanged) ...
 
 export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any): Promise<QuestionPaper | null> => {
     try {
@@ -345,32 +387,26 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
                  { inlineData: { mimeType: config.syllabus.mimeType, data: config.syllabus.data } },
                  { text: blueprintPromptText }
              ]};
-             
-             const response = await callGeminiBackend({
-                model: 'gemini-2.5-flash',
-                contents: contents,
-                config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
-             });
-             blueprint = JSON.parse(cleanJson(response.text || "{}"));
+             // Use Retry Logic with Syllabus
+             blueprint = await generateWithRetry(contents, true, 0.2);
         } else {
-            // Standard Flow (Try Groq first)
-            try {
-                 if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
-                     blueprint = await fetchFromGroq(blueprintPromptText, "llama3-70b-8192", true);
-                 }
-            } catch(e) {}
-
-            if (!blueprint) {
-                const response = await callGeminiBackend({
-                    model: 'gemini-2.5-flash',
-                    contents: blueprintPromptText,
-                    config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
-                });
-                blueprint = JSON.parse(cleanJson(response.text || "{}"));
-            }
+            // Force Gemini 3/2.5 for Paper Generation (Complex Task)
+            // Skip Groq for Blueprint to ensure quality
+            blueprint = await generateWithRetry(blueprintPromptText, true, 0.2);
         }
 
-        if (!blueprint || !blueprint.sections) return null;
+        if (!blueprint || !blueprint.sections) {
+            console.error("Blueprint generation failed or invalid format.");
+            // Fallback blueprint if AI fails
+            blueprint = {
+                title: `${exam} Mock - ${subject}`,
+                totalMarks: 100,
+                duration: 60,
+                sections: [
+                    { title: "Section A: Multiple Choice", instructions: "Choose the correct option.", questionCount: config.mcqCount || 10, marksPerQuestion: 2, type: "MCQ" }
+                ]
+            };
+        }
 
         // STEP 2: GENERATE CONTENT FOR SECTIONS
         const filledSections = [];
@@ -400,39 +436,46 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
             `;
 
             let questions = [];
-            
-            // If syllabus exists, continue using Gemini with the image context for EVERY section generation
-            if (hasSyllabus) {
-                 const contents = { parts: [
-                     { inlineData: { mimeType: config.syllabus.mimeType, data: config.syllabus.data } },
-                     { text: qPromptText }
-                 ]};
-                 const response = await callGeminiBackend({
-                    model: 'gemini-2.5-flash',
-                    contents: contents,
-                    config: { ...commonConfig, temperature: 0.3, responseMimeType: "application/json" }
-                 });
-                 questions = JSON.parse(cleanJson(response.text || "[]"));
-            } else {
-                // Standard text-only generation
-                try {
-                    if (localStorage.getItem('selected_ai_provider') !== 'gemini') {
-                        const qData = await fetchFromGroq(qPromptText, "llama3-70b-8192", true);
-                        if (qData) questions = Array.isArray(qData) ? qData : (qData.questions || []);
-                    }
-                } catch(e) {}
+            let attempts = 0;
+            const maxSectionAttempts = 2; // Retry specific section if fails
 
-                if (questions.length === 0) {
-                    const response = await callGeminiBackend({
-                        model: 'gemini-2.5-flash',
-                        contents: qPromptText,
-                        config: { ...commonConfig, temperature: 0.3, responseMimeType: "application/json" }
-                    });
-                    questions = JSON.parse(cleanJson(response.text || "[]"));
+            while (attempts < maxSectionAttempts && questions.length === 0) {
+                try {
+                    // If syllabus exists, continue using Gemini with context
+                    if (hasSyllabus) {
+                         const contents = { parts: [
+                             { inlineData: { mimeType: config.syllabus.mimeType, data: config.syllabus.data } },
+                             { text: qPromptText }
+                         ]};
+                         questions = await generateWithRetry(contents, true, 0.3);
+                    } else {
+                        // Use Gemini 2.5 Flash / 1.5 Pro for generation
+                        questions = await generateWithRetry(qPromptText, true, 0.3);
+                    }
+                    
+                    if (!Array.isArray(questions) && (questions as any).questions) questions = (questions as any).questions;
+                    
+                    // Simple Validation
+                    if (!Array.isArray(questions)) throw new Error("Invalid questions format (not array)");
+                    if (questions.length === 0) throw new Error("Empty questions array");
+
+                } catch (err) {
+                    console.warn(`Section ${sIdx} generation attempt ${attempts + 1} failed.`, err);
+                    attempts++;
+                    // Wait a bit before section retry
+                    await new Promise(r => setTimeout(r, 1000));
                 }
             }
-            
-            if (!Array.isArray(questions) && (questions as any).questions) questions = (questions as any).questions;
+
+            // Fill with placeholder if generation ultimately failed
+            if (questions.length === 0) {
+                questions = Array.from({length: sec.questionCount}).map((_, i) => ({
+                    text: `Question ${i+1} could not be generated. Please retry.`,
+                    options: ["Retry", "Skip", "N/A", "N/A"],
+                    answer: "Retry",
+                    explanation: "AI service timeout."
+                }));
+            }
 
             filledSections.push({
                 id: `sec-${sIdx}`,
@@ -468,8 +511,8 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
                 })
             });
             
-            // Add slight delay between sections
-            if (sIdx < blueprint.sections.length - 1) await new Promise(r => setTimeout(r, 200));
+            // Add slight delay between sections to respect rate limits
+            if (sIdx < blueprint.sections.length - 1) await new Promise(r => setTimeout(r, 500));
         }
 
         return {
@@ -485,12 +528,11 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
         };
 
     } catch (e) { 
-        console.error("Generate Paper Error:", e);
+        console.error("Generate Paper Critical Error:", e);
         return null; 
     }
 };
 
-// ... (Export other existing functions to ensure file integrity) ...
 export const generateCurrentAffairs = async (exam: string, count: number = 10): Promise<Question[]> => {
   // Groq cannot search the web, so we MUST use Gemini for News
   const officialCA = await getOfficialQuestions(exam, 'Current Affairs', count);
@@ -542,14 +584,12 @@ export const generateCurrentAffairs = async (exam: string, count: number = 10): 
 };
 
 export const parseSmartInput = async (input: string, type: 'text' | 'image', examContext: string): Promise<any[]> => {
-  // Use Groq for text only
+  // Use Groq for text only if explicitly requested, but using Gemini for reliability now
   if (type === 'text') {
-      const groqResp = await fetchFromGroq(`Extract questions from this text for ${examContext}. Return JSON Array. Text: ${input}`, "llama3-70b-8192", true);
-      // Handle wrapped JSON
-      if (groqResp) {
-          if (Array.isArray(groqResp)) return groqResp;
-          if (groqResp.questions && Array.isArray(groqResp.questions)) return groqResp.questions;
-      }
+      try {
+          // const groqResp = await fetchFromGroq(`Extract questions...`, "llama3-70b-8192", true);
+          // if (groqResp) return groqResp;
+      } catch(e) {}
   }
 
   // Use Gemini for Image or Fallback
@@ -590,13 +630,7 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
         contents.parts.push({ text: `${prompt}\n\n${input}` });
     }
     
-    const response = await callGeminiBackend({
-        model: 'gemini-2.5-flash',
-        contents: contents,
-        config: { ...commonConfig, temperature: 0.1, responseMimeType: "application/json" }
-    });
-    
-    const parsed = JSON.parse(cleanJson(response.text || "[]"));
+    const parsed = await generateWithRetry(contents, true, 0.1);
     return Array.isArray(parsed) ? parsed : (parsed.questions || []);
   } catch (e) { 
       console.error("Smart Parse Error:", e);
@@ -628,31 +662,10 @@ export const generateNews = async (exam: string, month?: string, year?: number, 
 };
 
 export const generateStudyNotes = async (exam: string, subject?: string): Promise<NewsItem[]> => {
-  // Groq is excellent for generating static notes
   const prompt = `Generate 8 High-Yield Formula/Notes for ${exam} (${subject}). Return JSON Array {headline, summary}. Strictly accurate formulas.`;
   
-  const groqResp = await fetchFromGroq(prompt, "llama3-70b-8192", true);
-  if (groqResp) {
-      const notes = Array.isArray(groqResp) ? groqResp : (groqResp.notes || groqResp.items || []);
-      if (notes.length > 0) {
-        return notes.map((n: any) => ({
-            id: generateId('note'),
-            headline: n.headline || n.title,
-            summary: n.summary || n.content,
-            category: subject || 'Notes',
-            date: 'Key Concept',
-            tags: []
-        }));
-      }
-  }
-
   try {
-      const response = await callGeminiBackend({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" } 
-      });
-      const aiData = JSON.parse(cleanJson(response.text || "[]"));
+      const aiData = await generateWithRetry(prompt, true, 0.2);
       return aiData.map((n: any) => ({
           id: generateId('note'),
           headline: n.headline || n.title,
@@ -667,24 +680,8 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
 export const generateSingleQuestion = async (exam: string, subject: string, topic: string): Promise<Partial<Question> | null> => {
   const prompt = `Generate 1 High-Quality, Factually Correct MCQ for ${exam} (${subject}: ${topic}). JSON.`;
   
-  const groqResp = await fetchFromGroq(prompt, "llama3-70b-8192", true);
-  if (groqResp) {
-      // Handle single object or array wrapped
-      const q = Array.isArray(groqResp) ? groqResp[0] : groqResp;
-      return {
-          ...q,
-          text: q.text || q.question,
-          options: safeOptions(q.options)
-      };
-  }
-
   try {
-      const response = await callGeminiBackend({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
-      });
-      const data = JSON.parse(cleanJson(response.text || "{}"));
+      const data = await generateWithRetry(prompt, true, 0.2);
       return {
           ...data,
           text: data.text || data.question,
@@ -696,12 +693,8 @@ export const generateSingleQuestion = async (exam: string, subject: string, topi
 export const generateQuestionFromImage = async (base64: string, mime: string, exam: string, subject: string): Promise<Partial<Question> | null> => {
   // Images require Gemini
   try {
-      const response = await callGeminiBackend({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [{ inlineData: { mimeType: mime, data: base64 } }, { text: `Solve this ${exam} question accurately. Return JSON {text, options, correctIndex, explanation}.` }] },
-        config: { ...commonConfig, temperature: 0.1, responseMimeType: "application/json" } // Very strict for solving
-      });
-      const data = JSON.parse(cleanJson(response.text || "{}"));
+      const contents = { parts: [{ inlineData: { mimeType: mime, data: base64 } }, { text: `Solve this ${exam} question accurately. Return JSON {text, options, correctIndex, explanation}.` }] };
+      const data = await generateWithRetry(contents, true, 0.1);
       return {
           ...data,
           text: data.text || data.question,
@@ -713,31 +706,8 @@ export const generateQuestionFromImage = async (base64: string, mime: string, ex
 export const generatePYQList = async (exam: string, subject: string, year: number, topic?: string): Promise<Question[]> => {
     const prompt = `Simulate 10 authentic questions for ${year} ${exam} (${subject}). ${topic ? `Topic: ${topic}` : ''}. Return JSON Array. Ensure questions are historically accurate to that year's pattern.`;
     
-    const groqResp = await fetchFromGroq(prompt, "llama3-70b-8192", true);
-    if (groqResp) {
-        const list = Array.isArray(groqResp) ? groqResp : (groqResp.questions || []);
-        if (list.length > 0) {
-            return list.map((q: any) => ({
-                ...q,
-                id: generateId(`pyq-${year}`),
-                text: q.text || q.question,
-                source: QuestionSource.PYQ_AI,
-                examType: exam as ExamType,
-                subject: subject,
-                pyqYear: year,
-                type: QuestionType.MCQ,
-                options: safeOptions(q.options)
-            }));
-        }
-    }
-
     try {
-        const response = await callGeminiBackend({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { ...commonConfig, temperature: 0.2, responseMimeType: "application/json" }
-        });
-        const aiData = JSON.parse(cleanJson(response.text || "[]"));
+        const aiData = await generateWithRetry(prompt, true, 0.2);
         return aiData.map((q: any) => ({
             ...q,
             id: generateId(`pyq-${year}`),

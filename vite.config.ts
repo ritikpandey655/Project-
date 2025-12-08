@@ -156,6 +156,8 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: null, // MANUAL REGISTRATION IN index.html
+        filename: 'service-worker.js', // Standard name for better detection
+        manifestFilename: 'manifest.json',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'widget-template.json', 'widget-data.json', 'robots.txt'],
         manifest: manifestConfig, 
         workbox: {
@@ -212,12 +214,8 @@ export default defineConfig(({ mode }) => {
         }
     },
     define: {
-      // SECURITY FIX: Do NOT expose API Keys to the client bundle.
-      // We set them to empty strings here so the build doesn't crash,
-      // but the actual keys will only be available on the Server (Node.js).
       'process.env.API_KEY': JSON.stringify(""), 
       'process.env.GROQ_API_KEY': JSON.stringify(""),
-      // Public IDs are fine
       'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID),
     },
   };
