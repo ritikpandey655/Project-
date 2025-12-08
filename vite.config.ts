@@ -161,6 +161,7 @@ export default defineConfig(({ mode }) => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'widget-template.json', 'widget-data.json', 'robots.txt'],
         manifest: manifestConfig, 
         workbox: {
+          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // Increase limit to 10MB
           importScripts: ['/custom-sw-logic.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,txt}'],
           navigateFallback: '/index.html',
