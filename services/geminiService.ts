@@ -532,7 +532,31 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
 
     } catch (e) { 
         console.error("Generate Paper Critical Error:", e);
-        return null; 
+        // Fallback Return - Ensures app doesn't crash or show error dialog
+        return {
+            id: generateId('paper-error-fallback'),
+            title: `${exam} Mock (Offline/Fallback)`,
+            examType: exam as ExamType,
+            subject: subject,
+            difficulty: difficulty,
+            totalMarks: 100,
+            durationMinutes: 60,
+            sections: [
+                {
+                    id: 'sec-fallback',
+                    title: 'Practice Section',
+                    instructions: 'AI generation failed. Here are some practice questions.',
+                    marksPerQuestion: 2,
+                    questions: MOCK_QUESTIONS_FALLBACK.map((q, i) => ({
+                        ...q, 
+                        id: generateId(`fallback-q-${i}`),
+                        examType: exam as ExamType,
+                        subject: subject
+                    })) as unknown as Question[]
+                }
+            ],
+            createdAt: Date.now()
+        };
     }
 };
 
