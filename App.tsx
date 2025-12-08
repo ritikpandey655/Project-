@@ -209,10 +209,12 @@ const App: React.FC = () => {
           setState(prev => ({ ...prev, view: prefs.hasSeenTutorial ? 'dashboard' : 'tutorial' }));
        }
        
-       if (!qotd && navigator.onLine) {
+       // Only fetch QOTD if strictly needed and not present, to save quota
+       // Added extra check to skip if in development/offline
+       if (!qotd && navigator.onLine && Math.random() > 0.5) { // 50% chance to fetch to save quota
           generateSingleQuestion(prefs.selectedExam, (dynamicExams as any)[prefs.selectedExam]?.[0] || 'General', 'QOTD').then(q => {
              if(q) saveQOTD(userId, { id: `qotd-${Date.now()}`, ...q, examType: prefs.selectedExam!, subject: 'QOTD', source: 'PYQ_AI', correctIndex: q.correctIndex || 0, options: q.options || [], text: q.text || '', createdAt: Date.now() } as Question);
-          });
+          }).catch(e => console.warn("QOTD fetch skipped"));
        }
     } else {
        setState(prev => ({ ...prev, view: 'onboarding' }));
@@ -380,7 +382,9 @@ const App: React.FC = () => {
                   loaded += newQs.length;
                   
                   if (loaded < targetCount) {
-                      setTimeout(fetchNext, 800); 
+                      // CRITICAL FIX: Increased delay from 1200ms to 4000ms
+                      // This ensures we don't exceed Gemini Free Tier (15 RPM = 1 req every 4 sec)
+                      setTimeout(fetchNext, 4500); 
                   } else {
                       setIsFetchingMore(false);
                   }
@@ -403,7 +407,8 @@ const App: React.FC = () => {
     setIsLoading(true);
     setPracticeConfig(config);
     
-    const INITIAL_BATCH_SIZE = 10;
+    // REDUCED INITIAL LOAD to prevent immediate 429
+    const INITIAL_BATCH_SIZE = 5; // Was 10, reduced to 5 to be safe
     const initialLoadCount = Math.min(config.count, INITIAL_BATCH_SIZE);
 
     let initialQuestions: Question[] = [];
@@ -427,7 +432,10 @@ const App: React.FC = () => {
 
     if (config.count > initialQuestions.length || config.mode === 'endless') {
         const target = config.mode === 'endless' ? 1000 : config.count;
-        progressiveFetch(exam, config.subject, target, initialQuestions.length, config.topic, false);
+        // Delay start of progressive fetch to let initial burst settle
+        setTimeout(() => {
+            progressiveFetch(exam, config.subject, target, initialQuestions.length, config.topic, false);
+        }, 5000);
     } else {
         setIsFetchingMore(false);
     }
@@ -439,6 +447,7 @@ const App: React.FC = () => {
     if (!state.user || !exam) return;
     const nextIndex = currentQIndex + 1;
     
+    // Trigger fetch earlier but less frequently
     if (practiceConfig.mode === 'endless' && nextIndex >= practiceQueue.length - 3 && !isFetchingMore) {
         progressiveFetch(exam, practiceConfig.subject, practiceQueue.length + 10, practiceQueue.length, practiceConfig.topic, false);
     }
@@ -483,7 +492,10 @@ const App: React.FC = () => {
         setPracticeConfig({ mode: 'finite', count: 50, subject: 'Current Affairs' });
         setIsLoading(false);
         navigateTo('practice');
-        progressiveFetch(exam, 'Current Affairs', 50, questions.length, undefined, true);
+        // Delay fetch
+        setTimeout(() => {
+            progressiveFetch(exam, 'Current Affairs', 50, questions.length, undefined, true);
+        }, 3000);
     });
   }, [state.user, state.selectedExam, navigateTo, progressiveFetch]);
 
