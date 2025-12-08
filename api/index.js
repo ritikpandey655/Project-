@@ -114,8 +114,8 @@ const router = express.Router();
 
 router.use('/ai', rateLimiter);
 
-// Whitelist Models
-const ALLOWED_MODELS = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-pro', 'gemini-1.5-pro'];
+// Whitelist Models (Added gemini-3-pro-preview)
+const ALLOWED_MODELS = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-pro', 'gemini-1.5-pro', 'gemini-3-pro-preview'];
 
 router.post('/ai/generate', async (req, res) => {
   try {

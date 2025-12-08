@@ -39,8 +39,8 @@ const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().
 
 const cleanJson = (text: string) => {
   if (!text) return "[]";
-  // Remove markdown code blocks if present
-  let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
+  // Remove markdown code blocks if present (Case insensitive)
+  let cleaned = text.replace(/```json/gi, '').replace(/```/g, '');
   
   // Robustly find the JSON object/array
   const firstBrace = cleaned.indexOf('{');
@@ -86,9 +86,9 @@ const generateWithRetry = async (
     isJson: boolean = true,
     temperature: number = 0.3
 ): Promise<any> => {
-    // Model Priority List: Latest Flash -> Strongest Pro -> Legacy Flash
-    // gemini-2.5-flash is fast and smart. gemini-1.5-pro is extremely capable for reasoning.
-    const MODELS = ['gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+    // Model Priority List: Latest Flash -> Strongest Pro
+    // gemini-2.5-flash is fast. gemini-3-pro-preview is best for reasoning.
+    const MODELS = ['gemini-2.5-flash', 'gemini-3-pro-preview'];
     
     let lastError = null;
 
@@ -381,22 +381,25 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
 
         let blueprint = null;
         
-        // If syllabus provided, we MUST use Gemini to see the image/pdf
-        if (hasSyllabus) {
-             const contents = { parts: [
-                 { inlineData: { mimeType: config.syllabus.mimeType, data: config.syllabus.data } },
-                 { text: blueprintPromptText }
-             ]};
-             // Use Retry Logic with Syllabus
-             blueprint = await generateWithRetry(contents, true, 0.2);
-        } else {
-            // Force Gemini 3/2.5 for Paper Generation (Complex Task)
-            // Skip Groq for Blueprint to ensure quality
-            blueprint = await generateWithRetry(blueprintPromptText, true, 0.2);
+        try {
+            // If syllabus provided, we MUST use Gemini to see the image/pdf
+            if (hasSyllabus) {
+                 const contents = { parts: [
+                     { inlineData: { mimeType: config.syllabus.mimeType, data: config.syllabus.data } },
+                     { text: blueprintPromptText }
+                 ]};
+                 // Use Retry Logic with Syllabus
+                 blueprint = await generateWithRetry(contents, true, 0.2);
+            } else {
+                // Force Gemini 3/2.5 for Paper Generation (Complex Task)
+                blueprint = await generateWithRetry(blueprintPromptText, true, 0.2);
+            }
+        } catch (bpError) {
+            console.warn("Blueprint AI generation failed. Using fallback blueprint.", bpError);
+            blueprint = null;
         }
 
         if (!blueprint || !blueprint.sections) {
-            console.error("Blueprint generation failed or invalid format.");
             // Fallback blueprint if AI fails
             blueprint = {
                 title: `${exam} Mock - ${subject}`,
@@ -449,7 +452,7 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
                          ]};
                          questions = await generateWithRetry(contents, true, 0.3);
                     } else {
-                        // Use Gemini 2.5 Flash / 1.5 Pro for generation
+                        // Use Gemini for generation
                         questions = await generateWithRetry(qPromptText, true, 0.3);
                     }
                     
