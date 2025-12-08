@@ -36,7 +36,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Rate Limit
+// Rate Limit (Basic IP limiting to protect Vercel function limits)
 const requestCounts = new Map();
 const rateLimiter = (req, res, next) => {
   let forwarded = req.headers['x-forwarded-for'];
@@ -49,7 +49,7 @@ const rateLimiter = (req, res, next) => {
     if (now - data.startTime > 60000) { data.count = 1; data.startTime = now; }
     else {
       data.count++;
-      if (data.count > 60) return res.status(429).json({ success: false, error: "Too many requests." });
+      if (data.count > 100) return res.status(429).json({ success: false, error: "Too many requests." });
     }
   }
   next();
@@ -72,36 +72,54 @@ router.post('/ai/generate', async (req, res) => {
     if (!response || !response.text) throw new Error("Empty response");
     res.json({ success: true, data: response.text });
   } catch (error) {
-    console.error("AI Proxy Error:", error);
+    console.error("AI Proxy Error:", error.message);
     
-    // Forward 429 specifically
-    if (error.status === 429 || (error.message && error.message.includes('429'))) {
-        return res.status(429).json({ success: false, error: "Quota exceeded (429)" });
+    // Improved Error Detection for Google Limits
+    const msg = error.message?.toLowerCase() || "";
+    const isQuotaError = error.status === 429 || 
+                         msg.includes('429') || 
+                         msg.includes('quota') || 
+                         msg.includes('resource exhausted') || 
+                         msg.includes('too many requests');
+
+    if (isQuotaError) {
+        console.warn("⚠️ Google Quota Exceeded (429) detected.");
+        return res.status(429).json({ success: false, error: "Quota exceeded (429). Please wait." });
     }
     
-    res.status(500).json({ success: false, error: error.message || "AI Error" });
+    // Service Unavailable (Overloaded)
+    if (error.status === 503 || msg.includes('503') || msg.includes('overloaded')) {
+         return res.status(503).json({ success: false, error: "Model Overloaded (503). Retrying..." });
+    }
+    
+    res.status(500).json({ success: false, error: error.message || "AI Generation Error" });
   }
 });
 
 // Groq Proxy
 router.post('/ai/groq', async (req, res) => {
   try {
-    const { model, messages, jsonMode } = req.body;
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) return res.status(503).json({ success: false, error: "Groq Config Error" });
+    const { model, messages, jsonMode, apiKey } = req.body;
+    
+    // Prioritize key sent from client (Admin Settings), fallback to env
+    const keyToUse = apiKey || process.env.GROQ_API_KEY;
+    
+    if (!keyToUse) return res.status(503).json({ success: false, error: "Groq Config Error: No API Key found." });
 
     const body = { model: model || "llama3-70b-8192", messages: messages, temperature: 0.3 };
     if (jsonMode) body.response_format = { type: "json_object" };
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
-        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        headers: { "Authorization": `Bearer ${keyToUse}`, "Content-Type": "application/json" },
         body: JSON.stringify(body)
     });
 
     if (!response.ok) {
+        const errText = await response.text();
+        console.error("Groq Upstream Error:", response.status, errText);
         if(response.status === 429) return res.status(429).json({ success: false, error: "Groq Quota Exceeded" });
-        throw new Error(`Upstream ${response.status}`);
+        throw new Error(`Upstream ${response.status}: ${errText}`);
     }
     const data = await response.json();
     res.json({ success: true, data });

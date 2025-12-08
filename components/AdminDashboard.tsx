@@ -82,6 +82,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [aiProvider, setAiProvider] = useState<'gemini' | 'groq'>(
     (localStorage.getItem('selected_ai_provider') as 'gemini' | 'groq') || 'groq'
   );
+  const [isTestingGroq, setIsTestingGroq] = useState(false);
+  const [groqStatus, setGroqStatus] = useState<'none' | 'success' | 'error'>('none');
+  const [groqErrorMsg, setGroqErrorMsg] = useState('');
 
   // Load Data
   useEffect(() => {
@@ -152,12 +155,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setFilteredQuestions(questions.filter(q => q.text.toLowerCase().includes(lower) || q.subject?.toLowerCase().includes(lower)));
   }, [questionSearch, questions]);
 
-  const handleSaveGroqKey = () => {
-      localStorage.setItem('groq_api_key', groqKey);
-      alert("Groq API Key Saved!");
+  const handleSaveGroqKey = async () => {
+      setIsTestingGroq(true);
+      setGroqStatus('none');
+      setGroqErrorMsg('');
+
+      try {
+          // 1. Validate Format Basic
+          if (!groqKey.trim().startsWith('gsk_')) {
+              throw new Error("Invalid format. Key must start with 'gsk_'");
+          }
+
+          // 2. Perform Real Test Call via Proxy
+          const response = await fetch('/api/ai/groq', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  model: 'llama3-70b-8192',
+                  messages: [{ role: 'user', content: 'Say OK' }],
+                  apiKey: groqKey // Explicitly send the new key to test
+              })
+          });
+
+          const data = await response.json();
+
+          if (!data.success) {
+              if (response.status === 429) throw new Error("Quota Exceeded on this Key");
+              throw new Error(data.error || "Connection Failed");
+          }
+
+          // 3. Success
+          localStorage.setItem('groq_api_key', groqKey);
+          setGroqStatus('success');
+          alert("✅ Connected! Groq Key verified and saved.");
+      } catch (e: any) {
+          setGroqStatus('error');
+          setGroqErrorMsg(e.message);
+          console.error("Groq Test Failed:", e);
+      } finally {
+          setIsTestingGroq(false);
+      }
   };
 
   const toggleAIProvider = (provider: 'gemini' | 'groq') => {
+      // Prevent switching to Groq if no key is set
+      if (provider === 'groq') {
+          const key = localStorage.getItem('groq_api_key');
+          if (!key && !process.env.GROQ_API_KEY) {
+              alert("⚠️ Please configure and save a valid Groq API Key first.");
+              return;
+          }
+      }
       setAiProvider(provider);
       localStorage.setItem('selected_ai_provider', provider);
   };
@@ -225,7 +273,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       setIsAnalyzing(true);
       
       try {
-          // Construct prompt for Bulk Generation from Syllabus
           const prompt = `
             ACT AS A STRICT EXAMINER for ${uploadExam}.
             SUBJECT: ${uploadSubject || 'General'}.
@@ -242,16 +289,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             OUTPUT JSON ARRAY:
             [{ "text": "...", "options": ["A","B","C","D"], "correct_index": 0, "explanation": "..." }]
           `;
-          
-          // Use parseSmartInput logic but with our custom prompting if needed, 
-          // or just call the same image handler which is robust enough.
-          // We'll reuse parseSmartInput with type 'image' but pass the prompt as the "text" part implicitly handled.
-          // Wait, parseSmartInput takes raw base64.
-          
-          // Let's modify the call to send the prompt *with* the image
-          // Actually parseSmartInput handles the prompt internally. 
-          // We'll trust the Gemini service to handle the "Content" extraction style.
-          // But to be specific, let's call the backend directly here for custom instruction.
           
           const response = await fetch('/api/ai/generate', {
               method: 'POST',
@@ -551,8 +588,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 uppercase mb-2">Groq AI Acceleration</h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
                 Enter your Groq API key for ultra-fast generation. 
-                <br/>Get one from <a href="https://console.groq.com/keys" target="_blank" className="text-indigo-500 underline">console.groq.com</a>. 
-                (Enter any name for the key in Groq console).
+                <br/>Get one from <a href="https://console.groq.com/keys" target="_blank" className="text-indigo-500 underline">console.groq.com</a>.
             </p>
             <div className="flex gap-2">
                 <input 
@@ -560,12 +596,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     value={groqKey} 
                     onChange={e => setGroqKey(e.target.value)} 
                     placeholder="gsk_..." 
-                    className="flex-1 p-3 border rounded-xl dark:bg-slate-900 dark:text-white dark:border-slate-700 font-mono text-sm" 
+                    className={`flex-1 p-3 border rounded-xl dark:bg-slate-900 dark:text-white font-mono text-sm outline-none transition-colors ${groqStatus === 'error' ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
                 />
-                <Button onClick={handleSaveGroqKey} size="sm">Save Key</Button>
+                <Button onClick={handleSaveGroqKey} size="sm" isLoading={isTestingGroq}>
+                   Test & Save
+                </Button>
             </div>
-            {(localStorage.getItem('groq_api_key') || process.env.GROQ_API_KEY) && (
-                <p className="text-green-500 text-xs mt-2 font-bold">✅ Key configured.</p>
+            
+            {groqStatus === 'success' && (
+                <p className="text-green-600 dark:text-green-400 text-xs mt-2 font-bold flex items-center gap-1 animate-fade-in">
+                   <span>✅</span> Connected Successfully!
+                </p>
+            )}
+            
+            {groqStatus === 'error' && (
+                <p className="text-red-500 text-xs mt-2 font-bold animate-shake">
+                   ❌ Connection Failed: {groqErrorMsg}
+                </p>
             )}
         </div>
 
@@ -606,7 +653,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         </div>
                         <span className="font-bold dark:text-white">Groq AI</span>
                     </div>
-                    <p className="text-xs text-slate-500">Ultra-fast text generation. Requires API Key above.</p>
+                    <p className="text-xs text-slate-500">Ultra-fast text generation. <strong>Requires verified API Key.</strong></p>
                 </div>
             </div>
         </div>

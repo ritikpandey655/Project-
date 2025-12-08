@@ -6,7 +6,7 @@ import { getOfficialQuestions, getOfficialNews } from "./storageService";
 
 // --- RATE LIMIT CONFIGURATION (TRAFFIC CONTROLLER) ---
 
-const RATE_LIMIT_DELAY = 4000; // 4 seconds gap = Max 15 requests per minute
+const RATE_LIMIT_DELAY = 4500; // Increased to 4.5s to be safer (Max ~13 RPM)
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
 
@@ -20,7 +20,6 @@ const enqueueRequest = <T>(task: () => Promise<T>): Promise<T> => {
         // If calls are too fast, wait
         if (timeSinceLast < RATE_LIMIT_DELAY) {
             const waitTime = RATE_LIMIT_DELAY - timeSinceLast;
-            // console.log(`⏳ Rate Limit: Waiting ${waitTime}ms...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
         }
         
@@ -28,8 +27,7 @@ const enqueueRequest = <T>(task: () => Promise<T>): Promise<T> => {
         return task();
     });
 
-    // Catch errors internally so the queue doesn't get stuck, but propagate error to caller
-    // Ensure we return a Promise<void> for the queue variable
+    // Catch errors internally so the queue doesn't get stuck
     queuePromise = nextTask.catch(() => {}).then(() => {});
     
     return nextTask;
@@ -50,7 +48,7 @@ const checkQuota = () => {
     return true;
 };
 
-// Helper to call Backend Proxy
+// --- GEMINI BACKEND CALL ---
 const callGeminiBackendRaw = async (params: { model: string, contents: any, config?: any }) => {
   if (!checkQuota()) throw new Error("QUOTA_COOL_DOWN");
 
@@ -72,12 +70,23 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
     }
 
     if (!result.success) {
-      if (response.status === 429 || result.error?.includes('429')) {
-          console.warn("⚠️ Quota Exceeded (429). Cooling down.");
+      if (response.status === 429 || 
+          response.status === 503 || 
+          result.error?.includes('429') || 
+          result.error?.includes('Quota') ||
+          result.error?.includes('Resource exhausted')) {
+          
+          console.warn("⚠️ Quota Exceeded (429/503). Triggering Cool Down.");
           isQuotaExhausted = true;
-          quotaResetTime = Date.now() + 60000; 
+          quotaResetTime = Date.now() + 45000; // 45s Cooldown
           throw new Error("QUOTA_EXCEEDED");
       }
+      
+      if (response.status === 500) {
+          console.warn("⚠️ Server 500. Brief pause.");
+          await new Promise(r => setTimeout(r, 2000));
+      }
+
       throw new Error(result.error || 'Generation failed');
     }
     
@@ -89,12 +98,114 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
   }
 };
 
-// Wrapper that forces Rate Limiting
-const callGeminiBackend = (params: any) => {
-    return enqueueRequest(() => callGeminiBackendRaw(params));
+// --- GROQ BACKEND CALL ---
+const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
+    const apiKey = localStorage.getItem('groq_api_key');
+    if (!apiKey) throw new Error("No Groq Key");
+
+    const messages = [
+        { role: 'system', content: isJson ? "You are a helpful assistant. Output JSON only." : "You are a helpful assistant." },
+        { role: 'user', content: promptText }
+    ];
+
+    try {
+        const response = await fetch('/api/ai/groq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'llama3-70b-8192',
+                messages: messages,
+                jsonMode: isJson,
+                apiKey: apiKey
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || "Groq Failed");
+        
+        return { text: result.data.choices[0].message.content };
+    } catch (e) {
+        throw e;
+    }
 };
 
-// Helpers
+// --- MASTER CONTROLLER (SWITCHER) ---
+const generateWithSwitcher = async (contents: any, isJson: boolean = true, temperature: number = 0.3): Promise<any> => {
+    // 1. Check User Preference
+    const preferredProvider = localStorage.getItem('selected_ai_provider') || 'gemini';
+    const hasImage = typeof contents === 'object' && contents.parts && contents.parts.some((p: any) => p.inlineData);
+
+    // 2. Try Groq if selected AND no images (Groq Llama 3 is text-only usually)
+    if (preferredProvider === 'groq' && !hasImage) {
+        try {
+            // Extract text prompt
+            let promptText = "";
+            if (typeof contents === 'string') promptText = contents;
+            else if (contents.parts) promptText = contents.parts.map((p: any) => p.text).join('\n');
+            else if (Array.isArray(contents)) promptText = contents.map((p: any) => p.parts?.[0]?.text).join('\n');
+
+            const groqResp = await enqueueRequest(() => callGroqBackendRaw(promptText, isJson));
+            
+            // Parse result similar to Gemini
+            const text = groqResp.text || (isJson ? "{}" : "");
+            if (isJson) {
+                return JSON.parse(cleanJson(text));
+            }
+            return text;
+
+        } catch (groqError) {
+            console.warn("⚠️ Groq Failed, falling back to Gemini...", groqError);
+            // Fallback to Gemini below
+        }
+    }
+
+    // 3. Default / Fallback to Gemini
+    return generateWithGemini(contents, isJson, temperature);
+};
+
+const commonConfig = {
+    safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+    ]
+};
+
+const generateWithGemini = async (contents: any, isJson: boolean = true, temperature: number = 0.3): Promise<any> => {
+    if (!checkQuota()) throw new Error("QUOTA_EXCEEDED");
+    
+    // Wrapper that forces Rate Limiting
+    const wrappedCall = () => callGeminiBackendRaw({
+        model: 'gemini-2.5-flash',
+        contents: contents,
+        config: { 
+            ...commonConfig, 
+            temperature: temperature, 
+            responseMimeType: isJson ? "application/json" : "text/plain" 
+        }
+    });
+
+    try {
+        const response = await enqueueRequest(wrappedCall);
+
+        const text = response.text || (isJson ? "{}" : "");
+        if (isJson) {
+            try {
+                return JSON.parse(cleanJson(text));
+            } catch (jsonError) {
+                console.warn(`Invalid JSON returned.`, jsonError);
+                throw new Error("Invalid JSON");
+            }
+        }
+        return text;
+    } catch (e: any) {
+        throw e;
+    }
+};
+
+// --- HELPER FUNCTIONS ---
+
 const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 const cleanJson = (text: string) => {
@@ -119,46 +230,6 @@ const safeOptions = (opts: any): string[] => {
     return ["Option A", "Option B", "Option C", "Option D"];
 };
 
-const commonConfig = {
-    safetySettings: [
-        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
-    ]
-};
-
-const generateWithRetry = async (contents: any, isJson: boolean = true, temperature: number = 0.3): Promise<any> => {
-    if (!checkQuota()) throw new Error("QUOTA_EXCEEDED");
-    
-    // Retry Logic inside the throttled task
-    try {
-        const response = await callGeminiBackend({
-            model: 'gemini-2.5-flash',
-            contents: contents,
-            config: { 
-                ...commonConfig, 
-                temperature: temperature, 
-                responseMimeType: isJson ? "application/json" : "text/plain" 
-            }
-        });
-
-        const text = response.text || (isJson ? "{}" : "");
-        if (isJson) {
-            try {
-                return JSON.parse(cleanJson(text));
-            } catch (jsonError) {
-                console.warn(`Invalid JSON returned.`, jsonError);
-                throw new Error("Invalid JSON");
-            }
-        }
-        return text;
-    } catch (e: any) {
-        throw e;
-    }
-};
-
-// --- SUBJECT ISOLATION LOGIC ---
 const getSubjectConstraint = (subject: string): string => {
     const s = subject.toLowerCase();
     if (s.includes('history')) return "STRICTLY History (Ancient, Medieval, Modern, Art & Culture).";
@@ -179,7 +250,6 @@ export const generateExamQuestions = async (
   if (officialQs.length >= count) return officialQs;
   
   const needed = count - officialQs.length;
-  // Always request at least 5 to make the API call worth the 4s wait
   const requestCount = Math.max(needed, 5); 
   const isUPBoard = exam.includes('UP Board');
   
@@ -198,7 +268,8 @@ export const generateExamQuestions = async (
   let aiQuestions: Question[] = [];
 
   try {
-      const batchData = await generateWithRetry(`${basePrompt} \n Generate ${requestCount} questions.`, true, 0.4);
+      // USE SWITCHER HERE
+      const batchData = await generateWithSwitcher(`${basePrompt} \n Generate ${requestCount} questions.`, true, 0.4);
       let items = Array.isArray(batchData) ? batchData : (batchData.questions || []);
       
       aiQuestions = items.map((q: any) => ({
@@ -235,7 +306,8 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
             OUTPUT JSON: { "title": "", "totalMarks": 100, "duration": 60, "sections": [{ "title": "Sec A", "questionCount": ${config.mcqCount}, "type": "MCQ" }] }
         `;
 
-        let blueprint = await generateWithRetry(blueprintPromptText, true, 0.2);
+        // USE SWITCHER HERE
+        let blueprint = await generateWithSwitcher(blueprintPromptText, true, 0.2);
         if (!blueprint || !blueprint.sections) throw new Error("Invalid Blueprint");
 
         const filledSections = [];
@@ -243,14 +315,15 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
             const qPromptText = `Generate ${sec.questionCount} ${sec.type} questions for ${exam} (${subject}). JSON Array.`;
             let questions = [];
             try {
+                // IMPORTANT: If syllabus (image/pdf) is provided, MUST USE GEMINI (Switch logic handles this automatically via hasImage check)
                 if (config.syllabus && config.syllabus.data) {
                      const contents = { parts: [
                          { inlineData: { mimeType: config.syllabus.mimeType, data: config.syllabus.data } },
                          { text: qPromptText }
                      ]};
-                     questions = await generateWithRetry(contents, true, 0.3);
+                     questions = await generateWithSwitcher(contents, true, 0.3);
                 } else {
-                    questions = await generateWithRetry(qPromptText, true, 0.3);
+                    questions = await generateWithSwitcher(qPromptText, true, 0.3);
                 }
             } catch (e) {
                 questions = MOCK_QUESTIONS_FALLBACK.slice(0, sec.questionCount);
@@ -300,9 +373,9 @@ export const generateCurrentAffairs = async (exam: string, count: number = 10): 
   if (officialCA.length >= count) return officialCA;
 
   try {
-      // Fetch larger batch to make the wait worth it
       const prompt = `Generate 15 Current Affairs MCQs for ${exam} India (Latest). JSON Array.`;
-      const aiData = await generateWithRetry(prompt, true, 0.2);
+      // USE SWITCHER
+      const aiData = await generateWithSwitcher(prompt, true, 0.2);
       
       const aiQs = aiData.map((q: any) => ({
           id: generateId('ca-q'),
@@ -324,7 +397,8 @@ export const generateCurrentAffairs = async (exam: string, count: number = 10): 
 
 export const generateSingleQuestion = async (exam: string, subject: string, topic: string): Promise<Partial<Question> | null> => {
   try {
-      const data = await generateWithRetry(`Generate 1 MCQ for ${exam} (${subject}: ${topic}). JSON.`, true, 0.2);
+      // USE SWITCHER
+      const data = await generateWithSwitcher(`Generate 1 MCQ for ${exam} (${subject}: ${topic}). JSON.`, true, 0.2);
       return { ...data, text: data.text || data.question, options: safeOptions(data.options) };
   } catch (e) { return null; }
 };
@@ -333,21 +407,26 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
   try {
     const prompt = `Extract MCQs from this ${type}. JSON Array of objects {text, options, correct_index, explanation}.`;
     const contents = { parts: [] as any[] };
+    
+    // IMAGE HANDLING: generateWithSwitcher will detect inlineData and force Gemini automatically
     if(type === 'image') {
         contents.parts.push({ inlineData: { mimeType: 'image/jpeg', data: input } });
         contents.parts.push({ text: prompt });
+        const parsed = await generateWithSwitcher(contents, true, 0.1);
+        return Array.isArray(parsed) ? parsed : (parsed.questions || []);
     } else {
-        contents.parts.push({ text: `${prompt}\n\n${input}` });
+        // Text can use Groq
+        const textContent = `${prompt}\n\n${input}`;
+        const parsed = await generateWithSwitcher(textContent, true, 0.1);
+        return Array.isArray(parsed) ? parsed : (parsed.questions || []);
     }
-    const parsed = await generateWithRetry(contents, true, 0.1);
-    return Array.isArray(parsed) ? parsed : (parsed.questions || []);
   } catch (e) { return []; }
 };
 
 export const generateNews = async (exam: string, month?: string, year?: number, category?: string): Promise<NewsItem[]> => {
   try {
       const prompt = `News headlines for ${exam} (${month} ${year}). JSON Array {headline, summary}.`;
-      const aiData = await generateWithRetry(prompt, true, 0.2);
+      const aiData = await generateWithSwitcher(prompt, true, 0.2);
       return aiData.map((n: any) => ({
           id: generateId('news'),
           headline: n.headline,
@@ -361,7 +440,7 @@ export const generateNews = async (exam: string, month?: string, year?: number, 
 
 export const generateStudyNotes = async (exam: string, subject?: string): Promise<NewsItem[]> => {
   try {
-      const aiData = await generateWithRetry(`Formulas for ${exam} ${subject}. JSON Array {headline, summary}.`, true, 0.2);
+      const aiData = await generateWithSwitcher(`Formulas for ${exam} ${subject}. JSON Array {headline, summary}.`, true, 0.2);
       return aiData.map((n: any) => ({
           id: generateId('note'),
           headline: n.headline || n.title,
@@ -375,15 +454,16 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
 
 export const generateQuestionFromImage = async (base64: string, mime: string, exam: string, subject: string): Promise<Partial<Question> | null> => {
   try {
+      // IMAGE: Automatically handled by Switcher fallback to Gemini
       const contents = { parts: [{ inlineData: { mimeType: mime, data: base64 } }, { text: `Solve this. Return JSON {text, options, correctIndex, explanation}.` }] };
-      const data = await generateWithRetry(contents, true, 0.1);
+      const data = await generateWithSwitcher(contents, true, 0.1);
       return { ...data, text: data.text || data.question, options: safeOptions(data.options) };
   } catch (e) { return null; }
 };
 
 export const generatePYQList = async (exam: string, subject: string, year: number, topic?: string): Promise<Question[]> => {
     try {
-        const aiData = await generateWithRetry(`10 questions for ${year} ${exam} (${subject}). JSON.`, true, 0.2);
+        const aiData = await generateWithSwitcher(`10 questions for ${year} ${exam} (${subject}). JSON.`, true, 0.2);
         return aiData.map((q: any) => ({
             ...q,
             id: generateId(`pyq-${year}`),
