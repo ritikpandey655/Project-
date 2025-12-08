@@ -183,13 +183,6 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
                     Upgrade Plan
                 </button>
                 )}
-                
-                {/* Quota Badge */}
-                {!isPro && !user?.isAdmin && (
-                    <span className="text-[9px] bg-black/20 px-2 py-0.5 rounded text-white/80 font-mono">
-                        Free Tier Limit: 15 RPM
-                    </span>
-                )}
             </div>
           </div>
           <p className="text-indigo-100 mb-6 max-w-md text-sm leading-relaxed">
