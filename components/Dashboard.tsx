@@ -171,16 +171,26 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
               <h2 className="text-2xl sm:text-3xl font-display font-bold leading-tight">PYQverse</h2>
               <p className="text-[10px] sm:text-xs text-brand-yellow font-bold uppercase tracking-wide mt-1">{t.tagline}</p>
             </div>
-            {isPro ? (
-              <span className={`text-slate-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm self-start ${user?.isAdmin ? 'bg-red-400 text-white' : 'bg-brand-yellow'}`}>
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                {user?.isAdmin ? 'Admin Access' : 'Pro Member'}
-              </span>
-            ) : (
-               <button onClick={onUpgrade} className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-colors border border-white/30 self-start animate-pulse">
-                 Upgrade Plan
-               </button>
-            )}
+            
+            <div className="flex flex-col items-end gap-1">
+                {isPro ? (
+                <span className={`text-slate-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm self-start sm:self-auto ${user?.isAdmin ? 'bg-red-400 text-white' : 'bg-brand-yellow'}`}>
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                    {user?.isAdmin ? 'Admin Access' : 'Pro Member'}
+                </span>
+                ) : (
+                <button onClick={onUpgrade} className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-colors border border-white/30 self-start sm:self-auto animate-pulse">
+                    Upgrade Plan
+                </button>
+                )}
+                
+                {/* Quota Badge */}
+                {!isPro && !user?.isAdmin && (
+                    <span className="text-[9px] bg-black/20 px-2 py-0.5 rounded text-white/80 font-mono">
+                        Free Tier Limit: 15 RPM
+                    </span>
+                )}
+            </div>
           </div>
           <p className="text-indigo-100 mb-6 max-w-md text-sm leading-relaxed">
             {t.desc}
