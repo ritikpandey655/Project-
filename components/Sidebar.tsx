@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { User, UserStats } from '../types';
 import { THEME_PALETTES, TRANSLATIONS } from '../constants';
 import { Button } from './Button';
+import { initLocalModel, isLocalAIReady } from '../services/localAIService';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -45,19 +46,48 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
 }) => {
   const t = TRANSLATIONS[language];
   const [notifState, setNotifState] = useState('default');
+  const [localAIStatus, setLocalAIStatus] = useState<'off' | 'loading' | 'ready'>('off');
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   useEffect(() => {
      if ('Notification' in window) {
         setNotifState(Notification.permission);
      }
+     
+     // Check if already loaded
+     if (isLocalAIReady()) setLocalAIStatus('ready');
+     else if (localStorage.getItem('selected_ai_provider') === 'local') setLocalAIStatus('off'); // Default to off unless loaded
+
   }, [isOpen]);
 
   const handleNotifClick = () => {
     onEnableNotifications();
-    // Optimistically update or re-check
     setTimeout(() => {
         if ('Notification' in window) setNotifState(Notification.permission);
     }, 1000);
+  };
+
+  const toggleLocalAI = async () => {
+      if (localAIStatus === 'ready') {
+          // Turn Off
+          localStorage.setItem('selected_ai_provider', 'gemini');
+          setLocalAIStatus('off');
+          alert("Switched back to Cloud AI (Gemini).");
+      } else {
+          // Turn On (Load)
+          const confirmLoad = window.confirm("Enable Offline AI?\n\nThis will download ~1.5GB of model data to your browser. Use Wi-Fi.");
+          if (!confirmLoad) return;
+
+          setLocalAIStatus('loading');
+          try {
+              await initLocalModel((progress) => setDownloadProgress(Math.round(progress)));
+              setLocalAIStatus('ready');
+              localStorage.setItem('selected_ai_provider', 'local');
+          } catch (e) {
+              setLocalAIStatus('off');
+              alert("Failed to load local model. Check internet connection.");
+          }
+      }
   };
 
   return (
@@ -120,7 +150,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                  <span className="font-medium">{t.downloads}</span>
               </button>
               
-              {/* Contact Support Button - New addition */}
               <a href="mailto:support@pyqverse.in?subject=Help%20Center%20-%20PYQverse" onClick={onClose} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
                  <span className="text-xl">📧</span>
                  <span className="font-medium">Contact Support</span>
@@ -140,6 +169,34 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
            <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-3">{t.preferences}</h3>
               
+              {/* Local AI Toggle - RESTRICTED TO ADMIN */}
+              {user?.isAdmin && (
+                <div className="mb-4 bg-slate-100 dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                          <span className="text-xl">🧠</span>
+                          <div>
+                              <p className="text-sm font-bold text-slate-800 dark:text-white">Offline AI (Beta)</p>
+                              <p className="text-[10px] text-slate-500">Run on Device • Save Data</p>
+                          </div>
+                      </div>
+                      <button 
+                          onClick={toggleLocalAI}
+                          disabled={localAIStatus === 'loading'}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${localAIStatus === 'ready' ? 'bg-green-500' : 'bg-slate-300'}`}
+                      >
+                          <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${localAIStatus === 'ready' ? 'translate-x-5' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                    {localAIStatus === 'loading' && (
+                      <div className="w-full bg-slate-300 rounded-full h-1.5 mt-2">
+                          <div className="bg-green-500 h-1.5 rounded-full transition-all duration-300" style={{width: `${downloadProgress}%`}}></div>
+                      </div>
+                    )}
+                    {localAIStatus === 'ready' && <p className="text-[10px] text-green-600 font-bold mt-1 text-center">Model Loaded & Ready</p>}
+                </div>
+              )}
+
               {/* Theme */}
               <div className="px-3 mb-4">
                  <div className="flex justify-between items-center mb-2">

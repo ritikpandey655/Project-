@@ -3,21 +3,20 @@ import { Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions, getOfficialNews } from "./storageService";
+import { generateLocalResponse, isLocalAIReady } from "./localAIService";
 
 // --- RATE LIMIT CONFIGURATION (TRAFFIC CONTROLLER) ---
 
-const RATE_LIMIT_DELAY = 4500; // Increased to 4.5s to be safer (Max ~13 RPM)
+const RATE_LIMIT_DELAY = 4500; 
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
 
 // This function ensures requests wait for their turn (Queue System)
 const enqueueRequest = <T>(task: () => Promise<T>): Promise<T> => {
-    // Chain the new task to the existing queue
     const nextTask = queuePromise.then(async () => {
         const now = Date.now();
         const timeSinceLast = now - lastCallTime;
         
-        // If calls are too fast, wait
         if (timeSinceLast < RATE_LIMIT_DELAY) {
             const waitTime = RATE_LIMIT_DELAY - timeSinceLast;
             await new Promise(resolve => setTimeout(resolve, waitTime));
@@ -27,13 +26,10 @@ const enqueueRequest = <T>(task: () => Promise<T>): Promise<T> => {
         return task();
     });
 
-    // Catch errors internally so the queue doesn't get stuck
     queuePromise = nextTask.catch(() => {}).then(() => {});
-    
     return nextTask;
 };
 
-// Global flag to pause API calls if quota is hit hard
 let isQuotaExhausted = false;
 let quotaResetTime = 0;
 
@@ -135,31 +131,38 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
     const preferredProvider = localStorage.getItem('selected_ai_provider') || 'gemini';
     const hasImage = typeof contents === 'object' && contents.parts && contents.parts.some((p: any) => p.inlineData);
 
-    // 2. Try Groq if selected AND no images (Groq Llama 3 is text-only usually)
-    if (preferredProvider === 'groq' && !hasImage) {
+    // Extract text prompt for text-only models
+    let promptText = "";
+    if (typeof contents === 'string') promptText = contents;
+    else if (contents.parts) promptText = contents.parts.map((p: any) => p.text).join('\n');
+    else if (Array.isArray(contents)) promptText = contents.map((p: any) => p.parts?.[0]?.text).join('\n');
+
+    // 2. Try Local AI (Offline/Device Mode)
+    // Only runs if loaded AND no images (Local models in browser struggle with vision currently in this setup)
+    if (preferredProvider === 'local' && !hasImage && isLocalAIReady()) {
         try {
-            // Extract text prompt
-            let promptText = "";
-            if (typeof contents === 'string') promptText = contents;
-            else if (contents.parts) promptText = contents.parts.map((p: any) => p.text).join('\n');
-            else if (Array.isArray(contents)) promptText = contents.map((p: any) => p.parts?.[0]?.text).join('\n');
-
-            const groqResp = await enqueueRequest(() => callGroqBackendRaw(promptText, isJson));
-            
-            // Parse result similar to Gemini
-            const text = groqResp.text || (isJson ? "{}" : "");
-            if (isJson) {
-                return JSON.parse(cleanJson(text));
-            }
-            return text;
-
-        } catch (groqError) {
-            console.warn("⚠️ Groq Failed, falling back to Gemini...", groqError);
-            // Fallback to Gemini below
+            console.log("⚡ Using Local Device AI");
+            const localResp = await generateLocalResponse(promptText, isJson);
+            if (isJson) return JSON.parse(cleanJson(localResp));
+            return localResp;
+        } catch (e) {
+            console.warn("Local AI failed, falling back to Cloud", e);
         }
     }
 
-    // 3. Default / Fallback to Gemini
+    // 3. Try Groq if selected AND no images
+    if (preferredProvider === 'groq' && !hasImage) {
+        try {
+            const groqResp = await enqueueRequest(() => callGroqBackendRaw(promptText, isJson));
+            const text = groqResp.text || (isJson ? "{}" : "");
+            if (isJson) return JSON.parse(cleanJson(text));
+            return text;
+        } catch (groqError) {
+            console.warn("⚠️ Groq Failed, falling back to Gemini...", groqError);
+        }
+    }
+
+    // 4. Default / Fallback to Gemini
     return generateWithGemini(contents, isJson, temperature);
 };
 
@@ -415,7 +418,7 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
         const parsed = await generateWithSwitcher(contents, true, 0.1);
         return Array.isArray(parsed) ? parsed : (parsed.questions || []);
     } else {
-        // Text can use Groq
+        // Text can use Groq or Local
         const textContent = `${prompt}\n\n${input}`;
         const parsed = await generateWithSwitcher(textContent, true, 0.1);
         return Array.isArray(parsed) ? parsed : (parsed.questions || []);
@@ -454,7 +457,7 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
 
 export const generateQuestionFromImage = async (base64: string, mime: string, exam: string, subject: string): Promise<Partial<Question> | null> => {
   try {
-      // IMAGE: Automatically handled by Switcher fallback to Gemini
+      // IMAGE: Automatically handled by Switcher fallback to Gemini (Local AI doesn't support images in this setup)
       const contents = { parts: [{ inlineData: { mimeType: mime, data: base64 } }, { text: `Solve this. Return JSON {text, options, correctIndex, explanation}.` }] };
       const data = await generateWithSwitcher(contents, true, 0.1);
       return { ...data, text: data.text || data.question, options: safeOptions(data.options) };

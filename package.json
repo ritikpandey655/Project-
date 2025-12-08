@@ -1,4 +1,3 @@
-
 {
   "name": "pyqverse",
   "private": true,
@@ -12,6 +11,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
+    "@mlc-ai/web-llm": "^0.2.78",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "firebase": "^10.12.0",
