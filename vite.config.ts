@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   
   const manifestConfig: any = {
-    name: 'PYQverse: AI Exam Prep',
+    name: 'PYQverse: All exams ka pura universe',
     short_name: 'PYQverse',
     description: 'Master UPSC, SSC, JEE, NEET & more with AI-powered Previous Year Questions, smart analytics, and unlimited practice.',
     theme_color: '#f97316',
