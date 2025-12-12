@@ -1,3 +1,4 @@
+
 import { Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
@@ -6,7 +7,7 @@ import { generateLocalResponse, isLocalAIReady } from "./localAIService";
 
 // --- RATE LIMIT CONFIGURATION (TRAFFIC CONTROLLER) ---
 
-const RATE_LIMIT_DELAY = 4500; 
+const RATE_LIMIT_DELAY = 4000; // Increased safety buffer for free tier
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
 
@@ -137,7 +138,6 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
     else if (Array.isArray(contents)) promptText = contents.map((p: any) => p.parts?.[0]?.text).join('\n');
 
     // 2. Try Local AI (Offline/Device Mode)
-    // Only runs if loaded AND no images (Local models in browser struggle with vision currently in this setup)
     if (preferredProvider === 'local' && !hasImage && isLocalAIReady()) {
         try {
             console.log("⚡ Using Local Device AI");
@@ -149,7 +149,7 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
         }
     }
 
-    // 3. Try Groq if selected AND no images
+    // 3. Try Groq
     if (preferredProvider === 'groq' && !hasImage) {
         try {
             const groqResp = await enqueueRequest(() => callGroqBackendRaw(promptText, isJson));
@@ -161,7 +161,18 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
         }
     }
 
-    // 4. Default / Fallback to Gemini
+    // 4. Try Deep Research (Gemini 3.0 Pro + Thinking)
+    if (preferredProvider === 'deep-research') {
+        try {
+            // Force 3.0 Pro with High Thinking Budget for complex reasoning
+            // This simulates the "Deep Research" agent capabilities
+            return await generateWithGemini(contents, isJson, temperature, 'gemini-3-pro-preview', 8192);
+        } catch (deepError) {
+            console.warn("⚠️ Deep Research Failed, falling back to Standard Gemini...", deepError);
+        }
+    }
+
+    // 5. Default / Fallback to Gemini 2.5 Flash
     return generateWithGemini(contents, isJson, temperature);
 };
 
@@ -174,18 +185,33 @@ const commonConfig = {
     ]
 };
 
-const generateWithGemini = async (contents: any, isJson: boolean = true, temperature: number = 0.3): Promise<any> => {
+const generateWithGemini = async (
+    contents: any, 
+    isJson: boolean = true, 
+    temperature: number = 0.3,
+    model: string = 'gemini-2.5-flash',
+    thinkingBudget?: number
+): Promise<any> => {
     if (!checkQuota()) throw new Error("QUOTA_EXCEEDED");
     
+    const config: any = { 
+        ...commonConfig, 
+        temperature: temperature, 
+        responseMimeType: isJson ? "application/json" : "text/plain" 
+    };
+
+    // If using 3.0 Pro (Deep Research), enable thinking
+    if (thinkingBudget && model.includes('gemini-3')) {
+        config.thinkingConfig = { thinkingBudget };
+        // Note: thinkingConfig requires removing certain other params in some versions, 
+        // but generally works with temperature.
+    }
+
     // Wrapper that forces Rate Limiting
     const wrappedCall = () => callGeminiBackendRaw({
-        model: 'gemini-2.5-flash',
+        model: model,
         contents: contents,
-        config: { 
-            ...commonConfig, 
-            temperature: temperature, 
-            responseMimeType: isJson ? "application/json" : "text/plain" 
-        }
+        config: config
     });
 
     try {

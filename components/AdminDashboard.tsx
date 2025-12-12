@@ -517,23 +517,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Active Provider</label>
-                            <div className="grid grid-cols-3 gap-3">
-                                {['gemini', 'groq', 'local'].map(p => (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                {['gemini', 'deep-research', 'groq', 'local'].map(p => (
                                     <button
                                         key={p}
                                         onClick={() => setSelectedProvider(p)}
-                                        className={`p-3 rounded-xl border-2 capitalize font-bold text-sm transition-all ${
+                                        className={`p-3 rounded-xl border-2 capitalize font-bold text-sm transition-all relative ${
                                             selectedProvider === p 
                                             ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' 
                                             : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-indigo-300'
                                         }`}
                                     >
-                                        {p === 'local' ? 'Local (Device)' : p}
+                                        {p === 'deep-research' && (
+                                            <span className="absolute -top-2 -right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-sm animate-pulse">NEW</span>
+                                        )}
+                                        {p === 'local' ? 'Local' : p.replace('-', ' ')}
                                     </button>
                                 ))}
                             </div>
                             <p className="text-xs text-slate-400 mt-2">
-                                {selectedProvider === 'gemini' && "Uses Google Gemini Flash 2.5 (Fast & Free). Recommended."}
+                                {selectedProvider === 'gemini' && "Uses Google Gemini 2.5 Flash (Standard). Fast & Balanced."}
+                                {selectedProvider === 'deep-research' && "Uses Gemini 3.0 Pro with Reasoning. Simulates Deep Research agent for complex tasks."}
                                 {selectedProvider === 'groq' && "Uses Llama-3 via Groq (Ultra Fast). Requires API Key."}
                                 {selectedProvider === 'local' && "Runs Gemma-2B in browser. Offline capable but heavy (1.5GB)."}
                             </p>
