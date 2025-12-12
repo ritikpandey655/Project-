@@ -165,10 +165,26 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
     if (preferredProvider === 'deep-research') {
         try {
             // Force 3.0 Pro with High Thinking Budget for complex reasoning
-            // This simulates the "Deep Research" agent capabilities
-            return await generateWithGemini(contents, isJson, temperature, 'gemini-3-pro-preview', 8192);
+            // NOTE: Thinking models often fail if we enforce JSON MIME type. 
+            // We append instruction to text prompt instead.
+            let deepContents = contents;
+            if (typeof contents === 'string') {
+                deepContents = contents + "\n\nIMPORTANT: Return the result in valid JSON format inside a markdown code block.";
+            } else if (contents.parts) {
+                // If it's a multipart request (e.g. image), try to append to the text part
+                deepContents = {
+                    ...contents,
+                    parts: contents.parts.map((p: any) => 
+                        p.text ? { ...p, text: p.text + "\n\nIMPORTANT: Return valid JSON inside markdown." } : p
+                    )
+                };
+            }
+
+            // Using gemini-3-pro-preview with 10000 token budget for deep thinking
+            return await generateWithGemini(deepContents, isJson, temperature, 'gemini-3-pro-preview', 10000);
         } catch (deepError) {
             console.warn("⚠️ Deep Research Failed, falling back to Standard Gemini...", deepError);
+            // Fallback proceeds to step 5
         }
     }
 
@@ -200,11 +216,11 @@ const generateWithGemini = async (
         responseMimeType: isJson ? "application/json" : "text/plain" 
     };
 
-    // If using 3.0 Pro (Deep Research), enable thinking
-    if (thinkingBudget && model.includes('gemini-3')) {
+    // If thinking is enabled (Deep Research), we MUST disable strict JSON MIME type
+    // to avoid 400 errors or conflicts with thinking trace output.
+    if (thinkingBudget) {
         config.thinkingConfig = { thinkingBudget };
-        // Note: thinkingConfig requires removing certain other params in some versions, 
-        // but generally works with temperature.
+        delete config.responseMimeType; // Remove enforced JSON structure constraint
     }
 
     // Wrapper that forces Rate Limiting
@@ -238,6 +254,14 @@ const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().
 
 const cleanJson = (text: string) => {
   if (!text) return "[]";
+  
+  // 1. Try to find explicit markdown JSON block first (Best for Thinking Models)
+  const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (jsonBlockMatch && jsonBlockMatch[1]) {
+      return jsonBlockMatch[1].trim();
+  }
+
+  // 2. Fallback: Clean markers and find brackets
   let cleaned = text.replace(/```json/gi, '').replace(/```/g, '');
   const firstBrace = cleaned.indexOf('{');
   const firstBracket = cleaned.indexOf('[');
@@ -245,9 +269,11 @@ const cleanJson = (text: string) => {
   if (firstBrace !== -1 && firstBracket !== -1) start = Math.min(firstBrace, firstBracket);
   else if (firstBrace !== -1) start = firstBrace;
   else start = firstBracket;
+  
   const lastBrace = cleaned.lastIndexOf('}');
   const lastBracket = cleaned.lastIndexOf(']');
   const end = Math.max(lastBrace, lastBracket);
+  
   if (start !== -1 && end !== -1) cleaned = cleaned.substring(start, end + 1);
   return cleaned.trim();
 };
