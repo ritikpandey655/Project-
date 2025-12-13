@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
 import { 
@@ -46,6 +46,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
   // Admin toggle easter egg
   const [logoClicks, setLogoClicks] = useState(0);
 
+  // Recaptcha Ref
+  const recaptchaRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (logoClicks > 0 && logoClicks < 5) {
       const timer = setTimeout(() => setLogoClicks(0), 1000);
@@ -56,6 +59,36 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
        alert("Admin Mode: Please enter admin credentials.");
     }
   }, [logoClicks]);
+
+  // Initialize Recaptcha when switching to Phone mode
+  useEffect(() => {
+    if (loginMethod === 'phone' && !window.recaptchaVerifier && recaptchaRef.current) {
+      try {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaRef.current, {
+          'size': 'invisible',
+          'callback': () => {
+            // reCAPTCHA solved, allow signInWithPhoneNumber.
+          },
+          'expired-callback': () => {
+            // Response expired. Ask user to solve reCAPTCHA again.
+            setError('reCAPTCHA expired. Please try again.');
+          }
+        });
+        window.recaptchaVerifier.render();
+      } catch (e) {
+        console.error("Recaptcha Init Error:", e);
+      }
+    }
+
+    return () => {
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+          window.recaptchaVerifier = null;
+        } catch(e) {}
+      }
+    };
+  }, [loginMethod]);
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
@@ -173,20 +206,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
   // --- PHONE AUTH HANDLERS ---
 
-  const onCaptchVerify = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        'size': 'invisible',
-        'callback': (response: any) => {
-          // reCAPTCHA solved, allow signInWithPhoneNumber.
-        },
-        'expired-callback': () => {
-          // Response expired. Ask user to solve reCAPTCHA again.
-        }
-      });
-    }
-  };
-
   const handleSendOtp = async () => {
     if (!isOnline) return alert("⚠️ No Internet Connection");
     if (phoneNumber.length < 10) {
@@ -196,9 +215,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
     
     setIsLoading(true);
     setError('');
-    onCaptchVerify();
 
     const appVerifier = window.recaptchaVerifier;
+    if (!appVerifier) {
+       setError("System initializing... try again in 2 seconds.");
+       setIsLoading(false);
+       return;
+    }
+
     const formatPh = phoneNumber.includes('+') ? phoneNumber : "+91" + phoneNumber;
 
     try {
@@ -211,15 +235,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         setIsLoading(false);
         if (err.code === 'auth/invalid-phone-number') {
             setError("Invalid Phone Number.");
+        } else if (err.code === 'auth/billing-not-enabled') {
+            setError("System Error: Admin needs to enable billing for Phone Auth.");
         } else if (err.code === 'auth/too-many-requests') {
             setError("Too many requests. Try again later.");
+        } else if (err.code === 'auth/captcha-check-failed') {
+            setError("Captcha failed. Please refresh.");
         } else {
             setError(err.message || "Failed to send OTP.");
         }
-        // Reset recaptcha
+        
+        // Reset recaptcha on error
         if(window.recaptchaVerifier) {
-            window.recaptchaVerifier.clear();
-            window.recaptchaVerifier = undefined;
+            try {
+              window.recaptchaVerifier.clear(); 
+              window.recaptchaVerifier = null;
+              // Re-init trigger via state if needed, or simply force reload
+            } catch(e) {}
         }
     }
   };
@@ -277,7 +309,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-slate-900 via-[#1c120e] to-black flex flex-col items-center justify-center p-4 relative overflow-hidden overflow-y-auto">
-      <div id="recaptcha-container"></div>
       
       {/* Background Particles - Warm/Sunset Tones */}
       <div className="absolute inset-0 pointer-events-none">
@@ -376,6 +407,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                 </form>
             ) : (
                 <div className="space-y-4">
+                    {/* INVISIBLE RECAPTCHA CONTAINER */}
+                    <div ref={recaptchaRef}></div>
+
                     {!isOtpSent ? (
                         <>
                             <div>
