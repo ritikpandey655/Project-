@@ -236,7 +236,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
         if (err.code === 'auth/invalid-phone-number') {
             setError("Invalid Phone Number.");
         } else if (err.code === 'auth/billing-not-enabled') {
-            setError("System Error: Admin needs to enable billing for Phone Auth.");
+            setError("Technical Issue: SMS service unavailable. Please use Email Login.");
         } else if (err.code === 'auth/too-many-requests') {
             setError("Too many requests. Try again later.");
         } else if (err.code === 'auth/captcha-check-failed') {
