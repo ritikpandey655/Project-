@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState } from './types';
 import { EXAM_SUBJECTS, THEME_PALETTES, TECHNICAL_EXAMS, MONTHS } from './constants';
@@ -40,6 +39,7 @@ import { Leaderboard } from './components/Leaderboard';
 import { CurrentAffairsFeed } from './components/CurrentAffairsFeed';
 import { PYQLibrary } from './components/PYQLibrary';
 import { BackgroundAnimation } from './components/BackgroundAnimation';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { auth, db } from './src/firebaseConfig';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { onSnapshot, doc } from "firebase/firestore";
@@ -622,7 +622,7 @@ const App: React.FC = () => {
         </nav>
       )}
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
+      <main className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10 ${state.user && ['dashboard', 'news', 'leaderboard', 'profile', 'upload', 'downloads'].includes(state.view) ? 'pb-24 sm:pb-6' : ''}`}>
         {state.view === 'tutorial' && <Tutorial onComplete={() => { navigateTo('dashboard'); if(state.user) saveUserPref(state.user.id, { hasSeenTutorial: true }); }} />}
 
         {state.view === 'dashboard' && (
@@ -759,6 +759,14 @@ const App: React.FC = () => {
            <div className="max-w-3xl mx-auto"><div className="flex items-center gap-4 mb-6"><button onClick={() => navigateTo('dashboard')} className="text-slate-500 hover:text-indigo-600 flex items-center gap-1">← Back</button><h2 className="text-2xl font-bold font-display dark:text-white">Bookmarks</h2></div><div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl"><p className="text-slate-500">Your saved questions will appear here.</p></div></div>
         )}
       </main>
+
+      {state.user && ['dashboard', 'news', 'leaderboard', 'profile', 'upload', 'downloads'].includes(state.view) && (
+         <MobileBottomNav 
+            currentView={state.view} 
+            onNavigate={navigateTo} 
+            onAction={(action) => { if(action === 'practice') handleStartPracticeClick(); }} 
+         />
+      )}
 
       {isLoading && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">

@@ -1,8 +1,8 @@
-
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics, isSupported } from "firebase/analytics";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDJ48kwjfVfIm6Pi7v8Kc4fgd_PzZilZwY",
@@ -16,6 +16,28 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Initialize App Check (Security)
+if (typeof window !== "undefined") {
+  // For localhost development, enable debug tokens
+  if (location.hostname === "localhost") {
+    // @ts-ignore
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+
+  // ⚠️ PASTE YOUR SITE KEY BELOW (Replace the text inside quotes) ⚠️
+  const SITE_KEY = "6LdbsyosAAAAAKfHrzy32xfo4C6tTy_RpBEqYgua";
+
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(SITE_KEY),
+      isTokenAutoRefreshEnabled: true
+    });
+    console.log("🛡️ App Check Initialized with Site Key");
+  } catch (e) {
+    console.warn("App Check failed to load. Did you paste the Site Key?", e);
+  }
+}
 
 // Initialize Services
 const auth = getAuth(app);
