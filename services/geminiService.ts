@@ -6,7 +6,7 @@ import { generateLocalResponse, isLocalAIReady } from "./localAIService";
 
 // --- RATE LIMIT CONFIGURATION (TRAFFIC CONTROLLER) ---
 
-const RATE_LIMIT_DELAY = 4000; // Increased safety buffer for free tier
+const RATE_LIMIT_DELAY = 2000; // Reduced delay for 1.5 Flash (higher rate limits)
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
 
@@ -44,22 +44,15 @@ const checkQuota = () => {
 };
 
 // --- BACKEND CONNECTION SETUP ---
-// If running on web (dev), BASE_URL is empty to use the proxy in vite.config.ts
-// If running on Android/iOS/Prod, process.env.BACKEND_URL will be populated
 const BASE_URL = process.env.BACKEND_URL || "";
 
 // --- GEMINI CALL HANDLER (SECURE BACKEND MODE) ---
 const callGeminiBackendRaw = async (params: { model: string, contents: any, config?: any }) => {
   if (!checkQuota()) throw new Error("QUOTA_COOL_DOWN");
 
-  // Note: We are using the Node.js backend (server/index.js)
-  
   try {
-    // Correctly construct URL: If BASE_URL is empty (dev), it becomes "/api/ai/generate" which hits the proxy
     const endpoint = `${BASE_URL}/api/ai/generate`.replace('//api', '/api'); 
     
-    // console.log("Calling Node Backend:", endpoint); 
-
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -72,16 +65,13 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
     if (contentType && contentType.indexOf("application/json") !== -1) {
         result = await response.json();
     } else {
-        // If html/text returns, it's likely a 404 or 500
         const text = await response.text();
         console.error("Backend Error Response:", text);
-        // LOGGING TO ADMIN DASHBOARD
         logSystemError('API_FAIL', 'Backend returned non-JSON response', { status: response.status, text: text.substring(0, 100) });
-        throw new Error(`Server Error: Backend unavailable. Make sure 'node server/index.js' is running.`);
+        throw new Error(`Server Error: Backend unavailable.`);
     }
 
     if (!result.success) {
-      // CAPTURE SPECIFIC AI ERROR
       const errorMsg = result.error || 'Unknown AI Error';
       
       if (response.status === 429 || 
@@ -93,17 +83,11 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
           console.warn("⚠️ Quota Exceeded (429/503). Triggering Cool Down.");
           logSystemError('API_FAIL', 'Quota Exceeded (429)', { error: errorMsg });
           isQuotaExhausted = true;
-          quotaResetTime = Date.now() + 45000; // 45s Cooldown
+          quotaResetTime = Date.now() + 30000; // 30s Cooldown
           throw new Error("QUOTA_EXCEEDED");
       }
       
-      // Log other errors
       logSystemError('API_FAIL', 'AI Generation Failed', { error: errorMsg });
-
-      if (response.status === 500) {
-          await new Promise(r => setTimeout(r, 2000));
-      }
-
       throw new Error(errorMsg);
     }
     
@@ -111,7 +95,6 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
   } catch (error: any) {
     if (error.message === "QUOTA_EXCEEDED" || error.message === "QUOTA_COOL_DOWN") throw error;
     console.error("Secure AI Call Failed:", error);
-    // Log unexpected fetch errors
     if (!error.message.includes('Quota')) {
         logSystemError('ERROR', 'Network/Fetch Error in Gemini Service', { msg: error.message });
     }
@@ -122,7 +105,6 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
 // --- GROQ BACKEND CALL ---
 const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
     const apiKey = localStorage.getItem('groq_api_key');
-    // For Groq, we still support client-side override if Admin sets it in Settings
     const keyToUse = apiKey;
 
     const messages = [
@@ -130,7 +112,6 @@ const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
         { role: 'user', content: promptText }
     ];
 
-    // If User provided their own key in Settings, use direct call (Client Side)
     if (keyToUse) {
         try {
             const body: any = { 
@@ -148,11 +129,10 @@ const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
             const data = await response.json();
             return { text: data.choices[0].message.content };
         } catch (e) {
-            // Fallthrough to proxy
+            // Fallthrough
         }
     }
 
-    // Default: Use Secure Backend Proxy
     try {
         const endpoint = `${BASE_URL}/api/ai/groq`.replace('//api', '/api');
         const response = await fetch(endpoint, {
@@ -177,17 +157,15 @@ const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
 
 // --- MASTER CONTROLLER (SWITCHER) ---
 const generateWithSwitcher = async (contents: any, isJson: boolean = true, temperature: number = 0.3): Promise<any> => {
-    // 1. Check User Preference
     const preferredProvider = localStorage.getItem('selected_ai_provider') || 'gemini';
     const hasImage = typeof contents === 'object' && contents.parts && contents.parts.some((p: any) => p.inlineData);
 
-    // Extract text prompt for text-only models
     let promptText = "";
     if (typeof contents === 'string') promptText = contents;
     else if (contents.parts) promptText = contents.parts.map((p: any) => p.text).join('\n');
     else if (Array.isArray(contents)) promptText = contents.map((p: any) => p.parts?.[0]?.text).join('\n');
 
-    // 2. Try Local AI (Offline/Device Mode)
+    // 2. Try Local AI
     if (preferredProvider === 'local' && !hasImage && isLocalAIReady()) {
         try {
             console.log("⚡ Using Local Device AI");
@@ -204,10 +182,7 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
         try {
             const groqResp = await enqueueRequest(() => callGroqBackendRaw(promptText, isJson));
             const text = groqResp.text || (isJson ? "{}" : "");
-            
-            // Log Success to Admin Dashboard
             logSystemError('INFO', 'Used Groq (Llama-3)', { mode: 'fast' });
-            
             if (isJson) return JSON.parse(cleanJson(text));
             return text;
         } catch (groqError) {
@@ -215,17 +190,13 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
         }
     }
 
-    // 4. Try Deep Research (Gemini 3.0 Pro + Thinking)
+    // 4. Try Deep Research
     if (preferredProvider === 'deep-research') {
         try {
-            // Force 3.0 Pro with High Thinking Budget for complex reasoning
-            // NOTE: Thinking models often fail if we enforce JSON MIME type. 
-            // We append instruction to text prompt instead.
             let deepContents = contents;
             if (typeof contents === 'string') {
                 deepContents = contents + "\n\nIMPORTANT: Return the result in valid JSON format inside a markdown code block.";
             } else if (contents.parts) {
-                // If it's a multipart request (e.g. image), try to append to the text part
                 deepContents = {
                     ...contents,
                     parts: contents.parts.map((p: any) => 
@@ -233,26 +204,18 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
                     )
                 };
             }
-
-            // Using gemini-3-pro-preview with 10000 token budget for deep thinking
             const result = await generateWithGemini(deepContents, isJson, temperature, 'gemini-3-pro-preview', 10000);
-            
-            // Log Success
             logSystemError('INFO', 'Used Deep Research (Gemini 3.0)', { budget: 10000 });
-            
             return result;
         } catch (deepError) {
             console.warn("⚠️ Deep Research Failed, falling back to Standard Gemini...", deepError);
-            // Fallback proceeds to step 5
         }
     }
 
-    // 5. Default / Fallback to Gemini 2.5 Flash
-    const result = await generateWithGemini(contents, isJson, temperature);
-    
-    // Log Success
-    logSystemError('INFO', 'Used Gemini 2.5 Flash', { mode: 'standard' });
-    
+    // 5. Default: Gemini 1.5 Flash (Stable)
+    // Switched from 2.5 to 1.5 for stability
+    const result = await generateWithGemini(contents, isJson, temperature, 'gemini-1.5-flash');
+    logSystemError('INFO', 'Used Gemini 1.5 Flash', { mode: 'standard' });
     return result;
 };
 
@@ -269,7 +232,7 @@ const generateWithGemini = async (
     contents: any, 
     isJson: boolean = true, 
     temperature: number = 0.3,
-    model: string = 'gemini-2.5-flash',
+    model: string = 'gemini-1.5-flash',
     thinkingBudget?: number
 ): Promise<any> => {
     if (!checkQuota()) throw new Error("QUOTA_EXCEEDED");
@@ -280,13 +243,11 @@ const generateWithGemini = async (
         responseMimeType: isJson ? "application/json" : "text/plain" 
     };
 
-    // If thinking is enabled (Deep Research), we MUST disable strict JSON MIME type
     if (thinkingBudget) {
         config.thinkingConfig = { thinkingBudget };
         delete config.responseMimeType;
     }
 
-    // Wrapper that forces Rate Limiting
     const wrappedCall = () => callGeminiBackendRaw({
         model: model,
         contents: contents,
@@ -318,14 +279,10 @@ const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().
 
 const cleanJson = (text: string) => {
   if (!text) return "[]";
-  
-  // 1. Try to find explicit markdown JSON block first (Best for Thinking Models)
   const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
   if (jsonBlockMatch && jsonBlockMatch[1]) {
       return jsonBlockMatch[1].trim();
   }
-
-  // 2. Fallback: Clean markers and find brackets
   let cleaned = text.replace(/```json/gi, '').replace(/```/g, '');
   const firstBrace = cleaned.indexOf('{');
   const firstBracket = cleaned.indexOf('[');
@@ -369,7 +326,6 @@ export const generateExamQuestions = async (
   
   const needed = count - officialQs.length;
   const requestCount = Math.max(needed, 5); 
-  const isUPBoard = exam.includes('UP Board');
   
   const basePrompt = `
       ACT AS A STRICT EXAMINER for ${exam}.
@@ -377,7 +333,6 @@ export const generateExamQuestions = async (
       CONSTRAINT: ${getSubjectConstraint(subject)}
       DIFFICULTY: ${difficulty}.
       ${topics.length > 0 ? `SPECIFIC TOPICS: ${topics.join(', ')}` : ''}
-      ${isUPBoard ? 'LANGUAGE: Hinglish (Hindi terms in Roman) or Hindi (Devanagari).' : ''}
       Create distinct, high-quality MCQs.
       OUTPUT FORMAT (JSON ARRAY ONLY):
       [ { "text": "...", "options": ["A","B","C","D"], "correctIndex": 0, "explanation": "..." } ]
@@ -386,7 +341,6 @@ export const generateExamQuestions = async (
   let aiQuestions: Question[] = [];
 
   try {
-      // USE SWITCHER HERE
       const batchData = await generateWithSwitcher(`${basePrompt} \n Generate ${requestCount} questions.`, true, 0.4);
       let items = Array.isArray(batchData) ? batchData : (batchData.questions || []);
       
@@ -424,24 +378,47 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
             OUTPUT JSON: { "title": "", "totalMarks": 100, "duration": 60, "sections": [{ "title": "Sec A", "questionCount": ${config.mcqCount}, "type": "MCQ" }] }
         `;
 
-        // USE SWITCHER HERE
         let blueprint = await generateWithSwitcher(blueprintPromptText, true, 0.2);
         if (!blueprint || !blueprint.sections) throw new Error("Invalid Blueprint");
 
         const filledSections = [];
         for (const [sIdx, sec] of blueprint.sections.entries()) {
-            const qPromptText = `Generate ${sec.questionCount} ${sec.type} questions for ${exam} (${subject}). JSON Array.`;
+            
+            // STRICT GENERATION LOGIC
+            let qPromptText = "";
+            let temperature = 0.3; // Default low temp for accuracy
+
+            if (config.syllabus && config.syllabus.data) {
+                // If syllabus provided: VERY STRICT
+                qPromptText = `
+                    CRITICAL: You are an examiner for ${exam}. 
+                    Generate ${sec.questionCount} ${sec.type} questions STRICTLY based ONLY on the provided syllabus document/image.
+                    Do not include questions from topics not present in the document.
+                    If the document has limited content, create deep conceptual questions from that specific content only.
+                    Ensure 100% accuracy. No false generation.
+                    Return valid JSON Array.
+                `;
+                temperature = 0.2; // Lower temp for strictness
+            } else {
+                // No syllabus: Standard Exam Generation
+                qPromptText = `
+                    Generate ${sec.questionCount} ${sec.type} questions for ${exam} (${subject}).
+                    Follow the standard ${exam} exam pattern and difficulty level (${difficulty}).
+                    Verify all facts. Do not generate ambiguous questions.
+                    Return valid JSON Array.
+                `;
+            }
+
             let questions = [];
             try {
-                // IMPORTANT: If syllabus (image/pdf) is provided, MUST USE GEMINI (Switch logic handles this automatically via hasImage check)
                 if (config.syllabus && config.syllabus.data) {
                      const contents = { parts: [
                          { inlineData: { mimeType: config.syllabus.mimeType, data: config.syllabus.data } },
                          { text: qPromptText }
                      ]};
-                     questions = await generateWithSwitcher(contents, true, 0.3);
+                     questions = await generateWithSwitcher(contents, true, temperature);
                 } else {
-                    questions = await generateWithSwitcher(qPromptText, true, 0.3);
+                    questions = await generateWithSwitcher(qPromptText, true, temperature);
                 }
             } catch (e) {
                 questions = MOCK_QUESTIONS_FALLBACK.slice(0, sec.questionCount);
@@ -492,7 +469,6 @@ export const generateCurrentAffairs = async (exam: string, count: number = 10): 
 
   try {
       const prompt = `Generate 15 Current Affairs MCQs for ${exam} India (Latest). JSON Array.`;
-      // USE SWITCHER
       const aiData = await generateWithSwitcher(prompt, true, 0.2);
       
       const aiQs = aiData.map((q: any) => ({
@@ -515,25 +491,22 @@ export const generateCurrentAffairs = async (exam: string, count: number = 10): 
 
 export const generateSingleQuestion = async (exam: string, subject: string, topic: string): Promise<Partial<Question> | null> => {
   try {
-      // USE SWITCHER
       const data = await generateWithSwitcher(`Generate 1 MCQ for ${exam} (${subject}: ${topic}). JSON.`, true, 0.2);
       return { ...data, text: data.text || data.question, options: safeOptions(data.options) };
   } catch (e) { return null; }
 };
 
-export const parseSmartInput = async (input: string, type: 'text' | 'image', examContext: string): Promise<any[]> => {
+export const parseSmartInput = async (input: string, type: 'text' | 'image', examContext: string, mimeType: string = 'image/jpeg'): Promise<any[]> => {
   try {
-    const prompt = `Extract MCQs from this ${type}. JSON Array of objects {text, options, correct_index, explanation}.`;
+    const prompt = `Extract MCQs from this content. Return JSON Array of objects {text, options, correctIndex, explanation}.`;
     const contents = { parts: [] as any[] };
     
-    // IMAGE HANDLING: generateWithSwitcher will detect inlineData and force Gemini automatically
     if(type === 'image') {
-        contents.parts.push({ inlineData: { mimeType: 'image/jpeg', data: input } });
+        contents.parts.push({ inlineData: { mimeType: mimeType, data: input } });
         contents.parts.push({ text: prompt });
         const parsed = await generateWithSwitcher(contents, true, 0.1);
         return Array.isArray(parsed) ? parsed : (parsed.questions || []);
     } else {
-        // Text can use Groq or Local
         const textContent = `${prompt}\n\n${input}`;
         const parsed = await generateWithSwitcher(textContent, true, 0.1);
         return Array.isArray(parsed) ? parsed : (parsed.questions || []);
@@ -572,7 +545,6 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
 
 export const generateQuestionFromImage = async (base64: string, mime: string, exam: string, subject: string): Promise<Partial<Question> | null> => {
   try {
-      // IMAGE: Automatically handled by Switcher fallback to Gemini (Local AI doesn't support images in this setup)
       const contents = { parts: [{ inlineData: { mimeType: mime, data: base64 } }, { text: `Solve this. Return JSON {text, options, correctIndex, explanation}.` }] };
       const data = await generateWithSwitcher(contents, true, 0.1);
       return { ...data, text: data.text || data.question, options: safeOptions(data.options) };

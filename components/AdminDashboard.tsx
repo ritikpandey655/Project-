@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './Button';
 import { Question, QuestionSource, NewsItem, User, Transaction, QuestionType, ExamType } from '../types';
 import { 
@@ -41,7 +41,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   // Upload States
   const [uploadType, setUploadType] = useState<'Question' | 'News'>('Question');
   const [uploadExam, setUploadExam] = useState<string>('UPSC');
-  const [uploadSubject, setUploadSubject] = useState('History');
+  const [uploadSubject, setUploadSubject] = useState('');
+  const [entryMode, setEntryMode] = useState<'smart' | 'manual'>('smart');
+  
   const [qText, setQText] = useState('');
   const [qOptions, setQOptions] = useState(['', '', '', '']);
   const [qCorrect, setQCorrect] = useState(0);
@@ -51,6 +53,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [nCategory, setNCategory] = useState('National');
   const [smartInput, setSmartInput] = useState('');
   const [isProcessingSmart, setIsProcessingSmart] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Settings State
   const [groqKey, setGroqKey] = useState('');
@@ -68,6 +71,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setSelectedProvider(localStorage.getItem('selected_ai_provider') || 'gemini');
   }, []);
 
+  // Auto-select subject when exam changes
+  useEffect(() => {
+      const subjects = examConfig[uploadExam] || EXAM_SUBJECTS[uploadExam as ExamType] || [];
+      if (subjects.length > 0 && !subjects.includes(uploadSubject)) {
+          setUploadSubject(subjects[0]);
+      } else if (subjects.length === 0 && !uploadSubject) {
+          setUploadSubject('General');
+      }
+  }, [uploadExam, examConfig]);
+
   const runDiagnostics = async () => {
     setIsTestRunning(true);
     setBackendStatus('Checking');
@@ -84,7 +97,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
     // 2. Test AI Generation
     try {
-        const testQ = await generateSingleQuestion('UPSC', 'History', 'Test');
+        const testQ = await generateSingleQuestion('UPSC', 'History', 'Simple Test');
         if (testQ) setAiStatus('Operational');
         else setAiStatus('Degraded');
     } catch(e) {
@@ -197,38 +210,69 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       setNewExamSubjects('');
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Check Size (Limit 25MB)
+    if (file.size > 25 * 1024 * 1024) {
+        alert("File too large. Please upload < 25MB.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        const base64 = (ev.target?.result as string).split(',')[1];
+        setIsProcessingSmart(true);
+        try {
+            // Pass mimeType to service
+            const extracted = await parseSmartInput(base64, 'image', uploadExam, file.type);
+            saveBatchQuestions(extracted);
+        } catch(e) {
+            alert("Failed to process file.");
+            setIsProcessingSmart(false);
+        }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSmartImport = async () => {
     if(!smartInput) return;
     setIsProcessingSmart(true);
     try {
         const extracted = await parseSmartInput(smartInput, 'text', uploadExam);
-        let count = 0;
-        for (const q of extracted) {
-            if(!q.text || !q.options) continue;
-            const newQ: Question = {
-                id: `admin-${Date.now()}-${Math.random()}`,
-                text: q.text,
-                options: q.options,
-                correctIndex: q.correctIndex ?? 0,
-                explanation: q.explanation || '',
-                source: QuestionSource.OFFICIAL,
-                examType: uploadExam,
-                subject: uploadSubject,
-                createdAt: Date.now(),
-                type: QuestionType.MCQ,
-                moderationStatus: 'APPROVED'
-            };
-            await saveAdminQuestion(newQ);
-            count++;
-        }
-        alert(`Imported ${count} questions successfully!`);
-        setSmartInput('');
-        loadInitialData();
+        saveBatchQuestions(extracted);
     } catch(e) {
         alert("Import failed. Check format.");
-    } finally {
         setIsProcessingSmart(false);
     }
+  };
+
+  const saveBatchQuestions = async (extracted: any[]) => {
+    let count = 0;
+    for (const q of extracted) {
+        if(!q.text || !q.options) continue;
+        const newQ: Question = {
+            id: `admin-${Date.now()}-${Math.random()}`,
+            text: q.text,
+            options: q.options,
+            correctIndex: q.correctIndex ?? 0,
+            explanation: q.explanation || '',
+            source: QuestionSource.OFFICIAL,
+            examType: uploadExam,
+            subject: uploadSubject,
+            createdAt: Date.now(),
+            type: QuestionType.MCQ,
+            moderationStatus: 'APPROVED'
+        };
+        await saveAdminQuestion(newQ);
+        count++;
+    }
+    alert(`Imported ${count} questions successfully for ${uploadExam} (${uploadSubject})!`);
+    setSmartInput('');
+    if(fileInputRef.current) fileInputRef.current.value = '';
+    setIsProcessingSmart(false);
+    loadInitialData();
   };
 
   // Nav Items Configuration
@@ -241,6 +285,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     { id: 'payments', icon: '💰', label: 'Pay' },
     { id: 'settings', icon: '🔧', label: 'Config' }
   ];
+
+  const currentSubjects = examConfig[uploadExam] || EXAM_SUBJECTS[uploadExam as ExamType] || [];
 
   return (
     <div className="min-h-screen bg-slate-900 text-white font-mono animate-fade-in fixed inset-0 z-[100] overflow-y-auto">
@@ -432,48 +478,133 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             {activeTab === 'upload' && (
                 <div className="max-w-2xl mx-auto bg-slate-800 p-6 rounded border border-slate-700">
                     <div className="flex gap-4 mb-6 border-b border-slate-700 pb-4">
-                        <button onClick={() => setUploadType('Question')} className={`text-sm font-bold uppercase ${uploadType === 'Question' ? 'text-red-500' : 'text-slate-500'}`}>Question Entry</button>
-                        <button onClick={() => setUploadType('News')} className={`text-sm font-bold uppercase ${uploadType === 'News' ? 'text-red-500' : 'text-slate-500'}`}>News Broadcast</button>
+                        <button onClick={() => setUploadType('Question')} className={`text-sm font-bold uppercase ${uploadType === 'Question' ? 'text-red-500 border-b-2 border-red-500' : 'text-slate-500'}`}>Question Entry</button>
+                        <button onClick={() => setUploadType('News')} className={`text-sm font-bold uppercase ${uploadType === 'News' ? 'text-red-500 border-b-2 border-red-500' : 'text-slate-500'}`}>News Broadcast</button>
                     </div>
 
                     {uploadType === 'Question' ? (
-                        <div className="space-y-4">
-                            <div className="bg-indigo-900/20 p-4 rounded border border-indigo-900/50 mb-4">
-                                <h4 className="text-indigo-400 font-bold text-xs mb-2">SMART IMPORT (AI)</h4>
-                                <textarea 
-                                    value={smartInput}
-                                    onChange={e => setSmartInput(e.target.value)}
-                                    placeholder="Paste raw text here to extract multiple questions..."
-                                    className="w-full bg-slate-900 border border-slate-600 p-2 text-white rounded outline-none h-20 text-xs mb-2"
-                                />
-                                <Button size="sm" onClick={handleSmartImport} isLoading={isProcessingSmart}>Extract & Save</Button>
+                        <div className="space-y-6 animate-fade-in">
+                            {/* Step 1 & 2: Context Selection */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2">1. Select Exam</label>
+                                    <select 
+                                        value={uploadExam} 
+                                        onChange={e => setUploadExam(e.target.value)} 
+                                        className="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg text-white outline-none focus:border-red-500 transition-colors"
+                                    >
+                                        {Object.keys(examConfig).map(e => <option key={e} value={e}>{e}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2">2. Select Subject</label>
+                                    {currentSubjects.length > 0 ? (
+                                        <select 
+                                            value={uploadSubject} 
+                                            onChange={e => setUploadSubject(e.target.value)} 
+                                            className="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg text-white outline-none focus:border-red-500 transition-colors"
+                                        >
+                                            {currentSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    ) : (
+                                        <input 
+                                            placeholder="Subject Name" 
+                                            value={uploadSubject} 
+                                            onChange={e => setUploadSubject(e.target.value)} 
+                                            className="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg text-white outline-none focus:border-red-500 transition-colors" 
+                                        />
+                                    )}
+                                </div>
                             </div>
 
-                            <div className="flex gap-4">
-                                <select value={uploadExam} onChange={e => setUploadExam(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 p-2 text-white rounded outline-none">
-                                    {Object.keys(examConfig).map(e => <option key={e} value={e}>{e}</option>)}
-                                </select>
-                                <input placeholder="Subject" value={uploadSubject} onChange={e => setUploadSubject(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 p-2 text-white rounded outline-none" />
+                            {/* Step 3: Method Selection */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">3. Entry Method</label>
+                                <div className="bg-slate-900 p-1 rounded-lg flex border border-slate-700">
+                                    <button 
+                                        onClick={() => setEntryMode('smart')}
+                                        className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${entryMode === 'smart' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                                    >
+                                        ✨ Smart Import (Syllabus/PDF)
+                                    </button>
+                                    <button 
+                                        onClick={() => setEntryMode('manual')}
+                                        className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${entryMode === 'manual' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                                    >
+                                        ✍️ Manual Entry
+                                    </button>
+                                </div>
                             </div>
-                            <textarea value={qText} onChange={e => setQText(e.target.value)} placeholder="Question Text" className="w-full bg-slate-900 border border-slate-600 p-2 text-white rounded outline-none h-24" />
-                            <div className="grid grid-cols-2 gap-2">
-                                {qOptions.map((opt, i) => (
-                                    <div key={i} className="flex gap-2">
-                                        <input type="radio" name="correct" checked={qCorrect === i} onChange={() => setQCorrect(i)} className="accent-red-500" />
-                                        <input value={opt} onChange={e => {const n=[...qOptions];n[i]=e.target.value;setQOptions(n)}} className="w-full bg-slate-900 border border-slate-600 p-2 text-white rounded outline-none text-xs" placeholder={`Option ${i+1}`} />
+
+                            {/* Step 4: Content */}
+                            {entryMode === 'smart' ? (
+                                <div className="bg-indigo-900/10 p-6 rounded-xl border border-indigo-500/30 border-dashed animate-slide-up">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h4 className="text-indigo-400 font-bold text-xs uppercase">UPLOAD CONTENT</h4>
+                                        <span className="text-[10px] text-indigo-300 bg-indigo-900/50 px-2 py-1 rounded">Text / Image / PDF</span>
                                     </div>
-                                ))}
-                            </div>
-                            <textarea value={qExplanation} onChange={e => setQExplanation(e.target.value)} placeholder="Explanation" className="w-full bg-slate-900 border border-slate-600 p-2 text-white rounded outline-none h-16" />
-                            <Button onClick={handleManualUpload} className="w-full bg-red-600 hover:bg-red-700 text-white border-0">INJECT INTO DATABASE</Button>
+                                    
+                                    <textarea 
+                                        value={smartInput}
+                                        onChange={e => setSmartInput(e.target.value)}
+                                        placeholder="Paste raw text here or upload a file below..."
+                                        className="w-full bg-slate-900 border border-slate-700 p-3 text-white rounded-lg outline-none h-32 text-sm mb-4 focus:border-indigo-500 transition-colors"
+                                    />
+                                    
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <div className="flex-1">
+                                            <input 
+                                                type="file" 
+                                                ref={fileInputRef} 
+                                                accept="image/*,application/pdf"
+                                                className="hidden" 
+                                                onChange={handleFileUpload} 
+                                            />
+                                            <button 
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="w-full px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-lg border border-slate-600 flex items-center justify-center gap-2 transition-colors"
+                                                disabled={isProcessingSmart}
+                                            >
+                                                <span>📁</span> Upload File (Max 25MB)
+                                            </button>
+                                        </div>
+                                        <Button 
+                                            onClick={handleSmartImport} 
+                                            isLoading={isProcessingSmart} 
+                                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 border-0"
+                                        >
+                                            Extract & Save Questions
+                                        </Button>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 mt-2 text-center">
+                                        AI will extract questions and save them to <strong>{uploadExam} &gt; {uploadSubject}</strong>.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4 animate-slide-up bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                    <textarea value={qText} onChange={e => setQText(e.target.value)} placeholder="Question Text" className="w-full bg-slate-900 border border-slate-600 p-3 text-white rounded-lg outline-none h-24 focus:border-red-500" />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {qOptions.map((opt, i) => (
+                                            <div key={i} className="flex gap-2 items-center">
+                                                <input type="radio" name="correct" checked={qCorrect === i} onChange={() => setQCorrect(i)} className="accent-red-500 w-4 h-4" />
+                                                <input value={opt} onChange={e => {const n=[...qOptions];n[i]=e.target.value;setQOptions(n)}} className="w-full bg-slate-900 border border-slate-600 p-2 text-white rounded-lg outline-none text-xs focus:border-red-500" placeholder={`Option ${i+1}`} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <textarea value={qExplanation} onChange={e => setQExplanation(e.target.value)} placeholder="Explanation" className="w-full bg-slate-900 border border-slate-600 p-3 text-white rounded-lg outline-none h-20 focus:border-red-500" />
+                                    <Button onClick={handleManualUpload} className="w-full bg-red-600 hover:bg-red-700 text-white border-0 py-3">
+                                        SAVE QUESTION
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <select value={nCategory} onChange={e => setNCategory(e.target.value)} className="w-full bg-slate-900 border border-slate-600 p-2 text-white rounded outline-none">
+                            <select value={nCategory} onChange={e => setNCategory(e.target.value)} className="w-full bg-slate-900 border border-slate-600 p-3 text-white rounded-lg outline-none">
                                 {NEWS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
-                            <input placeholder="Headline" value={nHeadline} onChange={e => setNHeadline(e.target.value)} className="w-full bg-slate-900 border border-slate-600 p-2 text-white rounded outline-none" />
-                            <textarea value={nSummary} onChange={e => setNSummary(e.target.value)} placeholder="Summary" className="w-full bg-slate-900 border border-slate-600 p-2 text-white rounded outline-none h-32" />
+                            <input placeholder="Headline" value={nHeadline} onChange={e => setNHeadline(e.target.value)} className="w-full bg-slate-900 border border-slate-600 p-3 text-white rounded-lg outline-none" />
+                            <textarea value={nSummary} onChange={e => setNSummary(e.target.value)} placeholder="Summary" className="w-full bg-slate-900 border border-slate-600 p-3 text-white rounded-lg outline-none h-32" />
                             <Button onClick={handleNewsUpload} className="w-full bg-red-600 hover:bg-red-700 border-0">BROADCAST</Button>
                         </div>
                     )}

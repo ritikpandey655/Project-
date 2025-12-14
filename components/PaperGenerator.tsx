@@ -46,9 +46,9 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-        // Validate size (max 10MB for client performance)
-        if (file.size > 10 * 1024 * 1024) {
-            alert("File is too large. Please upload an image/pdf under 10MB.");
+        // Validate size (Increased to 25MB)
+        if (file.size > 25 * 1024 * 1024) {
+            alert("File is too large. Please upload an image/pdf under 25MB.");
             return;
         }
 
@@ -97,12 +97,11 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
             <div className="absolute inset-0 flex items-center justify-center text-3xl animate-bounce">⏳</div>
          </div>
          <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Structuring Your Paper...</h3>
-         <p className="text-slate-500 dark:text-slate-400 text-sm">AI is reading your syllabus & creating questions.</p>
+         <p className="text-slate-500 dark:text-slate-400 text-sm">
+            {syllabusFile ? "Analyzing Syllabus & Extracting Topics..." : "Fetching Exam Pattern & Generating Questions..."}
+         </p>
          {syllabusFile && (
-             <p className="text-xs text-indigo-500 mt-2 font-bold animate-pulse">Analyzing: {syllabusFile.name}</p>
-         )}
-         {config.includeMCQ && mcqCount > 30 && (
-            <p className="text-xs text-amber-500 mt-4 animate-pulse">Large papers may take up to a minute.</p>
+             <p className="text-xs text-indigo-500 mt-2 font-bold animate-pulse">Context: {syllabusFile.name}</p>
          )}
       </div>
     );
@@ -153,25 +152,27 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
             </select>
         </div>
 
-        {/* Syllabus Upload Section - NEW */}
-        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-700">
+        {/* Syllabus Upload Section - Separate & Highlighted */}
+        <div className={`p-5 rounded-xl border-2 border-dashed transition-all ${syllabusFile ? 'bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-800' : 'bg-indigo-50 border-indigo-300 dark:bg-indigo-900/20 dark:border-indigo-700'}`}>
             <div className="flex justify-between items-center mb-2">
-                <label className="block text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase">
-                    📤 Upload Specific Syllabus
+                <label className={`block text-xs font-bold uppercase flex items-center gap-2 ${syllabusFile ? 'text-green-700 dark:text-green-300' : 'text-indigo-700 dark:text-indigo-300'}`}>
+                    <span>{syllabusFile ? '✅ Syllabus Locked' : '📤 Upload Syllabus (Optional)'}</span>
                 </label>
-                <span className="text-[10px] text-slate-500 bg-white dark:bg-slate-800 px-2 py-0.5 rounded">Optional</span>
+                {!syllabusFile && <span className="text-[10px] text-slate-500 bg-white dark:bg-slate-800 px-2 py-0.5 rounded">Max 25MB</span>}
             </div>
             
             {!syllabusFile ? (
                 <div 
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center p-6 cursor-pointer hover:bg-white/50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                    className="flex flex-col items-center justify-center p-4 cursor-pointer hover:bg-white/50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
                 >
-                    <svg className="w-8 h-8 text-indigo-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">Click to upload Syllabus Image/PDF</p>
-                    <p className="text-xs text-slate-500 mt-1">AI will generate questions strictly from this file.</p>
+                    <div className="p-3 bg-white dark:bg-slate-800 rounded-full shadow-sm mb-2">
+                        <svg className="w-6 h-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 text-center">Upload Image/PDF of Syllabus or Chapter</p>
+                    <p className="text-[10px] text-slate-500 mt-1 text-center">AI will strictly generate questions from this file.</p>
                     <input 
                         type="file" 
                         accept="image/*,application/pdf" 
@@ -181,17 +182,18 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
                     />
                 </div>
             ) : (
-                <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded-lg border border-green-200 dark:border-green-800 shadow-sm">
                     <div className="flex items-center gap-3 overflow-hidden">
                         <span className="text-2xl">{syllabusFile.mimeType.includes('pdf') ? '📄' : '🖼️'}</span>
                         <div className="truncate">
                             <p className="text-sm font-bold text-slate-800 dark:text-white truncate max-w-[200px]">{syllabusFile.name}</p>
-                            <p className="text-xs text-green-600 dark:text-green-400 font-bold">Ready for Analysis</p>
+                            <p className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase tracking-wide">AI Target Set</p>
                         </div>
                     </div>
                     <button 
                         onClick={(e) => { e.stopPropagation(); setSyllabusFile(null); if(fileInputRef.current) fileInputRef.current.value=''; }}
                         className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-full transition-colors"
+                        title="Remove Syllabus"
                     >
                         ✕
                     </button>
@@ -252,10 +254,12 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
           <textarea 
             value={seedData}
             onChange={(e) => setSeedData(e.target.value)}
-            placeholder="Paste specific topics, notes, or syllabus keywords here to customize the paper..."
+            placeholder={syllabusFile ? "E.g., Focus on Section 2 of the syllabus..." : "E.g., Optics, Modern History, Organic Chemistry..."}
             className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none h-24 text-sm resize-none"
           />
-          <p className="text-xs text-slate-400 mt-1">AI will prioritize these topics when generating questions.</p>
+          <p className="text-xs text-slate-400 mt-1">
+             {syllabusFile ? "AI will use these hints to filter the uploaded syllabus." : "AI will prioritize these topics during generation."}
+          </p>
         </div>
 
         <Button 
