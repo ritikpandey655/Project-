@@ -1,5 +1,6 @@
 
 import { Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { Capacitor } from "@capacitor/core";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions, getOfficialNews, logSystemError } from "./storageService";
@@ -51,7 +52,12 @@ const checkQuota = () => {
 };
 
 // --- BACKEND CONNECTION SETUP ---
-const BASE_URL = process.env.BACKEND_URL || "";
+let BASE_URL = process.env.BACKEND_URL || "";
+
+// Fix for Capacitor/Mobile: Force absolute URL on native devices
+if (Capacitor.isNativePlatform()) {
+    BASE_URL = "https://pyqverse.vercel.app";
+}
 
 // --- GEMINI CALL HANDLER (SECURE BACKEND ONLY) ---
 const callGeminiBackendRaw = async (params: { model: string, contents: any, config?: any }) => {
@@ -60,30 +66,46 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
   try {
     const endpoint = `${BASE_URL}/api/ai/generate`.replace('//api', '/api'); 
     
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-
-    const contentType = response.headers.get("content-type");
+    // Check if we are using the client-side override key (Admin Panel)
+    // Note: In a real secure app, we wouldn't do this, but it helps for debugging quotas
+    const clientKey = localStorage.getItem('gemini_client_key_override');
+    
     let result;
     
-    if (contentType && contentType.indexOf("application/json") !== -1) {
-        result = await response.json();
+    // 1. Client Side Override (If configured in Admin)
+    if (clientKey) {
+        const { GoogleGenAI } = await import("@google/genai");
+        const ai = new GoogleGenAI({ apiKey: clientKey });
+        const response = await ai.models.generateContent({
+            model: params.model,
+            contents: params.contents,
+            config: params.config
+        });
+        result = { success: true, data: response.text };
     } else {
-        const text = await response.text();
-        console.error("Backend Error Response:", text);
-        logSystemError('API_FAIL', 'Backend returned non-JSON response', { status: response.status, text: text.substring(0, 100) });
-        throw new Error(`Server Error: Backend unavailable.`);
+        // 2. Standard Backend Call
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
+        });
+
+        const contentType = response.headers.get("content-type");
+        
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            result = await response.json();
+        } else {
+            const text = await response.text();
+            console.error("Backend Error Response:", text);
+            logSystemError('API_FAIL', 'Backend returned non-JSON response', { status: response.status, text: text.substring(0, 100) });
+            throw new Error(`Server Error: Backend unavailable.`);
+        }
     }
 
     if (!result.success) {
       const errorMsg = result.error || 'Unknown AI Error';
       
-      if (response.status === 429 || 
-          response.status === 503 || 
-          errorMsg.includes('429') || 
+      if (errorMsg.includes('429') || 
           errorMsg.includes('Quota') ||
           errorMsg.includes('Resource exhausted')) {
           
@@ -103,7 +125,7 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
     if (error.message === "QUOTA_EXCEEDED" || error.message === "QUOTA_COOL_DOWN") throw error;
     console.error("Secure AI Call Failed:", error);
     if (!error.message.includes('Quota')) {
-        logSystemError('ERROR', 'Network/Fetch Error in Gemini Service', { msg: error.message });
+        logSystemError('ERROR', 'Network/Fetch Error in Gemini Service', { msg: error.message, url: BASE_URL });
     }
     throw error;
   }
@@ -112,36 +134,13 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
 // --- GROQ BACKEND CALL ---
 const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
     const apiKey = localStorage.getItem('groq_api_key');
-    const keyToUse = apiKey;
-
+    
     const messages = [
         { role: 'system', content: isJson ? "You are a helpful assistant. Output JSON only." : "You are a helpful assistant." },
         { role: 'user', content: promptText }
     ];
 
-    // 1. Try Direct Client Call if Key exists (Faster)
-    if (keyToUse) {
-        try {
-            const body: any = { 
-                model: 'llama-3.3-70b-versatile',
-                messages: messages,
-                temperature: 0.3
-            };
-            if (isJson) body.response_format = { type: "json_object" };
-
-            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${keyToUse}`, "Content-Type": "application/json" },
-                body: JSON.stringify(body)
-            });
-            const data = await response.json();
-            return { text: data.choices[0].message.content };
-        } catch (e) {
-            // Fallthrough
-        }
-    }
-
-    // 2. Fallback to Backend Proxy
+    // Priority: Try Backend First (Secure/Consistent)
     try {
         const endpoint = `${BASE_URL}/api/ai/groq`.replace('//api', '/api');
         const response = await fetch(endpoint, {
@@ -150,16 +149,41 @@ const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
             body: JSON.stringify({
                 model: 'llama-3.3-70b-versatile',
                 messages: messages,
-                jsonMode: isJson
+                jsonMode: isJson,
+                apiKey: apiKey // Pass user key to backend if they have one set
             })
         });
 
         const result = await response.json();
-        if (!result.success) throw new Error(result.error || "Groq Failed");
+        if (!result.success) throw new Error(result.error || "Groq Backend Failed");
         
         return { text: result.data.choices[0].message.content };
     } catch (e: any) {
-        logSystemError('API_FAIL', 'Groq Call Failed', { msg: e.message });
+        console.warn("Groq Backend Failed, trying client fallback...", e.message);
+        
+        // Fallback: Direct Client Call (Only if key exists)
+        if (apiKey) {
+            try {
+                const body: any = { 
+                    model: 'llama-3.3-70b-versatile',
+                    messages: messages,
+                    temperature: 0.3
+                };
+                if (isJson) body.response_format = { type: "json_object" };
+
+                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json();
+                return { text: data.choices[0].message.content };
+            } catch (clientErr) {
+                // Fallthrough
+            }
+        }
+        
+        logSystemError('API_FAIL', 'Groq Call Failed (Both Backend & Client)', { msg: e.message });
         throw e;
     }
 };
@@ -174,7 +198,7 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
     else if (contents.parts) promptText = contents.parts.map((p: any) => p.text).join('\n');
     else if (Array.isArray(contents)) promptText = contents.map((p: any) => p.parts?.[0]?.text).join('\n');
 
-    // 2. Try Local AI
+    // 1. Try Local AI
     if (preferredProvider === 'local' && !hasImage && isLocalAIReady()) {
         try {
             console.log("⚡ Using Local Device AI");
@@ -186,12 +210,12 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
         }
     }
 
-    // 3. Try Groq
+    // 2. Try Groq
     if (preferredProvider === 'groq' && !hasImage) {
         try {
             const groqResp = await enqueueRequest(() => callGroqBackendRaw(promptText, isJson));
             const text = groqResp.text || (isJson ? "{}" : "");
-            logSystemError('INFO', 'Used Groq (Llama-3)', { mode: 'fast' });
+            logSystemError('INFO', 'Used Groq (Backend)', { mode: 'fast' });
             if (isJson) return JSON.parse(cleanJson(text));
             return text;
         } catch (groqError) {
@@ -199,16 +223,28 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
         }
     }
 
-    // 4. Default: Gemini
-    // Support Gemini 2.5 Flash if selected
+    // 3. Default: Gemini (Cascade: 2.5 Flash -> 1.5 Flash)
     let modelToUse = 'gemini-1.5-flash';
     if (preferredProvider === 'gemini-2.5') {
         modelToUse = 'gemini-2.5-flash';
     }
 
-    const result = await generateWithGemini(contents, isJson, temperature, modelToUse);
-    logSystemError('INFO', `Used ${modelToUse}`, { mode: 'standard' });
-    return result;
+    try {
+        const result = await generateWithGemini(contents, isJson, temperature, modelToUse);
+        logSystemError('INFO', `Used ${modelToUse}`, { mode: 'standard' });
+        return result;
+    } catch (e) {
+        // Auto-Fallback Logic
+        if (modelToUse === 'gemini-2.5-flash') {
+             console.log("🔄 Falling back to Gemini 1.5 Flash");
+             try {
+                 const fallbackResult = await generateWithGemini(contents, isJson, temperature, 'gemini-1.5-flash');
+                 logSystemError('INFO', 'Fallback to Gemini 1.5', { reason: '2.5 failed' });
+                 return fallbackResult;
+             } catch(e2) { throw e2; }
+        }
+        throw e;
+    }
 };
 
 const commonConfig = {
@@ -223,7 +259,7 @@ const commonConfig = {
 const generateWithGemini = async (
     contents: any, 
     isJson: boolean = true, 
-    temperature: number = 0.3,
+    temperature: number = 0.3, 
     model: string = 'gemini-1.5-flash',
     thinkingBudget?: number
 ): Promise<any> => {
