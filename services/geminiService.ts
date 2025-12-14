@@ -5,13 +5,12 @@ import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions, getOfficialNews, logSystemError } from "./storageService";
 import { generateLocalResponse, isLocalAIReady } from "./localAIService";
 
-// --- RATE LIMIT CONFIGURATION (TRAFFIC CONTROLLER) ---
+// --- RATE LIMIT CONFIGURATION ---
 
-const RATE_LIMIT_DELAY = 1500; // Reduced for better responsiveness
+const RATE_LIMIT_DELAY = 1500;
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
 
-// This function ensures requests wait for their turn (Queue System)
 const enqueueRequest = <T>(task: () => Promise<T>): Promise<T> => {
     const nextTask = queuePromise.then(async () => {
         const now = Date.now();
@@ -50,17 +49,17 @@ const checkQuota = () => {
     return true;
 };
 
-// --- BACKEND CONNECTION SETUP ---
+// --- BACKEND CONNECTION SETUP (WEB STANDARD) ---
 const BASE_URL = process.env.BACKEND_URL || "";
 
-// --- GEMINI CALL HANDLER (SECURE BACKEND ONLY) ---
+// --- GEMINI CALL HANDLER (BACKEND ONLY) ---
 const callGeminiBackendRaw = async (params: { model: string, contents: any, config?: any }) => {
   if (!checkQuota()) throw new Error("QUOTA_COOL_DOWN");
 
   try {
     const endpoint = `${BASE_URL}/api/ai/generate`.replace('//api', '/api'); 
     
-    // Check if we are using the client-side override key (Admin Panel)
+    // Check for client-side override key (Admin Panel Feature)
     const clientKey = localStorage.getItem('gemini_client_key_override');
     
     let result;
@@ -102,7 +101,7 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
           errorMsg.includes('Quota') ||
           errorMsg.includes('Resource exhausted')) {
           
-          console.warn("⚠️ Quota Exceeded (429/503). Triggering Cool Down.");
+          console.warn("⚠️ Quota Exceeded (429). Triggering Cool Down.");
           logSystemError('API_FAIL', 'Quota Exceeded (429)', { error: errorMsg });
           isQuotaExhausted = true;
           quotaResetTime = Date.now() + 30000; // 30s Cooldown
@@ -124,8 +123,10 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
   }
 };
 
-// --- GROQ BACKEND CALL ---
+// --- GROQ BACKEND CALL (STRICT BACKEND) ---
 const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
+    // We send the apiKey stored in localStorage if available (Admin feature), 
+    // otherwise the backend uses its environment variable.
     const apiKey = localStorage.getItem('groq_api_key');
     
     const messages = [
@@ -133,9 +134,9 @@ const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
         { role: 'user', content: promptText }
     ];
 
-    // Priority: Try Backend First (Secure/Consistent)
     try {
         const endpoint = `${BASE_URL}/api/ai/groq`.replace('//api', '/api');
+        
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -143,40 +144,18 @@ const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
                 model: 'llama-3.3-70b-versatile',
                 messages: messages,
                 jsonMode: isJson,
-                apiKey: apiKey // Pass user key to backend if they have one set
+                apiKey: apiKey // Optional: Backend will use env var if this is null
             })
         });
 
         const result = await response.json();
         if (!result.success) throw new Error(result.error || "Groq Backend Failed");
         
+        // Structure matches OpenAI/Groq response format
         return { text: result.data.choices[0].message.content };
     } catch (e: any) {
-        console.warn("Groq Backend Failed, trying client fallback...", e.message);
-        
-        // Fallback: Direct Client Call (Only if key exists)
-        if (apiKey) {
-            try {
-                const body: any = { 
-                    model: 'llama-3.3-70b-versatile',
-                    messages: messages,
-                    temperature: 0.3
-                };
-                if (isJson) body.response_format = { type: "json_object" };
-
-                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-                    body: JSON.stringify(body)
-                });
-                const data = await response.json();
-                return { text: data.choices[0].message.content };
-            } catch (clientErr) {
-                // Fallthrough
-            }
-        }
-        
-        logSystemError('API_FAIL', 'Groq Call Failed (Both Backend & Client)', { msg: e.message });
+        console.warn("Groq Backend Call Failed:", e.message);
+        logSystemError('API_FAIL', 'Groq Call Failed', { msg: e.message });
         throw e;
     }
 };
@@ -203,7 +182,7 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
         }
     }
 
-    // 2. Try Groq
+    // 2. Try Groq (Backend Only)
     if (preferredProvider === 'groq' && !hasImage) {
         try {
             const groqResp = await enqueueRequest(() => callGroqBackendRaw(promptText, isJson));
@@ -404,23 +383,18 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
         const filledSections = [];
         for (const [sIdx, sec] of blueprint.sections.entries()) {
             
-            // STRICT GENERATION LOGIC
             let qPromptText = "";
-            let temperature = 0.3; // Default low temp for accuracy
+            let temperature = 0.3; 
 
             if (config.syllabus && config.syllabus.data) {
-                // If syllabus provided: VERY STRICT
                 qPromptText = `
                     CRITICAL: You are an examiner for ${exam}. 
                     Generate ${sec.questionCount} ${sec.type} questions STRICTLY based ONLY on the provided syllabus document/image.
-                    Do not include questions from topics not present in the document.
-                    If the document has limited content, create deep conceptual questions from that specific content only.
                     Ensure 100% accuracy. No false generation.
                     Return valid JSON Array.
                 `;
-                temperature = 0.2; // Lower temp for strictness
+                temperature = 0.2;
             } else {
-                // No syllabus: Standard Exam Generation
                 qPromptText = `
                     Generate ${sec.questionCount} ${sec.type} questions for ${exam} (${subject}).
                     Follow the standard ${exam} exam pattern and difficulty level (${difficulty}).
@@ -534,23 +508,19 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
   } catch (e) { return []; }
 };
 
-// New Function for pure syllabus extraction
 export const extractSyllabusFromImage = async (base64: string, mimeType: string): Promise<string> => {
     try {
         const prompt = `
             Extract ALL text from this syllabus/document. 
             Format nicely with Markdown (Headings, Bullet points).
-            Do NOT generate fake content. Only transcribe what is visible.
             Return plain Markdown text.
         `;
         const contents = { parts: [
             { inlineData: { mimeType: mimeType, data: base64 } },
             { text: prompt }
         ]};
-        
-        // Use text response, not JSON
         const response = await generateWithSwitcher(contents, false, 0.1); 
-        return response; // Text string
+        return response; 
     } catch(e) {
         console.error("Extraction Failed", e);
         return "";
