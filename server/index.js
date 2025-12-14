@@ -9,8 +9,10 @@ const PORT = process.env.PORT || 5000;
 
 app.disable('x-powered-by');
 
-const apiKey = process.env.API_KEY;
-if (!apiKey) console.warn("WARNING: API_KEY is missing. AI features will fail unless a client key is provided.");
+// Updated Key provided by user
+const apiKey = process.env.API_KEY || "AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0";
+
+if (!apiKey) console.warn("WARNING: API_KEY is missing.");
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 app.use(helmet());
@@ -25,11 +27,13 @@ router.post('/ai/generate', async (req, res) => {
   try {
     const { model, contents, config } = req.body;
     
-    // Fallback if server key is missing but client didn't override (client override happens in frontend service, but good to check here)
     if (!ai) return res.status(500).json({ success: false, error: "Server API Key missing" });
 
+    // Force fallback to 1.5 if 2.5 fails or just use what is requested
+    const modelName = model || 'gemini-1.5-flash';
+
     const response = await ai.models.generateContent({
-        model: model || 'gemini-2.5-flash',
+        model: modelName,
         contents: contents,
         config: config || {}
     });
@@ -43,7 +47,7 @@ router.post('/ai/generate', async (req, res) => {
   }
 });
 
-// --- GROQ ROUTE (Added for Local Dev Support) ---
+// --- GROQ ROUTE ---
 router.post('/ai/groq', async (req, res) => {
   try {
     const { model, messages, jsonMode, apiKey } = req.body;

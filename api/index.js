@@ -9,12 +9,9 @@ const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-const apiKey = process.env.API_KEY;
-// Initialize strictly with API Key from Env. 
-// Do not allow dummy key in production to fail fast if config is missing.
-if (!apiKey) {
-  console.error("CRITICAL ERROR: API_KEY is missing in server environment.");
-}
+// Updated Key provided by user
+const apiKey = process.env.API_KEY || "AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0";
+
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 app.use(helmet({
@@ -38,7 +35,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Rate Limit (Basic IP limiting to protect Vercel function limits)
+// Rate Limit (Basic IP limiting)
 const requestCounts = new Map();
 const rateLimiter = (req, res, next) => {
   let forwarded = req.headers['x-forwarded-for'];
@@ -66,15 +63,10 @@ router.post('/ai/generate', async (req, res) => {
     
     const { model, contents, config } = req.body;
     
-    // LOGGING FOR VERCEL
     console.log(`[AI Request] Model: ${model}, Timestamp: ${new Date().toISOString()}`);
 
-    // Ensure content format is compatible with Node SDK
-    // The SDK expects 'contents' to be the payload directly if it's text or array of parts.
-    // If client sends { parts: [...] }, that object is valid content.
-    
     const response = await ai.models.generateContent({
-        model: model || 'gemini-2.5-flash',
+        model: model || 'gemini-1.5-flash',
         contents: contents,
         config: config || {}
     });
@@ -84,21 +76,17 @@ router.post('/ai/generate', async (req, res) => {
   } catch (error) {
     console.error("AI Proxy Error:", error.message);
     
-    // Improved Error Detection for Google Limits
     const msg = error.message?.toLowerCase() || "";
     const isQuotaError = error.status === 429 || 
                          msg.includes('429') || 
                          msg.includes('quota') || 
-                         msg.includes('resource exhausted') || 
-                         msg.includes('too many requests');
+                         msg.includes('resource exhausted');
 
     if (isQuotaError) {
-        console.warn("⚠️ Google Quota Exceeded (429) detected.");
         return res.status(429).json({ success: false, error: "Quota exceeded (429). Please wait." });
     }
     
-    // Service Unavailable (Overloaded)
-    if (error.status === 503 || msg.includes('503') || msg.includes('overloaded')) {
+    if (error.status === 503 || msg.includes('503')) {
          return res.status(503).json({ success: false, error: "Model Overloaded (503). Retrying..." });
     }
     
@@ -113,7 +101,6 @@ router.post('/ai/groq', async (req, res) => {
     
     console.log(`[Groq Request] Model: ${model}, Timestamp: ${new Date().toISOString()}`);
 
-    // Prioritize key sent from client (Admin Settings), fallback to env
     const keyToUse = apiKey || process.env.GROQ_API_KEY;
     
     if (!keyToUse) return res.status(503).json({ success: false, error: "Groq Config Error: No API Key found." });
@@ -129,7 +116,6 @@ router.post('/ai/groq', async (req, res) => {
 
     if (!response.ok) {
         const errText = await response.text();
-        console.error("Groq Upstream Error:", response.status, errText);
         if(response.status === 429) return res.status(429).json({ success: false, error: "Groq Quota Exceeded" });
         throw new Error(`Upstream ${response.status}: ${errText}`);
     }
