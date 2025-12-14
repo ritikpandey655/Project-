@@ -829,6 +829,86 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     </table>
                 </div>
             )}
+
+            {activeTab === 'settings' && (
+                <div className="max-w-2xl mx-auto space-y-8 animate-fade-in">
+                    
+                    <div className="bg-slate-800 p-6 rounded border border-slate-700">
+                        <h3 className="text-xl font-bold text-white mb-4">AI Engine Configuration</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-400 uppercase mb-3">Select AI Provider</label>
+                                <div className="grid grid-cols-1 gap-3">
+                                    {[
+                                        { id: 'gemini', name: 'Gemini 1.5 Flash', desc: 'Default. Stable, reliable, and high quota.' },
+                                        { id: 'groq', name: 'Llama 3 on Groq', desc: 'Ultra-fast. Requires API Key.' },
+                                        { id: 'deep-research', name: 'Gemini 3.0 Pro (Thinking)', desc: 'High intelligence for complex reasoning. Slower.' },
+                                        { id: 'local', name: 'Browser Native AI', desc: 'Runs offline on user device (Experimental).' },
+                                    ].map(provider => (
+                                        <div 
+                                            key={provider.id}
+                                            onClick={() => setSelectedProvider(provider.id)}
+                                            className={`p-4 rounded-lg border cursor-pointer transition-all flex items-center justify-between ${
+                                                selectedProvider === provider.id 
+                                                ? 'bg-indigo-900/30 border-indigo-500 ring-1 ring-indigo-500' 
+                                                : 'bg-slate-900 border-slate-700 hover:border-slate-500'
+                                            }`}
+                                        >
+                                            <div>
+                                                <div className={`font-bold ${selectedProvider === provider.id ? 'text-indigo-400' : 'text-white'}`}>{provider.name}</div>
+                                                <div className="text-xs text-slate-500">{provider.desc}</div>
+                                            </div>
+                                            {selectedProvider === provider.id && <span className="text-indigo-500">●</span>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {selectedProvider === 'groq' && (
+                                <div className="animate-slide-up">
+                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Groq API Key</label>
+                                    <input 
+                                        type="password" 
+                                        value={groqKey} 
+                                        onChange={(e) => setGroqKey(e.target.value)} 
+                                        placeholder="gsk_..." 
+                                        className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white outline-none focus:border-indigo-500 font-mono text-sm" 
+                                    />
+                                    <p className="text-[10px] text-slate-500 mt-1">Key is stored locally in your browser.</p>
+                                </div>
+                            )}
+
+                            <div className="pt-4">
+                                <Button onClick={() => {
+                                    localStorage.setItem('selected_ai_provider', selectedProvider);
+                                    localStorage.setItem('groq_api_key', groqKey);
+                                    alert('AI Settings Saved!');
+                                }} className="w-full bg-indigo-600 hover:bg-indigo-700 border-0">
+                                    Save Configuration
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-800 p-6 rounded border border-slate-700">
+                        <h3 className="text-lg font-bold text-white mb-2">System Maintenance</h3>
+                        <div className="flex gap-4">
+                            <button 
+                                onClick={async () => {
+                                    if(confirm("Clear all cached exam configs?")) {
+                                        localStorage.removeItem('cached_exam_config');
+                                        window.location.reload();
+                                    }
+                                }} 
+                                className="text-orange-400 border border-orange-900/50 bg-orange-900/10 px-4 py-2 rounded text-sm hover:bg-orange-900/30 transition-colors"
+                            >
+                                Clear Caches
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
          </div>
       </div>
     </div>
