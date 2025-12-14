@@ -8,7 +8,7 @@ import {
   getTransactions, saveExamConfig, getExamConfig, getSystemLogs, SystemLog, clearSystemLogs,
   saveSyllabus, logSystemError
 } from '../services/storageService';
-import { parseSmartInput, generateSingleQuestion, extractSyllabusFromImage } from '../services/geminiService';
+import { parseSmartInput, generateSingleQuestion, extractSyllabusFromImage, resetAIQuota } from '../services/geminiService';
 import { EXAM_SUBJECTS, NEWS_CATEGORIES } from '../constants';
 
 interface AdminDashboardProps {
@@ -67,7 +67,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   // Settings State
   const [groqKey, setGroqKey] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState('gemini');
+  const [selectedProvider, setSelectedProvider] = useState('gemini-2.5');
 
   // New Exam States
   const [newExamName, setNewExamName] = useState('');
@@ -78,7 +78,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     runDiagnostics();
     // Load Settings
     setGroqKey(localStorage.getItem('groq_api_key') || '');
-    setSelectedProvider(localStorage.getItem('selected_ai_provider') || 'gemini');
+    setSelectedProvider(localStorage.getItem('selected_ai_provider') || 'gemini-2.5');
   }, []);
 
   // Auto-select subject when exam changes
@@ -168,6 +168,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const refreshLogs = async () => {
       const recent = await getSystemLogs();
       setLogs(recent);
+  };
+
+  const handleResetAI = () => {
+      resetAIQuota();
+      alert("AI Quota Lock has been reset. You can try generating again.");
+      runDiagnostics();
   };
 
   // Calculations
@@ -476,7 +482,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             <h3 className={`text-2xl font-bold ${backendStatus === 'Online' ? 'text-green-400' : 'text-red-400'}`}>{backendStatus}</h3>
                         </div>
                         <div className={`p-6 rounded border ${aiStatus === 'Operational' ? 'bg-green-900/20 border-green-500/50' : 'bg-red-900/20 border-red-500/50'}`}>
-                            <p className="text-xs text-slate-400 uppercase mb-2">AI Engine Status</p>
+                            <div className="flex justify-between items-start">
+                                <p className="text-xs text-slate-400 uppercase mb-2">AI Engine Status</p>
+                                <button onClick={handleResetAI} className="text-[10px] bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">Reset Quota</button>
+                            </div>
                             <h3 className={`text-2xl font-bold ${aiStatus === 'Operational' ? 'text-green-400' : 'text-red-400'}`}>{aiStatus}</h3>
                         </div>
                         <div className="p-6 rounded border bg-slate-800 border-slate-700">
@@ -841,10 +850,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 <label className="block text-sm font-bold text-slate-400 uppercase mb-3">Select AI Provider</label>
                                 <div className="grid grid-cols-1 gap-3">
                                     {[
-                                        { id: 'gemini', name: 'Gemini 1.5 Flash', desc: 'Default. Stable, reliable, and high quota.' },
                                         { id: 'gemini-2.5', name: 'Gemini 2.5 Flash', desc: 'Newer, smarter model (Preview).' },
+                                        { id: 'gemini', name: 'Gemini 1.5 Flash', desc: 'Stable, reliable, and high quota.' },
                                         { id: 'groq', name: 'Llama 3 on Groq', desc: 'Ultra-fast. Requires API Key.' },
-                                        { id: 'deep-research', name: 'Gemini 3.0 Pro (Thinking)', desc: 'High intelligence for complex reasoning. Slower.' },
                                         { id: 'local', name: 'Browser Native AI', desc: 'Runs offline on user device (Experimental).' },
                                     ].map(provider => (
                                         <div 

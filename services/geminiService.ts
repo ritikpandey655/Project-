@@ -7,7 +7,7 @@ import { generateLocalResponse, isLocalAIReady } from "./localAIService";
 
 // --- RATE LIMIT CONFIGURATION (TRAFFIC CONTROLLER) ---
 
-const RATE_LIMIT_DELAY = 2000; // Reduced delay for 1.5 Flash (higher rate limits)
+const RATE_LIMIT_DELAY = 1500; // Reduced for better responsiveness
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
 
@@ -32,6 +32,12 @@ const enqueueRequest = <T>(task: () => Promise<T>): Promise<T> => {
 
 let isQuotaExhausted = false;
 let quotaResetTime = 0;
+
+export const resetAIQuota = () => {
+    isQuotaExhausted = false;
+    quotaResetTime = 0;
+    console.log("🔄 AI Quota Lock Reset Manually");
+};
 
 const checkQuota = () => {
     if (isQuotaExhausted) {
@@ -113,6 +119,7 @@ const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
         { role: 'user', content: promptText }
     ];
 
+    // 1. Try Direct Client Call if Key exists (Faster)
     if (keyToUse) {
         try {
             const body: any = { 
@@ -134,6 +141,7 @@ const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
         }
     }
 
+    // 2. Fallback to Backend Proxy
     try {
         const endpoint = `${BASE_URL}/api/ai/groq`.replace('//api', '/api');
         const response = await fetch(endpoint, {
@@ -191,29 +199,8 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
         }
     }
 
-    // 4. Try Deep Research
-    if (preferredProvider === 'deep-research') {
-        try {
-            let deepContents = contents;
-            if (typeof contents === 'string') {
-                deepContents = contents + "\n\nIMPORTANT: Return the result in valid JSON format inside a markdown code block.";
-            } else if (contents.parts) {
-                deepContents = {
-                    ...contents,
-                    parts: contents.parts.map((p: any) => 
-                        p.text ? { ...p, text: p.text + "\n\nIMPORTANT: Return valid JSON inside markdown." } : p
-                    )
-                };
-            }
-            const result = await generateWithGemini(deepContents, isJson, temperature, 'gemini-3-pro-preview', 10000);
-            logSystemError('INFO', 'Used Deep Research (Gemini 3.0)', { budget: 10000 });
-            return result;
-        } catch (deepError) {
-            console.warn("⚠️ Deep Research Failed, falling back to Standard Gemini...", deepError);
-        }
-    }
-
-    // 5. Default: Gemini 1.5 or 2.5
+    // 4. Default: Gemini
+    // Support Gemini 2.5 Flash if selected
     let modelToUse = 'gemini-1.5-flash';
     if (preferredProvider === 'gemini-2.5') {
         modelToUse = 'gemini-2.5-flash';
@@ -240,7 +227,6 @@ const generateWithGemini = async (
     model: string = 'gemini-1.5-flash',
     thinkingBudget?: number
 ): Promise<any> => {
-    if (!checkQuota()) throw new Error("QUOTA_EXCEEDED");
     
     const config: any = { 
         ...commonConfig, 
