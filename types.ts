@@ -59,6 +59,14 @@ export interface Question {
   moderationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
+export interface SyllabusItem {
+  id: string;
+  examType: string;
+  subject: string;
+  content: string; // Markdown or Text
+  updatedAt: number;
+}
+
 export interface NewsItem {
   id: string;
   headline: string;

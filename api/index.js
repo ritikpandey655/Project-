@@ -10,10 +10,12 @@ app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
 const apiKey = process.env.API_KEY;
+// Initialize strictly with API Key from Env. 
+// Do not allow dummy key in production to fail fast if config is missing.
 if (!apiKey) {
-  console.error("CRITICAL ERROR: API_KEY is missing.");
+  console.error("CRITICAL ERROR: API_KEY is missing in server environment.");
 }
-const ai = new GoogleGenAI({ apiKey: apiKey || "DUMMY_KEY" });
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 app.use(helmet({
   contentSecurityPolicy: false,
@@ -60,20 +62,24 @@ router.use('/ai', rateLimiter);
 
 router.post('/ai/generate', async (req, res) => {
   try {
-    if (!process.env.API_KEY) return res.status(500).json({ success: false, error: "API Key missing." });
+    if (!ai) return res.status(500).json({ success: false, error: "Server Configuration Error: API Key missing." });
+    
     const { model, contents, config } = req.body;
     
     // LOGGING FOR VERCEL
     console.log(`[AI Request] Model: ${model}, Timestamp: ${new Date().toISOString()}`);
-    // console.log(`[AI Request Config] ${JSON.stringify(config || {})}`);
 
+    // Ensure content format is compatible with Node SDK
+    // The SDK expects 'contents' to be the payload directly if it's text or array of parts.
+    // If client sends { parts: [...] }, that object is valid content.
+    
     const response = await ai.models.generateContent({
         model: model || 'gemini-2.5-flash',
         contents: contents,
         config: config || {}
     });
     
-    if (!response || !response.text) throw new Error("Empty response");
+    if (!response || !response.text) throw new Error("Empty response from Gemini");
     res.json({ success: true, data: response.text });
   } catch (error) {
     console.error("AI Proxy Error:", error.message);

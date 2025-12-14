@@ -1,4 +1,4 @@
-import { Type, HarmCategory, HarmBlockThreshold, GoogleGenAI } from "@google/genai";
+import { Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions, getOfficialNews, logSystemError } from "./storageService";
@@ -46,7 +46,7 @@ const checkQuota = () => {
 // --- BACKEND CONNECTION SETUP ---
 const BASE_URL = process.env.BACKEND_URL || "";
 
-// --- GEMINI CALL HANDLER (SECURE BACKEND MODE) ---
+// --- GEMINI CALL HANDLER (SECURE BACKEND ONLY) ---
 const callGeminiBackendRaw = async (params: { model: string, contents: any, config?: any }) => {
   if (!checkQuota()) throw new Error("QUOTA_COOL_DOWN");
 
@@ -512,6 +512,29 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
         return Array.isArray(parsed) ? parsed : (parsed.questions || []);
     }
   } catch (e) { return []; }
+};
+
+// New Function for pure syllabus extraction
+export const extractSyllabusFromImage = async (base64: string, mimeType: string): Promise<string> => {
+    try {
+        const prompt = `
+            Extract ALL text from this syllabus/document. 
+            Format nicely with Markdown (Headings, Bullet points).
+            Do NOT generate fake content. Only transcribe what is visible.
+            Return plain Markdown text.
+        `;
+        const contents = { parts: [
+            { inlineData: { mimeType: mimeType, data: base64 } },
+            { text: prompt }
+        ]};
+        
+        // Use text response, not JSON
+        const response = await generateWithSwitcher(contents, false, 0.1); 
+        return response; // Text string
+    } catch(e) {
+        console.error("Extraction Failed", e);
+        return "";
+    }
 };
 
 export const generateNews = async (exam: string, month?: string, year?: number, category?: string): Promise<NewsItem[]> => {

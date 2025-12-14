@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './Button';
-import { Question, QuestionSource, NewsItem, User, Transaction, QuestionType, ExamType } from '../types';
+import { Question, QuestionSource, NewsItem, User, Transaction, QuestionType, ExamType, SyllabusItem } from '../types';
 import { 
   getGlobalStats, saveAdminQuestion, getAdminQuestions, 
   saveAdminNews, getAllUsers, removeUser, toggleUserPro, deleteGlobalQuestion,
-  getTransactions, saveExamConfig, getExamConfig, getSystemLogs, SystemLog, clearSystemLogs
+  getTransactions, saveExamConfig, getExamConfig, getSystemLogs, SystemLog, clearSystemLogs,
+  saveSyllabus, logSystemError
 } from '../services/storageService';
-import { parseSmartInput, generateSingleQuestion } from '../services/geminiService';
+import { parseSmartInput, generateSingleQuestion, extractSyllabusFromImage } from '../services/geminiService';
 import { EXAM_SUBJECTS, NEWS_CATEGORIES } from '../constants';
 
 interface AdminDashboardProps {
@@ -18,11 +19,12 @@ interface AdminDashboardProps {
 const STORAGE_QUOTA_LIMIT = 20000; 
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'monitor' | 'users' | 'exams' | 'upload' | 'questions' | 'payments' | 'settings'>('monitor');
+  const [activeTab, setActiveTab] = useState<'monitor' | 'users' | 'exams' | 'upload' | 'syllabus' | 'questions' | 'payments' | 'settings'>('monitor');
   
   // System Health States
   const [backendStatus, setBackendStatus] = useState<'Checking' | 'Online' | 'Offline' | 'Error'>('Checking');
   const [aiStatus, setAiStatus] = useState<'Checking' | 'Operational' | 'Degraded' | 'Failed'>('Checking');
+  const [latency, setLatency] = useState<number>(0);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [isTestRunning, setIsTestRunning] = useState(false);
   
@@ -55,6 +57,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [isProcessingSmart, setIsProcessingSmart] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Syllabus States
+  const [syllabusExam, setSyllabusExam] = useState<string>('UPSC');
+  const [syllabusSubject, setSyllabusSubject] = useState('');
+  const [syllabusText, setSyllabusText] = useState('');
+  const [isSyllabusReviewMode, setIsSyllabusReviewMode] = useState(false);
+  const [isProcessingSyllabus, setIsProcessingSyllabus] = useState(false);
+  const syllabusFileRef = useRef<HTMLInputElement>(null);
+
   // Settings State
   const [groqKey, setGroqKey] = useState('');
   const [selectedProvider, setSelectedProvider] = useState('gemini');
@@ -81,34 +91,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       }
   }, [uploadExam, examConfig]);
 
+  useEffect(() => {
+      const subjects = examConfig[syllabusExam] || EXAM_SUBJECTS[syllabusExam as ExamType] || [];
+      if (subjects.length > 0 && !subjects.includes(syllabusSubject)) {
+          setSyllabusSubject(subjects[0]);
+      } else if (subjects.length === 0 && !syllabusSubject) {
+          setSyllabusSubject('General');
+      }
+  }, [syllabusExam, examConfig]);
+
   const runDiagnostics = async () => {
     setIsTestRunning(true);
     setBackendStatus('Checking');
     setAiStatus('Checking');
 
-    // 1. Check Backend Health
+    const start = performance.now();
+
+    // 1. Check Backend Health & Latency
     try {
-        const res = await fetch(`/api/health?t=${Date.now()}`);
-        if (res.ok) setBackendStatus('Online');
-        else setBackendStatus('Offline');
+        const res = await fetch(`/api/health?t=${Date.now()}`); // Cache busting
+        if (res.ok) {
+            setBackendStatus('Online');
+            const end = performance.now();
+            setLatency(Math.round(end - start));
+        } else {
+            setBackendStatus('Offline');
+            setLatency(0);
+        }
     } catch(e) {
         setBackendStatus('Offline');
+        setLatency(0);
     }
 
     // 2. Test AI Generation
     try {
-        const testQ = await generateSingleQuestion('UPSC', 'History', 'Simple Test');
-        if (testQ) setAiStatus('Operational');
-        else setAiStatus('Degraded');
-    } catch(e) {
+        const testQ = await generateSingleQuestion('UPSC', 'General', 'Diagnostic Test');
+        if (testQ && testQ.text) {
+            setAiStatus('Operational');
+        } else {
+            setAiStatus('Degraded');
+            await logSystemError('API_FAIL', 'Diagnostic: AI returned empty response', { details: 'No text/question field' });
+        }
+    } catch(e: any) {
         setAiStatus('Failed');
+        // Explicitly log this failure so it appears in the table
+        console.error("Diagnostic Error:", e);
+        await logSystemError('ERROR', 'Diagnostic Test Failed', { error: e.message || e.toString() });
     }
 
-    // 3. Fetch Logs
-    const recentLogs = await getSystemLogs();
-    setLogs(recentLogs);
-    
-    setIsTestRunning(false);
+    // 3. Fetch Logs with Delay (Ensure async write completes)
+    setTimeout(async () => {
+        const recentLogs = await getSystemLogs();
+        setLogs(recentLogs);
+        setIsTestRunning(false);
+    }, 2000); 
   };
 
   const loadInitialData = async () => {
@@ -125,6 +161,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
     const exams = await getExamConfig();
     setExamConfig(exams || EXAM_SUBJECTS);
+    
+    refreshLogs();
+  };
+
+  const refreshLogs = async () => {
+      const recent = await getSystemLogs();
+      setLogs(recent);
   };
 
   // Calculations
@@ -169,12 +212,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     alert("News Broadcasted!");
     setNHeadline('');
     setNSummary('');
-  };
-
-  const saveSettings = () => {
-    localStorage.setItem('groq_api_key', groqKey);
-    localStorage.setItem('selected_ai_provider', selectedProvider);
-    alert("Settings Saved locally.");
   };
 
   const handleManualUpload = async () => {
@@ -224,6 +261,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     reader.onload = async (ev) => {
         const base64 = (ev.target?.result as string).split(',')[1];
         setIsProcessingSmart(true);
+        
+        // Auto Delete logic: clear input immediately after read
+        if(fileInputRef.current) fileInputRef.current.value = '';
+
         try {
             // Pass mimeType to service
             const extracted = await parseSmartInput(base64, 'image', uploadExam, file.type);
@@ -270,15 +311,66 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     }
     alert(`Imported ${count} questions successfully for ${uploadExam} (${uploadSubject})!`);
     setSmartInput('');
-    if(fileInputRef.current) fileInputRef.current.value = '';
     setIsProcessingSmart(false);
     loadInitialData();
+  };
+
+  // --- SYLLABUS HANDLERS ---
+
+  const handleSyllabusFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) {
+        alert("File too large. Please upload < 25MB.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        const base64 = (ev.target?.result as string).split(',')[1];
+        setIsProcessingSyllabus(true);
+        
+        // Auto Delete: Clear file input immediately
+        if (syllabusFileRef.current) syllabusFileRef.current.value = '';
+
+        try {
+            const extractedText = await extractSyllabusFromImage(base64, file.type);
+            setSyllabusText(extractedText);
+            setIsSyllabusReviewMode(true); // Switch to Review Mode
+        } catch(e) {
+            alert("Failed to extract syllabus.");
+        } finally {
+            setIsProcessingSyllabus(false);
+        }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveSyllabus = async () => {
+      if (!syllabusText.trim()) return alert("Syllabus content is empty.");
+      
+      try {
+          const item: SyllabusItem = {
+              id: `syl-${Date.now()}`,
+              examType: syllabusExam,
+              subject: syllabusSubject,
+              content: syllabusText,
+              updatedAt: Date.now()
+          };
+          await saveSyllabus(item);
+          alert(`Syllabus saved for ${syllabusExam} - ${syllabusSubject}!`);
+          setIsSyllabusReviewMode(false);
+          setSyllabusText('');
+      } catch(e) {
+          alert("Failed to save syllabus.");
+      }
   };
 
   // Nav Items Configuration
   const navItems = [
     { id: 'monitor', icon: '📡', label: 'Monitor' },
     { id: 'upload', icon: '📤', label: 'Upload' },
+    { id: 'syllabus', icon: '📜', label: 'Syllabus' },
     { id: 'users', icon: '👥', label: 'Users' },
     { id: 'questions', icon: '📚', label: 'Bank' },
     { id: 'exams', icon: '⚙️', label: 'Exams' },
@@ -287,6 +379,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   ];
 
   const currentSubjects = examConfig[uploadExam] || EXAM_SUBJECTS[uploadExam as ExamType] || [];
+  const currentSyllabusSubjects = examConfig[syllabusExam] || EXAM_SUBJECTS[syllabusExam as ExamType] || [];
 
   return (
     <div className="min-h-screen bg-slate-900 text-white font-mono animate-fade-in fixed inset-0 z-[100] overflow-y-auto">
@@ -294,14 +387,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       {/* Top Bar (Separate PWA Feel) */}
       <div className="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-20 flex justify-between items-center shadow-lg pt-safe">
          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
-            <h1 className="text-lg sm:text-xl font-bold tracking-widest uppercase text-slate-200">PYQverse <span className="text-red-500">ADMIN</span></h1>
+            <div className={`w-3 h-3 rounded-full ${backendStatus === 'Online' ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
+            <h1 className="text-lg sm:text-xl font-bold tracking-widest uppercase text-slate-200">
+                PYQverse <span className="text-red-500">ADMIN</span>
+            </h1>
+            {/* Ping Indicator in Header */}
+            {latency > 0 && (
+                <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${latency < 200 ? 'bg-green-900/50 text-green-400' : 'bg-orange-900/50 text-orange-400'}`}>
+                    {latency}ms
+                </span>
+            )}
          </div>
          <div className="flex gap-2">
-            <button onClick={runDiagnostics} className={`px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded border border-slate-600 text-[10px] font-bold uppercase ${isTestRunning ? 'animate-pulse' : ''}`}>
-                {isTestRunning ? 'Test...' : 'Test'}
+            <button 
+                onClick={loadInitialData} 
+                className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded border border-slate-600 text-[10px] font-bold uppercase flex items-center gap-1 active:scale-95 transition-transform"
+            >
+                <span>🔄</span> Refresh Data
             </button>
-            <button onClick={onBack} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-[10px] font-bold uppercase">
+            <button 
+                onClick={runDiagnostics} 
+                className={`px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded border border-slate-600 text-[10px] font-bold uppercase ${isTestRunning ? 'animate-pulse cursor-wait' : 'active:scale-95 transition-transform'}`}
+                disabled={isTestRunning}
+            >
+                {isTestRunning ? 'Testing...' : 'Test AI'}
+            </button>
+            <button 
+                onClick={onBack} 
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-[10px] font-bold uppercase active:scale-95 transition-transform"
+            >
                 Exit
             </button>
          </div>
@@ -353,7 +467,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     {/* Status Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className={`p-6 rounded border ${backendStatus === 'Online' ? 'bg-green-900/20 border-green-500/50' : 'bg-red-900/20 border-red-500/50'}`}>
-                            <p className="text-xs text-slate-400 uppercase mb-2">Backend Connection</p>
+                            <div className="flex justify-between items-start">
+                                <p className="text-xs text-slate-400 uppercase mb-2">Backend Connection</p>
+                                <span className={`text-[10px] px-2 py-1 rounded text-white font-mono ${latency > 0 ? 'bg-black/30' : 'hidden'}`}>
+                                    {latency}ms
+                                </span>
+                            </div>
                             <h3 className={`text-2xl font-bold ${backendStatus === 'Online' ? 'text-green-400' : 'text-red-400'}`}>{backendStatus}</h3>
                         </div>
                         <div className={`p-6 rounded border ${aiStatus === 'Operational' ? 'bg-green-900/20 border-green-500/50' : 'bg-red-900/20 border-red-500/50'}`}>
@@ -369,7 +488,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     {/* Logs Table */}
                     <div className="bg-slate-800 border border-slate-700 rounded overflow-hidden">
                         <div className="p-4 border-b border-slate-700 flex justify-between items-center">
-                            <h3 className="font-bold text-white">System Logs & Errors</h3>
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-white">System Logs & Errors</h3>
+                                <button 
+                                    onClick={refreshLogs} 
+                                    className="text-xs bg-slate-700 border border-slate-600 px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-slate-600 transition-colors"
+                                >
+                                    ↻ Refresh Logs
+                                </button>
+                            </div>
                             <button onClick={clearSystemLogs} className="text-xs text-slate-400 hover:text-white underline">Clear Logs</button>
                         </div>
                         <div className="max-h-[400px] overflow-y-auto">
@@ -387,7 +514,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                     ) : (
                                         logs.map((log) => (
                                             <tr key={log.id} className="hover:bg-slate-700/50">
-                                                <td className="p-3 text-slate-400">{new Date(log.timestamp).toLocaleTimeString()}</td>
+                                                <td className="p-3 text-slate-400 font-mono whitespace-nowrap">{new Date(log.timestamp).toLocaleTimeString()}</td>
                                                 <td className="p-3">
                                                     <span className={`px-2 py-1 rounded font-bold ${
                                                         log.type === 'API_FAIL' ? 'bg-orange-900/50 text-orange-400' :
@@ -427,13 +554,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
             {activeTab === 'users' && (
                 <div className="space-y-4">
-                    <input 
-                      type="text" 
-                      placeholder="Search users..." 
-                      value={userSearch}
-                      onChange={handleUserSearch}
-                      className="w-full p-3 rounded bg-slate-800 border border-slate-700 text-white outline-none focus:border-red-500"
-                    />
+                    <div className="flex gap-2">
+                        <input 
+                        type="text" 
+                        placeholder="Search users..." 
+                        value={userSearch}
+                        onChange={handleUserSearch}
+                        className="flex-1 p-3 rounded bg-slate-800 border border-slate-700 text-white outline-none focus:border-red-500"
+                        />
+                        <Button onClick={loadInitialData} className="bg-slate-700 hover:bg-slate-600 border-0">Refresh</Button>
+                    </div>
                     <div className="bg-slate-800 rounded border border-slate-700 overflow-hidden">
                         <table className="w-full text-left">
                             <thead className="bg-slate-900 text-slate-400 text-xs uppercase">
@@ -474,7 +604,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     </div>
                 </div>
             )}
-
+            
             {activeTab === 'upload' && (
                 <div className="max-w-2xl mx-auto bg-slate-800 p-6 rounded border border-slate-700">
                     <div className="flex gap-4 mb-6 border-b border-slate-700 pb-4">
@@ -484,7 +614,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
                     {uploadType === 'Question' ? (
                         <div className="space-y-6 animate-fade-in">
-                            {/* Step 1 & 2: Context Selection */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-400 uppercase mb-2">1. Select Exam</label>
@@ -517,7 +646,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 </div>
                             </div>
 
-                            {/* Step 3: Method Selection */}
                             <div>
                                 <label className="block text-xs font-bold text-slate-400 uppercase mb-2">3. Entry Method</label>
                                 <div className="bg-slate-900 p-1 rounded-lg flex border border-slate-700">
@@ -536,14 +664,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 </div>
                             </div>
 
-                            {/* Step 4: Content */}
                             {entryMode === 'smart' ? (
                                 <div className="bg-indigo-900/10 p-6 rounded-xl border border-indigo-500/30 border-dashed animate-slide-up">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h4 className="text-indigo-400 font-bold text-xs uppercase">UPLOAD CONTENT</h4>
-                                        <span className="text-[10px] text-indigo-300 bg-indigo-900/50 px-2 py-1 rounded">Text / Image / PDF</span>
-                                    </div>
-                                    
                                     <textarea 
                                         value={smartInput}
                                         onChange={e => setSmartInput(e.target.value)}
@@ -573,12 +695,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                             isLoading={isProcessingSmart} 
                                             className="flex-1 bg-indigo-600 hover:bg-indigo-700 border-0"
                                         >
-                                            Extract & Save Questions
+                                            Extract & Save
                                         </Button>
                                     </div>
-                                    <p className="text-[10px] text-slate-500 mt-2 text-center">
-                                        AI will extract questions and save them to <strong>{uploadExam} &gt; {uploadSubject}</strong>.
-                                    </p>
                                 </div>
                             ) : (
                                 <div className="space-y-4 animate-slide-up bg-slate-800/50 p-4 rounded-xl border border-slate-700">
@@ -611,124 +730,105 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 </div>
             )}
 
+            {activeTab === 'syllabus' && (
+                <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+                    <div className="flex justify-between items-center bg-slate-800 p-4 rounded border border-slate-700">
+                        <h3 className="font-bold text-white text-lg">Manage Exam Syllabus</h3>
+                        {isSyllabusReviewMode && (
+                            <button onClick={() => setIsSyllabusReviewMode(false)} className="text-sm text-slate-400 hover:text-white underline">← Back to Upload</button>
+                        )}
+                    </div>
+                    {!isSyllabusReviewMode ? (
+                        <div className="bg-slate-800 p-6 rounded border border-slate-700 space-y-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <select value={syllabusExam} onChange={e => setSyllabusExam(e.target.value)} className="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg text-white outline-none">
+                                    {Object.keys(examConfig).map(e => <option key={e} value={e}>{e}</option>)}
+                                </select>
+                                <input placeholder="Subject" value={syllabusSubject} onChange={e => setSyllabusSubject(e.target.value)} className="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg text-white outline-none" />
+                            </div>
+                            <div className="bg-indigo-900/10 p-6 rounded-xl border border-indigo-500/30 border-dashed">
+                                <textarea value={syllabusText} onChange={e => setSyllabusText(e.target.value)} placeholder="Syllabus text..." className="w-full bg-slate-900 border border-slate-700 p-3 text-white rounded-lg outline-none h-40 text-sm mb-4" />
+                                <div className="flex gap-3">
+                                    <input type="file" ref={syllabusFileRef} className="hidden" onChange={handleSyllabusFile} />
+                                    <button onClick={() => syllabusFileRef.current?.click()} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-lg border border-slate-600" disabled={isProcessingSyllabus}>Extract from File</button>
+                                    <Button onClick={() => setIsSyllabusReviewMode(true)} disabled={!syllabusText} className="flex-1 bg-indigo-600 border-0">{isProcessingSyllabus ? 'Processing...' : 'Review & Save'}</Button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-slate-800 p-6 rounded border border-slate-700">
+                            <Button onClick={handleSaveSyllabus} className="bg-green-600 hover:bg-green-700 border-0 mb-4">Confirm & Save</Button>
+                            <textarea value={syllabusText} onChange={e => setSyllabusText(e.target.value)} className="w-full bg-slate-900 border border-slate-600 p-4 text-white rounded-lg outline-none h-[60vh]" />
+                        </div>
+                    )}
+                </div>
+            )}
+
             {activeTab === 'questions' && (
              <div className="space-y-4">
-                 <input 
-                  type="text" 
-                  placeholder="Search questions..." 
-                  value={questionSearch}
-                  onChange={(e) => {
-                      setQuestionSearch(e.target.value);
-                      setFilteredQuestions(questions.filter(q => q.text.toLowerCase().includes(e.target.value.toLowerCase())));
-                  }}
-                  className="w-full p-3 rounded bg-slate-800 border border-slate-700 text-white outline-none"
-                />
+                 <div className="flex gap-2">
+                    <input type="text" placeholder="Search questions..." value={questionSearch} onChange={(e) => {setQuestionSearch(e.target.value); setFilteredQuestions(questions.filter(q => q.text.toLowerCase().includes(e.target.value.toLowerCase())));}} className="flex-1 p-3 rounded bg-slate-800 border border-slate-700 text-white outline-none" />
+                    <Button onClick={loadInitialData} className="bg-slate-700 border-0">Refresh</Button>
+                 </div>
                 <div className="space-y-2">
                     {filteredQuestions.slice(0, 50).map(q => (
-                        <div key={q.id} className="p-3 rounded bg-slate-800 border border-slate-700 flex justify-between gap-4">
-                            <div>
-                                <span className="text-[10px] bg-slate-700 text-slate-300 px-1 rounded mr-2">{q.examType}</span>
-                                <span className="text-sm font-medium">{q.text}</span>
+                        <div key={q.id} className="bg-slate-800 p-3 rounded border border-slate-700 flex justify-between items-center">
+                            <div className="truncate flex-1">
+                                <span className="text-xs bg-slate-700 px-2 py-1 rounded mr-2">{q.examType}</span>
+                                <span className="text-sm text-slate-300">{q.text}</span>
                             </div>
-                            <button onClick={async () => {
-                                if(confirm('Delete?')) {
-                                    await deleteGlobalQuestion(q.id);
-                                    setQuestions(prev => prev.filter(item => item.id !== q.id));
-                                    setFilteredQuestions(prev => prev.filter(item => item.id !== q.id));
-                                }
-                            }} className="text-red-500 text-xs whitespace-nowrap">Delete</button>
+                            <button onClick={() => { if(confirm('Delete?')) { deleteGlobalQuestion(q.id); setQuestions(questions.filter(x => x.id !== q.id)); setFilteredQuestions(filteredQuestions.filter(x => x.id !== q.id)); } }} className="text-red-500 hover:text-white ml-4">×</button>
                         </div>
                     ))}
                 </div>
              </div>
             )}
 
+            {activeTab === 'exams' && (
+                <div className="max-w-2xl mx-auto space-y-6">
+                    <div className="bg-slate-800 p-6 rounded border border-slate-700">
+                        <h3 className="font-bold text-white mb-4">Add New Exam Category</h3>
+                        <div className="space-y-4">
+                            <input value={newExamName} onChange={e => setNewExamName(e.target.value)} placeholder="Exam Name (e.g. CAT)" className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white outline-none" />
+                            <input value={newExamSubjects} onChange={e => setNewExamSubjects(e.target.value)} placeholder="Subjects (comma separated)" className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white outline-none" />
+                            <Button onClick={handleAddExam} className="w-full bg-green-600 border-0">Add Exam</Button>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        {Object.keys(examConfig).map(exam => (
+                            <div key={exam} className="bg-slate-800 p-4 rounded border border-slate-700">
+                                <h4 className="font-bold text-white">{exam}</h4>
+                                <p className="text-xs text-slate-400 mt-1">{examConfig[exam].join(', ')}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {activeTab === 'payments' && (
-                <div className="overflow-x-auto bg-slate-800 rounded border border-slate-700">
+                <div className="bg-slate-800 rounded border border-slate-700 overflow-hidden">
                     <table className="w-full text-left">
                         <thead className="bg-slate-900 text-slate-400 text-xs uppercase">
                             <tr>
                                 <th className="p-3">User</th>
                                 <th className="p-3">Amount</th>
                                 <th className="p-3">Status</th>
+                                <th className="p-3">Date</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700 text-sm">
-                            {transactions.map(t => (
-                                <tr key={t.id}>
-                                    <td className="p-3 text-slate-300">{t.userName} <br/><span className="text-[10px] text-slate-500">{t.planId}</span></td>
-                                    <td className="p-3 font-bold text-white">₹{t.amount}</td>
-                                    <td className="p-3"><span className={`text-xs px-2 py-1 rounded ${t.status === 'SUCCESS' ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>{t.status}</span></td>
+                            {transactions.map(tx => (
+                                <tr key={tx.id}>
+                                    <td className="p-3">{tx.userName}</td>
+                                    <td className="p-3">₹{tx.amount}</td>
+                                    <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${tx.status === 'SUCCESS' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>{tx.status}</span></td>
+                                    <td className="p-3 text-slate-500">{new Date(tx.date).toLocaleDateString()}</td>
                                 </tr>
                             ))}
-                            {transactions.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-slate-500">No transactions found.</td></tr>}
                         </tbody>
                     </table>
                 </div>
             )}
-
-            {activeTab === 'exams' && (
-             <div className="space-y-6">
-                 <div className="bg-slate-800 p-4 rounded border border-slate-700">
-                    <h3 className="font-bold mb-3 text-white">Add New Exam</h3>
-                    <div className="grid grid-cols-1 gap-3 mb-3">
-                        <input type="text" placeholder="Exam Name (e.g. CAT 2025)" value={newExamName} onChange={e => setNewExamName(e.target.value)} className="p-2 rounded bg-slate-900 border border-slate-600 text-white" />
-                        <input type="text" placeholder="Subjects (comma separated)" value={newExamSubjects} onChange={e => setNewExamSubjects(e.target.value)} className="p-2 rounded bg-slate-900 border border-slate-600 text-white" />
-                    </div>
-                    <Button size="sm" onClick={handleAddExam}>Add to Configuration</Button>
-                 </div>
-
-                 <div className="space-y-2">
-                    <h3 className="font-bold text-white">Active Exams</h3>
-                    {Object.entries(examConfig).map(([exam, subjects]) => (
-                        <div key={exam} className="p-3 rounded bg-slate-800 border border-slate-700 flex justify-between items-center">
-                            <div>
-                                <p className="font-bold text-slate-200">{exam}</p>
-                                <p className="text-xs text-slate-500">{(subjects as string[]).join(', ')}</p>
-                            </div>
-                            <button onClick={() => {
-                                const newConf = { ...examConfig };
-                                delete newConf[exam];
-                                setExamConfig(newConf);
-                                saveExamConfig(newConf);
-                            }} className="text-red-500 text-xs hover:underline">Remove</button>
-                        </div>
-                    ))}
-                 </div>
-             </div>
-            )}
-
-            {activeTab === 'settings' && (
-                <div className="max-w-2xl mx-auto space-y-6">
-                    <div className="bg-slate-800 p-6 rounded border border-slate-700">
-                        <h3 className="text-lg font-bold text-white mb-4">AI Configuration</h3>
-                        <div className="grid grid-cols-4 gap-2 mb-4">
-                            {['gemini', 'deep-research', 'groq', 'local'].map(p => (
-                                <button
-                                    key={p}
-                                    onClick={() => setSelectedProvider(p)}
-                                    className={`p-2 rounded text-xs font-bold uppercase border ${
-                                        selectedProvider === p ? 'bg-red-500 border-red-500 text-white' : 'bg-slate-900 border-slate-600 text-slate-400'
-                                    }`}
-                                >
-                                    {p}
-                                </button>
-                            ))}
-                        </div>
-                        {selectedProvider === 'groq' && (
-                            <input 
-                                type="password" 
-                                value={groqKey}
-                                onChange={(e) => setGroqKey(e.target.value)}
-                                placeholder="Groq API Key"
-                                className="w-full bg-slate-900 border border-slate-600 p-2 text-white rounded outline-none"
-                            />
-                        )}
-                        <Button onClick={saveSettings} className="mt-4 w-full bg-slate-700 hover:bg-slate-600 text-white border-0">UPDATE CONFIG</Button>
-                    </div>
-                </div>
-            )}
-
          </div>
       </div>
     </div>

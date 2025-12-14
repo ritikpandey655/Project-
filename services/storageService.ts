@@ -1,11 +1,10 @@
 
-
 import { db } from "../src/firebaseConfig";
 import { 
   collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, 
   query, where, limit, addDoc, orderBy 
 } from "firebase/firestore";
-import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction } from '../types';
+import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction, SyllabusItem } from '../types';
 import { ExamType } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
 
@@ -219,6 +218,27 @@ export const updateAdminQuestionStatus = async (id: string, status: string): Pro
     await updateDoc(doc(db, "global_questions", id), { moderationStatus: status });
   } catch (e) {
     console.error("Error updating question status:", e);
+  }
+};
+
+// --- ADMIN / SYLLABUS ---
+
+export const saveSyllabus = async (data: SyllabusItem): Promise<void> => {
+  try {
+    await setDoc(doc(db, "syllabus", `${data.examType}_${data.subject}`), data);
+  } catch (e) {
+    console.error("Error saving syllabus:", e);
+    throw e;
+  }
+};
+
+export const getSyllabus = async (exam: string, subject: string): Promise<SyllabusItem | null> => {
+  try {
+    const docSnap = await getDoc(doc(db, "syllabus", `${exam}_${subject}`));
+    if (docSnap.exists()) return docSnap.data() as SyllabusItem;
+    return null;
+  } catch (e) {
+    return null;
   }
 };
 
