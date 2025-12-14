@@ -44,20 +44,21 @@ const checkQuota = () => {
 };
 
 // --- BACKEND CONNECTION SETUP ---
-// If running on web, use relative path '/api' (handled by Vite/Vercel proxy)
-// If running on Android/iOS, use the full URL from environment variables
+// If running on web (dev), BASE_URL is empty to use the proxy in vite.config.ts
+// If running on Android/iOS/Prod, process.env.BACKEND_URL will be populated
 const BASE_URL = process.env.BACKEND_URL || "";
 
 // --- GEMINI CALL HANDLER (SECURE BACKEND MODE) ---
 const callGeminiBackendRaw = async (params: { model: string, contents: any, config?: any }) => {
   if (!checkQuota()) throw new Error("QUOTA_COOL_DOWN");
 
-  // Note: We are now strictly using the backend to keep API Keys secure.
-  // The 'process.env.BACKEND_URL' must be set in vite.config.ts to your deployed Vercel URL.
+  // Note: We are using the Node.js backend (server/index.js)
   
   try {
-    const endpoint = `${BASE_URL}/api/ai/generate`;
-    // console.log("Calling Secure Backend:", endpoint); // Debug log
+    // Correctly construct URL: If BASE_URL is empty (dev), it becomes "/api/ai/generate" which hits the proxy
+    const endpoint = `${BASE_URL}/api/ai/generate`.replace('//api', '/api'); 
+    
+    // console.log("Calling Node Backend:", endpoint); 
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -71,8 +72,10 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
     if (contentType && contentType.indexOf("application/json") !== -1) {
         result = await response.json();
     } else {
-        // If html/text returns, it's likely a 404 or 500 from the hosting provider
-        throw new Error(`Server Error: Backend unavailable at ${endpoint}`);
+        // If html/text returns, it's likely a 404 or 500
+        const text = await response.text();
+        console.error("Backend Error Response:", text);
+        throw new Error(`Server Error: Backend unavailable. Make sure 'node server/index.js' is running.`);
     }
 
     if (!result.success) {
@@ -138,7 +141,7 @@ const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
 
     // Default: Use Secure Backend Proxy
     try {
-        const endpoint = `${BASE_URL}/api/ai/groq`;
+        const endpoint = `${BASE_URL}/api/ai/groq`.replace('//api', '/api');
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

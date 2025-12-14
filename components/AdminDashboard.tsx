@@ -17,11 +17,15 @@ interface AdminDashboardProps {
   onBack: () => void;
 }
 
+// Soft limit for Free Tier safety (Firestore writes/storage)
+const STORAGE_QUOTA_LIMIT = 20000; 
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'exams' | 'upload' | 'questions' | 'payments' | 'settings'>('dashboard');
   
   // System Health States
-  const [backendStatus, setBackendStatus] = useState<'Checking' | 'Online' | 'Offline' | 'Error'>('Checking');
+  const [backendStatus, setBackendStatus] = useState<'Checking' | 'Connected' | 'Disconnected' | 'Error'>('Checking');
+  const [serverType, setServerType] = useState<'Node/Python' | 'Client-Side'>('Client-Side');
   const [ping, setPing] = useState<number>(0);
   
   // Data States
@@ -69,9 +73,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setGroqKey(localStorage.getItem('groq_api_key') || '');
     setSelectedProvider(localStorage.getItem('selected_ai_provider') || 'gemini');
 
-    // Real-time Health Check Loop (Every 2 seconds)
+    // Real-time Health Check Loop (Every 5 seconds)
     checkHealth(); // Immediate check
-    const healthInterval = setInterval(checkHealth, 2000);
+    const healthInterval = setInterval(checkHealth, 5000);
     return () => clearInterval(healthInterval);
   }, []);
 
@@ -82,13 +86,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         const res = await fetch(`/api/health?t=${start}`);
         if (res.ok) {
             const latency = Date.now() - start;
-            setBackendStatus('Online');
+            setBackendStatus('Connected');
+            setServerType('Node/Python'); // If /api/health responds, backend is active
             setPing(latency);
         } else {
             setBackendStatus('Error');
+            setServerType('Client-Side');
         }
     } catch(e) {
-        setBackendStatus('Offline');
+        setBackendStatus('Disconnected');
+        setServerType('Client-Side');
     }
   };
 
@@ -232,33 +239,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       alert("AI Settings Saved!");
   };
 
+  // Calculations for Storage
+  const totalUploads = questions.length;
+  const usagePercentage = Math.min((totalUploads / STORAGE_QUOTA_LIMIT) * 100, 100);
+  const remainingUploads = Math.max(STORAGE_QUOTA_LIMIT - totalUploads, 0);
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white p-4 sm:p-6 animate-fade-in">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
          <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:scale-105 transition-transform">
+            <button onClick={onBack} className="p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:scale-110 transition-transform">
                 ⬅️
             </button>
             <div>
                 <h1 className="text-2xl font-bold font-display">Admin Console</h1>
-                <div className="flex items-center gap-3 text-xs font-mono mt-1">
+                <div className="flex flex-wrap items-center gap-3 text-xs font-mono mt-1">
+                    {/* Connection Status */}
                     <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border ${
-                        backendStatus === 'Online' 
+                        backendStatus === 'Connected' 
                         ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400' 
-                        : backendStatus === 'Offline'
-                        ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400'
-                        : 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-400'
+                        : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400'
                     }`}>
                         <span className={`w-2 h-2 rounded-full ${
-                            backendStatus === 'Online' ? 'bg-green-500 animate-pulse' : 
-                            backendStatus === 'Offline' ? 'bg-red-500' : 'bg-yellow-500'
+                            backendStatus === 'Connected' ? 'bg-green-500 animate-pulse' : 'bg-red-500'
                         }`}></span>
                         <span className="font-bold">{backendStatus.toUpperCase()}</span>
                     </div>
                     
-                    {backendStatus === 'Online' && (
+                    {/* Server Type */}
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+                        <span>🖥️</span>
+                        <span className="font-bold">{serverType}</span>
+                    </div>
+
+                    {backendStatus === 'Connected' && (
                         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
                             <span>📡</span>
                             <span className="font-bold">{ping}ms</span>
@@ -272,23 +288,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
          </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats & Storage Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+         {/* User Count */}
          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
             <p className="text-xs text-slate-500 uppercase font-bold">Total Users</p>
             <p className="text-2xl font-bold">{users.length}</p>
          </div>
-         <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-            <p className="text-xs text-slate-500 uppercase font-bold">Pro Users</p>
-            <p className="text-2xl font-bold text-brand-purple">{users.filter(u => u.isPro).length}</p>
-         </div>
-         <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-            <p className="text-xs text-slate-500 uppercase font-bold">Question Bank</p>
-            <p className="text-2xl font-bold text-indigo-600">{questions.length}</p>
-         </div>
+         
+         {/* Revenue */}
          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
             <p className="text-xs text-slate-500 uppercase font-bold">Revenue</p>
             <p className="text-2xl font-bold text-green-600">₹{transactions.reduce((acc, t) => acc + (t.status === 'SUCCESS' ? t.amount : 0), 0)}</p>
+         </div>
+
+         {/* Question Bank Count */}
+         <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+            <p className="text-xs text-slate-500 uppercase font-bold">Live Questions</p>
+            <p className="text-2xl font-bold text-indigo-600">{questions.length}</p>
+         </div>
+
+         {/* STORAGE METER (New) */}
+         <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 relative overflow-hidden">
+            <div className="flex justify-between items-end mb-1">
+                <p className="text-xs text-slate-500 uppercase font-bold">Storage Quota</p>
+                <p className={`text-xs font-bold ${usagePercentage > 90 ? 'text-red-500' : 'text-green-500'}`}>
+                    {remainingUploads} Left
+                </p>
+            </div>
+            <p className="text-xl font-bold text-slate-800 dark:text-white mb-2">
+                {totalUploads} <span className="text-sm text-slate-400 font-normal">/ {STORAGE_QUOTA_LIMIT}</span>
+            </p>
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                <div 
+                    className={`h-full rounded-full transition-all duration-500 ${
+                        usagePercentage > 90 ? 'bg-red-500' : 
+                        usagePercentage > 75 ? 'bg-orange-500' : 'bg-blue-500'
+                    }`} 
+                    style={{ width: `${usagePercentage}%` }}
+                ></div>
+            </div>
          </div>
       </div>
 
@@ -314,9 +354,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
          
          {activeTab === 'dashboard' && (
              <div className="flex flex-col items-center justify-center h-full text-center py-10">
-                <span className="text-6xl mb-4">🚀</span>
+                <div className="relative mb-4">
+                    <span className="text-6xl">🚀</span>
+                    <span className="absolute -bottom-2 -right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border-2 border-white dark:border-slate-800">
+                        ONLINE
+                    </span>
+                </div>
                 <h2 className="text-2xl font-bold">Welcome, Admin!</h2>
-                <p className="text-slate-500 mb-6">Manage your entire exam universe from here.</p>
+                <p className="text-slate-500 mb-6">System is running on <strong>{serverType}</strong> mode.</p>
                 <div className="flex gap-4">
                     <Button onClick={() => setActiveTab('upload')}>Add Content</Button>
                     <Button variant="secondary" onClick={() => setActiveTab('users')}>Manage Users</Button>
