@@ -204,6 +204,10 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
         try {
             const groqResp = await enqueueRequest(() => callGroqBackendRaw(promptText, isJson));
             const text = groqResp.text || (isJson ? "{}" : "");
+            
+            // Log Success to Admin Dashboard
+            logSystemError('INFO', 'Used Groq (Llama-3)', { mode: 'fast' });
+            
             if (isJson) return JSON.parse(cleanJson(text));
             return text;
         } catch (groqError) {
@@ -231,7 +235,12 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
             }
 
             // Using gemini-3-pro-preview with 10000 token budget for deep thinking
-            return await generateWithGemini(deepContents, isJson, temperature, 'gemini-3-pro-preview', 10000);
+            const result = await generateWithGemini(deepContents, isJson, temperature, 'gemini-3-pro-preview', 10000);
+            
+            // Log Success
+            logSystemError('INFO', 'Used Deep Research (Gemini 3.0)', { budget: 10000 });
+            
+            return result;
         } catch (deepError) {
             console.warn("⚠️ Deep Research Failed, falling back to Standard Gemini...", deepError);
             // Fallback proceeds to step 5
@@ -239,7 +248,12 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
     }
 
     // 5. Default / Fallback to Gemini 2.5 Flash
-    return generateWithGemini(contents, isJson, temperature);
+    const result = await generateWithGemini(contents, isJson, temperature);
+    
+    // Log Success
+    logSystemError('INFO', 'Used Gemini 2.5 Flash', { mode: 'standard' });
+    
+    return result;
 };
 
 const commonConfig = {

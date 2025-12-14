@@ -1,4 +1,5 @@
 
+
 import { db } from "../src/firebaseConfig";
 import { 
   collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, 
@@ -28,7 +29,7 @@ export interface SystemLog {
   timestamp: number;
 }
 
-export const logSystemError = async (type: 'ERROR' | 'API_FAIL', message: string, details?: any) => {
+export const logSystemError = async (type: 'ERROR' | 'API_FAIL' | 'INFO', message: string, details?: any) => {
   try {
     // Fire and forget log
     addDoc(collection(db, "system_logs"), {

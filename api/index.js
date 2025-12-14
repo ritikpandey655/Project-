@@ -63,6 +63,10 @@ router.post('/ai/generate', async (req, res) => {
     if (!process.env.API_KEY) return res.status(500).json({ success: false, error: "API Key missing." });
     const { model, contents, config } = req.body;
     
+    // LOGGING FOR VERCEL
+    console.log(`[AI Request] Model: ${model}, Timestamp: ${new Date().toISOString()}`);
+    // console.log(`[AI Request Config] ${JSON.stringify(config || {})}`);
+
     const response = await ai.models.generateContent({
         model: model || 'gemini-2.5-flash',
         contents: contents,
@@ -101,6 +105,8 @@ router.post('/ai/groq', async (req, res) => {
   try {
     const { model, messages, jsonMode, apiKey } = req.body;
     
+    console.log(`[Groq Request] Model: ${model}, Timestamp: ${new Date().toISOString()}`);
+
     // Prioritize key sent from client (Admin Settings), fallback to env
     const keyToUse = apiKey || process.env.GROQ_API_KEY;
     

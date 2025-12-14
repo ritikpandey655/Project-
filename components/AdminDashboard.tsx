@@ -345,7 +345,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                                 <td className="p-3">
                                                     <span className={`px-2 py-1 rounded font-bold ${
                                                         log.type === 'API_FAIL' ? 'bg-orange-900/50 text-orange-400' :
-                                                        log.type === 'ERROR' ? 'bg-red-900/50 text-red-400' : 'bg-slate-700 text-slate-300'
+                                                        log.type === 'ERROR' ? 'bg-red-900/50 text-red-400' : 
+                                                        log.type === 'INFO' ? 'bg-blue-900/50 text-blue-400' : 'bg-slate-700 text-slate-300'
                                                     }`}>
                                                         {log.type}
                                                     </span>
