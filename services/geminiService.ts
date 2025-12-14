@@ -1,6 +1,5 @@
 
 import { Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
-import { Capacitor } from "@capacitor/core";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions, getOfficialNews, logSystemError } from "./storageService";
@@ -52,12 +51,7 @@ const checkQuota = () => {
 };
 
 // --- BACKEND CONNECTION SETUP ---
-let BASE_URL = process.env.BACKEND_URL || "";
-
-// Fix for Capacitor/Mobile: Force absolute URL on native devices
-if (Capacitor.isNativePlatform()) {
-    BASE_URL = "https://pyqverse.vercel.app";
-}
+const BASE_URL = process.env.BACKEND_URL || "";
 
 // --- GEMINI CALL HANDLER (SECURE BACKEND ONLY) ---
 const callGeminiBackendRaw = async (params: { model: string, contents: any, config?: any }) => {
@@ -67,7 +61,6 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
     const endpoint = `${BASE_URL}/api/ai/generate`.replace('//api', '/api'); 
     
     // Check if we are using the client-side override key (Admin Panel)
-    // Note: In a real secure app, we wouldn't do this, but it helps for debugging quotas
     const clientKey = localStorage.getItem('gemini_client_key_override');
     
     let result;
