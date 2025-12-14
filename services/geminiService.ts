@@ -1,9 +1,8 @@
 
-import { Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
-import { getOfficialQuestions, getOfficialNews, logSystemError } from "./storageService";
-import { generateLocalResponse, isLocalAIReady } from "./localAIService";
+import { getOfficialQuestions, logSystemError } from "./storageService";
 
 // --- RATE LIMIT CONFIGURATION ---
 
@@ -49,7 +48,7 @@ const checkQuota = () => {
     return true;
 };
 
-// --- BACKEND CONNECTION SETUP (WEB STANDARD) ---
+// --- BACKEND CONNECTION SETUP ---
 const BASE_URL = process.env.BACKEND_URL || "";
 
 // --- GEMINI CALL HANDLER (BACKEND ONLY) ---
@@ -59,56 +58,29 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
   try {
     const endpoint = `${BASE_URL}/api/ai/generate`.replace('//api', '/api'); 
     
-    // Check for client-side override key (Admin Panel Feature)
-    const clientKey = localStorage.getItem('gemini_client_key_override');
-    
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+    });
+
+    const contentType = response.headers.get("content-type");
     let result;
     
-    // 1. Client Side Override (If configured in Admin)
-    if (clientKey) {
-        const { GoogleGenAI } = await import("@google/genai");
-        const ai = new GoogleGenAI({ apiKey: clientKey });
-        const response = await ai.models.generateContent({
-            model: params.model,
-            contents: params.contents,
-            config: params.config
-        });
-        result = { success: true, data: response.text };
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+        result = await response.json();
     } else {
-        // 2. Standard Backend Call
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params),
-        });
-
-        const contentType = response.headers.get("content-type");
-        
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-            result = await response.json();
-        } else {
-            const text = await response.text();
-            console.error("Backend Error Response:", text);
-            logSystemError('API_FAIL', 'Backend returned non-JSON response', { status: response.status, text: text.substring(0, 100) });
-            throw new Error(`Server Error: Backend unavailable.`);
-        }
+        throw new Error(`Server Error: Backend unavailable.`);
     }
 
     if (!result.success) {
       const errorMsg = result.error || 'Unknown AI Error';
-      
-      if (errorMsg.includes('429') || 
-          errorMsg.includes('Quota') ||
-          errorMsg.includes('Resource exhausted')) {
-          
-          console.warn("⚠️ Quota Exceeded (429). Triggering Cool Down.");
-          logSystemError('API_FAIL', 'Quota Exceeded (429)', { error: errorMsg });
+      if (errorMsg.includes('429') || errorMsg.includes('Quota')) {
+          console.warn("⚠️ Quota Exceeded. Cooldown Triggered.");
           isQuotaExhausted = true;
-          quotaResetTime = Date.now() + 30000; // 30s Cooldown
+          quotaResetTime = Date.now() + 30000; 
           throw new Error("QUOTA_EXCEEDED");
       }
-      
-      logSystemError('API_FAIL', 'AI Generation Failed', { error: errorMsg });
       throw new Error(errorMsg);
     }
     
@@ -116,105 +88,20 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
   } catch (error: any) {
     if (error.message === "QUOTA_EXCEEDED" || error.message === "QUOTA_COOL_DOWN") throw error;
     console.error("Secure AI Call Failed:", error);
-    if (!error.message.includes('Quota')) {
-        logSystemError('ERROR', 'Network/Fetch Error in Gemini Service', { msg: error.message, url: BASE_URL });
-    }
     throw error;
   }
 };
 
-// --- GROQ BACKEND CALL (STRICT BACKEND) ---
-const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
-    // We send the apiKey stored in localStorage if available (Admin feature), 
-    // otherwise the backend uses its environment variable.
-    const apiKey = localStorage.getItem('groq_api_key');
-    
-    const messages = [
-        { role: 'system', content: isJson ? "You are a helpful assistant. Output JSON only." : "You are a helpful assistant." },
-        { role: 'user', content: promptText }
-    ];
-
-    try {
-        const endpoint = `${BASE_URL}/api/ai/groq`.replace('//api', '/api');
-        
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
-                messages: messages,
-                jsonMode: isJson,
-                apiKey: apiKey // Optional: Backend will use env var if this is null
-            })
-        });
-
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error || "Groq Backend Failed");
-        
-        // Structure matches OpenAI/Groq response format
-        return { text: result.data.choices[0].message.content };
-    } catch (e: any) {
-        console.warn("Groq Backend Call Failed:", e.message);
-        logSystemError('API_FAIL', 'Groq Call Failed', { msg: e.message });
-        throw e;
-    }
-};
-
-// --- MASTER CONTROLLER (SWITCHER) ---
+// --- MASTER CONTROLLER ---
 const generateWithSwitcher = async (contents: any, isJson: boolean = true, temperature: number = 0.3): Promise<any> => {
-    const preferredProvider = localStorage.getItem('selected_ai_provider') || 'gemini';
-    const hasImage = typeof contents === 'object' && contents.parts && contents.parts.some((p: any) => p.inlineData);
-
-    let promptText = "";
-    if (typeof contents === 'string') promptText = contents;
-    else if (contents.parts) promptText = contents.parts.map((p: any) => p.text).join('\n');
-    else if (Array.isArray(contents)) promptText = contents.map((p: any) => p.parts?.[0]?.text).join('\n');
-
-    // 1. Try Local AI
-    if (preferredProvider === 'local' && !hasImage && isLocalAIReady()) {
-        try {
-            console.log("⚡ Using Local Device AI");
-            const localResp = await generateLocalResponse(promptText, isJson);
-            if (isJson) return JSON.parse(cleanJson(localResp));
-            return localResp;
-        } catch (e) {
-            console.warn("Local AI failed, falling back to Cloud", e);
-        }
-    }
-
-    // 2. Try Groq (Backend Only)
-    if (preferredProvider === 'groq' && !hasImage) {
-        try {
-            const groqResp = await enqueueRequest(() => callGroqBackendRaw(promptText, isJson));
-            const text = groqResp.text || (isJson ? "{}" : "");
-            logSystemError('INFO', 'Used Groq (Backend)', { mode: 'fast' });
-            if (isJson) return JSON.parse(cleanJson(text));
-            return text;
-        } catch (groqError) {
-            console.warn("⚠️ Groq Failed, falling back to Gemini...", groqError);
-        }
-    }
-
-    // 3. Default: Gemini (Cascade: 2.5 Flash -> 1.5 Flash)
-    let modelToUse = 'gemini-1.5-flash';
-    if (preferredProvider === 'gemini-2.5') {
-        modelToUse = 'gemini-2.5-flash';
-    }
+    // Force stable model
+    const modelToUse = 'gemini-1.5-flash';
 
     try {
         const result = await generateWithGemini(contents, isJson, temperature, modelToUse);
-        logSystemError('INFO', `Used ${modelToUse}`, { mode: 'standard' });
         return result;
     } catch (e) {
-        // Auto-Fallback Logic
-        if (modelToUse === 'gemini-2.5-flash') {
-             console.log("🔄 Falling back to Gemini 1.5 Flash");
-             try {
-                 const fallbackResult = await generateWithGemini(contents, isJson, temperature, 'gemini-1.5-flash');
-                 logSystemError('INFO', 'Fallback to Gemini 1.5', { reason: '2.5 failed' });
-                 return fallbackResult;
-             } catch(e2) { throw e2; }
-        }
+        console.error("Gemini Generation Failed:", e);
         throw e;
     }
 };
@@ -232,8 +119,7 @@ const generateWithGemini = async (
     contents: any, 
     isJson: boolean = true, 
     temperature: number = 0.3, 
-    model: string = 'gemini-1.5-flash',
-    thinkingBudget?: number
+    model: string = 'gemini-1.5-flash'
 ): Promise<any> => {
     
     const config: any = { 
@@ -241,11 +127,6 @@ const generateWithGemini = async (
         temperature: temperature, 
         responseMimeType: isJson ? "application/json" : "text/plain" 
     };
-
-    if (thinkingBudget) {
-        config.thinkingConfig = { thinkingBudget };
-        delete config.responseMimeType;
-    }
 
     const wrappedCall = () => callGeminiBackendRaw({
         model: model,
@@ -255,14 +136,12 @@ const generateWithGemini = async (
 
     try {
         const response = await enqueueRequest(wrappedCall);
-
         const text = response.text || (isJson ? "{}" : "");
         if (isJson) {
             try {
                 return JSON.parse(cleanJson(text));
             } catch (jsonError) {
                 console.warn(`Invalid JSON returned.`, jsonError);
-                logSystemError('ERROR', 'Invalid JSON from AI', { textFragment: text.substring(0, 50) });
                 throw new Error("Invalid JSON");
             }
         }
@@ -304,13 +183,6 @@ const safeOptions = (opts: any): string[] => {
     return ["Option A", "Option B", "Option C", "Option D"];
 };
 
-const getSubjectConstraint = (subject: string): string => {
-    const s = subject.toLowerCase();
-    if (s.includes('history')) return "STRICTLY History (Ancient, Medieval, Modern, Art & Culture).";
-    if (s.includes('polity') || s.includes('civics')) return "STRICTLY Polity, Constitution, Governance.";
-    return `STRICTLY ${subject}.`;
-};
-
 // --- EXPORTS ---
 
 export const generateExamQuestions = async (
@@ -329,7 +201,6 @@ export const generateExamQuestions = async (
   const basePrompt = `
       ACT AS A STRICT EXAMINER for ${exam}.
       SUBJECT: ${subject}.
-      CONSTRAINT: ${getSubjectConstraint(subject)}
       DIFFICULTY: ${difficulty}.
       ${topics.length > 0 ? `SPECIFIC TOPICS: ${topics.join(', ')}` : ''}
       Create distinct, high-quality MCQs.
@@ -383,37 +254,15 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
         const filledSections = [];
         for (const [sIdx, sec] of blueprint.sections.entries()) {
             
-            let qPromptText = "";
-            let temperature = 0.3; 
-
-            if (config.syllabus && config.syllabus.data) {
-                qPromptText = `
-                    CRITICAL: You are an examiner for ${exam}. 
-                    Generate ${sec.questionCount} ${sec.type} questions STRICTLY based ONLY on the provided syllabus document/image.
-                    Ensure 100% accuracy. No false generation.
-                    Return valid JSON Array.
-                `;
-                temperature = 0.2;
-            } else {
-                qPromptText = `
-                    Generate ${sec.questionCount} ${sec.type} questions for ${exam} (${subject}).
-                    Follow the standard ${exam} exam pattern and difficulty level (${difficulty}).
-                    Verify all facts. Do not generate ambiguous questions.
-                    Return valid JSON Array.
-                `;
-            }
+            let qPromptText = `
+                Generate ${sec.questionCount} ${sec.type} questions for ${exam} (${subject}).
+                Follow the standard ${exam} exam pattern.
+                Return valid JSON Array.
+            `;
 
             let questions = [];
             try {
-                if (config.syllabus && config.syllabus.data) {
-                     const contents = { parts: [
-                         { inlineData: { mimeType: config.syllabus.mimeType, data: config.syllabus.data } },
-                         { text: qPromptText }
-                     ]};
-                     questions = await generateWithSwitcher(contents, true, temperature);
-                } else {
-                    questions = await generateWithSwitcher(qPromptText, true, temperature);
-                }
+                questions = await generateWithSwitcher(qPromptText, true, 0.3);
             } catch (e) {
                 questions = MOCK_QUESTIONS_FALLBACK.slice(0, sec.questionCount);
             }
@@ -458,9 +307,6 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
 };
 
 export const generateCurrentAffairs = async (exam: string, count: number = 10): Promise<Question[]> => {
-  const officialCA = await getOfficialQuestions(exam, 'Current Affairs', count);
-  if (officialCA.length >= count) return officialCA;
-
   try {
       const prompt = `Generate 15 Current Affairs MCQs for ${exam} India (Latest). JSON Array.`;
       const aiData = await generateWithSwitcher(prompt, true, 0.2);
@@ -477,9 +323,9 @@ export const generateCurrentAffairs = async (exam: string, count: number = 10): 
           createdAt: Date.now(),
           type: QuestionType.MCQ
       }));
-      return [...officialCA, ...aiQs].slice(0, count);
+      return aiQs.slice(0, count);
   } catch (e) {
-      return officialCA.length > 0 ? officialCA : MOCK_QUESTIONS_FALLBACK as unknown as Question[];
+      return MOCK_QUESTIONS_FALLBACK as unknown as Question[];
   }
 };
 
@@ -492,29 +338,23 @@ export const generateSingleQuestion = async (exam: string, subject: string, topi
 
 export const parseSmartInput = async (input: string, type: 'text' | 'image', examContext: string, mimeType: string = 'image/jpeg'): Promise<any[]> => {
   try {
-    const prompt = `Extract MCQs from this content. Return JSON Array of objects {text, options, correctIndex, explanation}.`;
+    const prompt = `Extract MCQs from this content. Return JSON Array.`;
     const contents = { parts: [] as any[] };
     
     if(type === 'image') {
         contents.parts.push({ inlineData: { mimeType: mimeType, data: input } });
         contents.parts.push({ text: prompt });
-        const parsed = await generateWithSwitcher(contents, true, 0.1);
-        return Array.isArray(parsed) ? parsed : (parsed.questions || []);
     } else {
-        const textContent = `${prompt}\n\n${input}`;
-        const parsed = await generateWithSwitcher(textContent, true, 0.1);
-        return Array.isArray(parsed) ? parsed : (parsed.questions || []);
+        contents.parts.push({ text: `${prompt}\n\n${input}` });
     }
+    const parsed = await generateWithSwitcher(contents, true, 0.1);
+    return Array.isArray(parsed) ? parsed : (parsed.questions || []);
   } catch (e) { return []; }
 };
 
 export const extractSyllabusFromImage = async (base64: string, mimeType: string): Promise<string> => {
     try {
-        const prompt = `
-            Extract ALL text from this syllabus/document. 
-            Format nicely with Markdown (Headings, Bullet points).
-            Return plain Markdown text.
-        `;
+        const prompt = `Extract text. Format as Markdown.`;
         const contents = { parts: [
             { inlineData: { mimeType: mimeType, data: base64 } },
             { text: prompt }
@@ -522,7 +362,6 @@ export const extractSyllabusFromImage = async (base64: string, mimeType: string)
         const response = await generateWithSwitcher(contents, false, 0.1); 
         return response; 
     } catch(e) {
-        console.error("Extraction Failed", e);
         return "";
     }
 };

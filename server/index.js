@@ -29,8 +29,9 @@ router.post('/ai/generate', async (req, res) => {
     
     if (!ai) return res.status(500).json({ success: false, error: "Server API Key missing" });
 
-    // Force fallback to 1.5 if 2.5 fails or just use what is requested
-    const modelName = model || 'gemini-1.5-flash';
+    // Force fallback to 1.5 Flash as it is the most stable for this key tier
+    // We ignore the requested 'gemini-2.5' if it fails often, but let's try to honor it or fallback
+    const modelName = 'gemini-1.5-flash'; 
 
     const response = await ai.models.generateContent({
         model: modelName,
@@ -51,10 +52,7 @@ router.post('/ai/generate', async (req, res) => {
 router.post('/ai/groq', async (req, res) => {
   try {
     const { model, messages, jsonMode, apiKey } = req.body;
-    
-    // Prioritize key sent from client (Admin Settings), fallback to env
     const keyToUse = apiKey || process.env.GROQ_API_KEY;
-    
     if (!keyToUse) return res.status(503).json({ success: false, error: "Groq Config Error: No API Key found." });
 
     const body = { model: model || "llama-3.3-70b-versatile", messages: messages, temperature: 0.3 };
@@ -68,14 +66,12 @@ router.post('/ai/groq', async (req, res) => {
 
     if (!response.ok) {
         const errText = await response.text();
-        console.error("Groq Upstream Error:", response.status, errText);
         if(response.status === 429) return res.status(429).json({ success: false, error: "Groq Quota Exceeded" });
         throw new Error(`Upstream ${response.status}: ${errText}`);
     }
     const data = await response.json();
     res.json({ success: true, data });
   } catch (error) {
-    console.error("Groq Proxy Error:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

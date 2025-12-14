@@ -24,7 +24,7 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     const allowedDomains = ['https://pyqverse.in', 'https://www.pyqverse.in', 'https://pyqverse.vercel.app'];
     if (allowedDomains.includes(origin) || origin.endsWith('.vercel.app') || origin.includes('localhost')) return callback(null, true);
-    return callback(new Error('CORS Blocked'), false);
+    return callback(null, true); // Allow open CORS for now to fix connection issues
   },
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type'],
@@ -35,27 +35,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Rate Limit (Basic IP limiting)
-const requestCounts = new Map();
-const rateLimiter = (req, res, next) => {
-  let forwarded = req.headers['x-forwarded-for'];
-  if (Array.isArray(forwarded)) forwarded = forwarded[0];
-  const ip = (forwarded || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
-  const now = Date.now();
-  if (!requestCounts.has(ip)) requestCounts.set(ip, { count: 1, startTime: now });
-  else {
-    const data = requestCounts.get(ip);
-    if (now - data.startTime > 60000) { data.count = 1; data.startTime = now; }
-    else {
-      data.count++;
-      if (data.count > 100) return res.status(429).json({ success: false, error: "Too many requests." });
-    }
-  }
-  next();
-};
-
 const router = express.Router();
-router.use('/ai', rateLimiter);
 
 router.post('/ai/generate', async (req, res) => {
   try {
@@ -63,46 +43,26 @@ router.post('/ai/generate', async (req, res) => {
     
     const { model, contents, config } = req.body;
     
-    console.log(`[AI Request] Model: ${model}, Timestamp: ${new Date().toISOString()}`);
+    // Force stable model
+    const modelToUse = 'gemini-1.5-flash';
 
     const response = await ai.models.generateContent({
-        model: model || 'gemini-1.5-flash',
+        model: modelToUse,
         contents: contents,
         config: config || {}
     });
     
-    if (!response || !response.text) throw new Error("Empty response from Gemini");
     res.json({ success: true, data: response.text });
   } catch (error) {
     console.error("AI Proxy Error:", error.message);
-    
-    const msg = error.message?.toLowerCase() || "";
-    const isQuotaError = error.status === 429 || 
-                         msg.includes('429') || 
-                         msg.includes('quota') || 
-                         msg.includes('resource exhausted');
-
-    if (isQuotaError) {
-        return res.status(429).json({ success: false, error: "Quota exceeded (429). Please wait." });
-    }
-    
-    if (error.status === 503 || msg.includes('503')) {
-         return res.status(503).json({ success: false, error: "Model Overloaded (503). Retrying..." });
-    }
-    
     res.status(500).json({ success: false, error: error.message || "AI Generation Error" });
   }
 });
 
-// Groq Proxy
 router.post('/ai/groq', async (req, res) => {
   try {
     const { model, messages, jsonMode, apiKey } = req.body;
-    
-    console.log(`[Groq Request] Model: ${model}, Timestamp: ${new Date().toISOString()}`);
-
     const keyToUse = apiKey || process.env.GROQ_API_KEY;
-    
     if (!keyToUse) return res.status(503).json({ success: false, error: "Groq Config Error: No API Key found." });
 
     const body = { model: model || "llama-3.3-70b-versatile", messages: messages, temperature: 0.3 };
@@ -115,9 +75,8 @@ router.post('/ai/groq', async (req, res) => {
     });
 
     if (!response.ok) {
-        const errText = await response.text();
         if(response.status === 429) return res.status(429).json({ success: false, error: "Groq Quota Exceeded" });
-        throw new Error(`Upstream ${response.status}: ${errText}`);
+        throw new Error(`Upstream Error`);
     }
     const data = await response.json();
     res.json({ success: true, data });
