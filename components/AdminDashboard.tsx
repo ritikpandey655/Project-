@@ -842,6 +842,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 <div className="grid grid-cols-1 gap-3">
                                     {[
                                         { id: 'gemini', name: 'Gemini 1.5 Flash', desc: 'Default. Stable, reliable, and high quota.' },
+                                        { id: 'gemini-2.5', name: 'Gemini 2.5 Flash', desc: 'Newer, smarter model (Preview).' },
                                         { id: 'groq', name: 'Llama 3 on Groq', desc: 'Ultra-fast. Requires API Key.' },
                                         { id: 'deep-research', name: 'Gemini 3.0 Pro (Thinking)', desc: 'High intelligence for complex reasoning. Slower.' },
                                         { id: 'local', name: 'Browser Native AI', desc: 'Runs offline on user device (Experimental).' },

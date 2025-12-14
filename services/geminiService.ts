@@ -1,3 +1,4 @@
+
 import { Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
@@ -212,10 +213,14 @@ const generateWithSwitcher = async (contents: any, isJson: boolean = true, tempe
         }
     }
 
-    // 5. Default: Gemini 1.5 Flash (Stable)
-    // Switched from 2.5 to 1.5 for stability
-    const result = await generateWithGemini(contents, isJson, temperature, 'gemini-1.5-flash');
-    logSystemError('INFO', 'Used Gemini 1.5 Flash', { mode: 'standard' });
+    // 5. Default: Gemini 1.5 or 2.5
+    let modelToUse = 'gemini-1.5-flash';
+    if (preferredProvider === 'gemini-2.5') {
+        modelToUse = 'gemini-2.5-flash';
+    }
+
+    const result = await generateWithGemini(contents, isJson, temperature, modelToUse);
+    logSystemError('INFO', `Used ${modelToUse}`, { mode: 'standard' });
     return result;
 };
 
