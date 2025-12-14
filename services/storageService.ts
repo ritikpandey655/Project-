@@ -2,7 +2,7 @@
 import { db } from "../src/firebaseConfig";
 import { 
   collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, 
-  query, where, limit, addDoc 
+  query, where, limit, addDoc, orderBy 
 } from "firebase/firestore";
 import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction } from '../types';
 import { ExamType } from '../types';
@@ -16,6 +16,53 @@ export const INITIAL_STATS: UserStats = {
   lastActiveDate: '',
   subjectPerformance: {},
   examPerformance: {}
+};
+
+// --- SYSTEM LOGGING (NEW) ---
+
+export interface SystemLog {
+  id: string;
+  type: 'ERROR' | 'INFO' | 'API_FAIL';
+  message: string;
+  details?: string;
+  timestamp: number;
+}
+
+export const logSystemError = async (type: 'ERROR' | 'API_FAIL', message: string, details?: any) => {
+  try {
+    // Fire and forget log
+    addDoc(collection(db, "system_logs"), {
+      type,
+      message,
+      details: typeof details === 'object' ? JSON.stringify(details) : details,
+      timestamp: Date.now()
+    });
+  } catch (e) {
+    console.error("Failed to write to system log", e);
+  }
+};
+
+export const getSystemLogs = async (): Promise<SystemLog[]> => {
+  try {
+    // Get last 50 logs
+    const q = query(collection(db, "system_logs"), orderBy("timestamp", "desc"), limit(50));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SystemLog));
+  } catch (e) {
+    console.error("Failed to fetch logs", e);
+    return [];
+  }
+};
+
+export const clearSystemLogs = async () => {
+  try {
+    const q = query(collection(db, "system_logs"), limit(100));
+    const snapshot = await getDocs(q);
+    const batch = [];
+    for (const doc of snapshot.docs) {
+      deleteDoc(doc.ref);
+    }
+  } catch (e) {}
 };
 
 // --- USER MANAGEMENT ---

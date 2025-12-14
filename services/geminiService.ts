@@ -1,7 +1,7 @@
 import { Type, HarmCategory, HarmBlockThreshold, GoogleGenAI } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
-import { getOfficialQuestions, getOfficialNews } from "./storageService";
+import { getOfficialQuestions, getOfficialNews, logSystemError } from "./storageService";
 import { generateLocalResponse, isLocalAIReady } from "./localAIService";
 
 // --- RATE LIMIT CONFIGURATION (TRAFFIC CONTROLLER) ---
@@ -75,33 +75,46 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
         // If html/text returns, it's likely a 404 or 500
         const text = await response.text();
         console.error("Backend Error Response:", text);
+        // LOGGING TO ADMIN DASHBOARD
+        logSystemError('API_FAIL', 'Backend returned non-JSON response', { status: response.status, text: text.substring(0, 100) });
         throw new Error(`Server Error: Backend unavailable. Make sure 'node server/index.js' is running.`);
     }
 
     if (!result.success) {
+      // CAPTURE SPECIFIC AI ERROR
+      const errorMsg = result.error || 'Unknown AI Error';
+      
       if (response.status === 429 || 
           response.status === 503 || 
-          result.error?.includes('429') || 
-          result.error?.includes('Quota') ||
-          result.error?.includes('Resource exhausted')) {
+          errorMsg.includes('429') || 
+          errorMsg.includes('Quota') ||
+          errorMsg.includes('Resource exhausted')) {
           
           console.warn("⚠️ Quota Exceeded (429/503). Triggering Cool Down.");
+          logSystemError('API_FAIL', 'Quota Exceeded (429)', { error: errorMsg });
           isQuotaExhausted = true;
           quotaResetTime = Date.now() + 45000; // 45s Cooldown
           throw new Error("QUOTA_EXCEEDED");
       }
       
+      // Log other errors
+      logSystemError('API_FAIL', 'AI Generation Failed', { error: errorMsg });
+
       if (response.status === 500) {
           await new Promise(r => setTimeout(r, 2000));
       }
 
-      throw new Error(result.error || 'Generation failed');
+      throw new Error(errorMsg);
     }
     
     return { text: result.data }; 
   } catch (error: any) {
     if (error.message === "QUOTA_EXCEEDED" || error.message === "QUOTA_COOL_DOWN") throw error;
     console.error("Secure AI Call Failed:", error);
+    // Log unexpected fetch errors
+    if (!error.message.includes('Quota')) {
+        logSystemError('ERROR', 'Network/Fetch Error in Gemini Service', { msg: error.message });
+    }
     throw error;
   }
 };
@@ -156,7 +169,8 @@ const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
         if (!result.success) throw new Error(result.error || "Groq Failed");
         
         return { text: result.data.choices[0].message.content };
-    } catch (e) {
+    } catch (e: any) {
+        logSystemError('API_FAIL', 'Groq Call Failed', { msg: e.message });
         throw e;
     }
 };
@@ -274,6 +288,7 @@ const generateWithGemini = async (
                 return JSON.parse(cleanJson(text));
             } catch (jsonError) {
                 console.warn(`Invalid JSON returned.`, jsonError);
+                logSystemError('ERROR', 'Invalid JSON from AI', { textFragment: text.substring(0, 50) });
                 throw new Error("Invalid JSON");
             }
         }

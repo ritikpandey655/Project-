@@ -66,5 +66,11 @@ service cloud.firestore {
       allow create: if true; // Anyone can send feedback
       allow read, write: if isAdmin();
     }
+
+    // --- SYSTEM LOGS (Admin Only) ---
+    match /system_logs/{logId} {
+      allow create: if true; // App can log errors
+      allow read, write: if isAdmin(); // Only admin can see them
+    }
   }
 }
