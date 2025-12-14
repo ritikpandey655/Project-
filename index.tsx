@@ -13,6 +13,8 @@ interface ErrorBoundaryState {
 
 // Error Boundary to catch runtime crashes (White Screen of Death)
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -48,7 +50,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       );
     }
 
-    return this.props.children;
+    // Fix: Cast 'this' to any to avoid "Property 'props' does not exist" TS error on strict environments
+    return (this as any).props.children;
   }
 }
 

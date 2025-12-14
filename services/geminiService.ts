@@ -1,5 +1,4 @@
-
-import { Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { Type, HarmCategory, HarmBlockThreshold, GoogleGenAI } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions, getOfficialNews } from "./storageService";
@@ -44,12 +43,23 @@ const checkQuota = () => {
     return true;
 };
 
-// --- GEMINI BACKEND CALL ---
+// --- BACKEND CONNECTION SETUP ---
+// If running on web, use relative path '/api' (handled by Vite/Vercel proxy)
+// If running on Android/iOS, use the full URL from environment variables
+const BASE_URL = process.env.BACKEND_URL || "";
+
+// --- GEMINI CALL HANDLER (SECURE BACKEND MODE) ---
 const callGeminiBackendRaw = async (params: { model: string, contents: any, config?: any }) => {
   if (!checkQuota()) throw new Error("QUOTA_COOL_DOWN");
 
+  // Note: We are now strictly using the backend to keep API Keys secure.
+  // The 'process.env.BACKEND_URL' must be set in vite.config.ts to your deployed Vercel URL.
+  
   try {
-    const response = await fetch('/api/ai/generate', {
+    const endpoint = `${BASE_URL}/api/ai/generate`;
+    // console.log("Calling Secure Backend:", endpoint); // Debug log
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -61,8 +71,8 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
     if (contentType && contentType.indexOf("application/json") !== -1) {
         result = await response.json();
     } else {
-        const text = await response.text();
-        throw new Error(`Server Error (${response.status})`);
+        // If html/text returns, it's likely a 404 or 500 from the hosting provider
+        throw new Error(`Server Error: Backend unavailable at ${endpoint}`);
     }
 
     if (!result.success) {
@@ -79,7 +89,6 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
       }
       
       if (response.status === 500) {
-          console.warn("⚠️ Server 500. Brief pause.");
           await new Promise(r => setTimeout(r, 2000));
       }
 
@@ -89,7 +98,7 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
     return { text: result.data }; 
   } catch (error: any) {
     if (error.message === "QUOTA_EXCEEDED" || error.message === "QUOTA_COOL_DOWN") throw error;
-    console.error("AI Call Failed:", error);
+    console.error("Secure AI Call Failed:", error);
     throw error;
   }
 };
@@ -97,22 +106,46 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
 // --- GROQ BACKEND CALL ---
 const callGroqBackendRaw = async (promptText: string, isJson: boolean) => {
     const apiKey = localStorage.getItem('groq_api_key');
-    if (!apiKey) throw new Error("No Groq Key");
+    // For Groq, we still support client-side override if Admin sets it in Settings
+    const keyToUse = apiKey;
 
     const messages = [
         { role: 'system', content: isJson ? "You are a helpful assistant. Output JSON only." : "You are a helpful assistant." },
         { role: 'user', content: promptText }
     ];
 
+    // If User provided their own key in Settings, use direct call (Client Side)
+    if (keyToUse) {
+        try {
+            const body: any = { 
+                model: 'llama-3.3-70b-versatile',
+                messages: messages,
+                temperature: 0.3
+            };
+            if (isJson) body.response_format = { type: "json_object" };
+
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${keyToUse}`, "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            });
+            const data = await response.json();
+            return { text: data.choices[0].message.content };
+        } catch (e) {
+            // Fallthrough to proxy
+        }
+    }
+
+    // Default: Use Secure Backend Proxy
     try {
-        const response = await fetch('/api/ai/groq', {
+        const endpoint = `${BASE_URL}/api/ai/groq`;
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 model: 'llama-3.3-70b-versatile',
                 messages: messages,
-                jsonMode: isJson,
-                apiKey: apiKey
+                jsonMode: isJson
             })
         });
 
@@ -217,10 +250,9 @@ const generateWithGemini = async (
     };
 
     // If thinking is enabled (Deep Research), we MUST disable strict JSON MIME type
-    // to avoid 400 errors or conflicts with thinking trace output.
     if (thinkingBudget) {
         config.thinkingConfig = { thinkingBudget };
-        delete config.responseMimeType; // Remove enforced JSON structure constraint
+        delete config.responseMimeType;
     }
 
     // Wrapper that forces Rate Limiting

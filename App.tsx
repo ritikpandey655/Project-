@@ -43,6 +43,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { auth, db } from './src/firebaseConfig';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { onSnapshot, doc } from "firebase/firestore";
+import { App as CapacitorApp } from '@capacitor/app';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 
@@ -84,6 +85,61 @@ const App: React.FC = () => {
 
   // Single Session Ref
   const currentSessionId = useRef<string>(Date.now().toString() + Math.random().toString());
+
+  // Refs for Back Button Handling (To access fresh state inside event listener)
+  const backButtonStateRef = useRef({
+    view: state.view,
+    isSidebarOpen,
+    showPracticeConfig,
+    showPaymentModal,
+    user: state.user
+  });
+
+  useEffect(() => {
+    backButtonStateRef.current = {
+      view: state.view,
+      isSidebarOpen,
+      showPracticeConfig,
+      showPaymentModal,
+      user: state.user
+    };
+  }, [state.view, isSidebarOpen, showPracticeConfig, showPaymentModal, state.user]);
+
+  // Capacitor Back Button Listener
+  useEffect(() => {
+    const backListener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+        const { view, isSidebarOpen, showPracticeConfig, showPaymentModal, user } = backButtonStateRef.current;
+
+        // 1. Close Modals first
+        if (showPaymentModal) {
+            setShowPaymentModal(false);
+            return;
+        }
+        if (showPracticeConfig) {
+            setShowPracticeConfig(false);
+            return;
+        }
+        if (isSidebarOpen) {
+            setIsSidebarOpen(false);
+            return;
+        }
+
+        // 2. Navigate Back Logic
+        if (view === 'dashboard') {
+            // If on dashboard, exit app
+            CapacitorApp.exitApp();
+        } else if (view === 'login' || view === 'onboarding') {
+            CapacitorApp.exitApp();
+        } else {
+            // If on any other screen, go back to dashboard
+            navigateTo('dashboard');
+        }
+    });
+
+    return () => {
+        backListener.then(handler => handler.remove());
+    };
+  }, []);
 
   const applyTheme = useCallback((themeName: string) => {
     const palette = THEME_PALETTES[themeName] || THEME_PALETTES['PYQverse Prime'];
@@ -606,7 +662,7 @@ const App: React.FC = () => {
       />
 
       {state.view !== 'tutorial' && (
-        <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 flex justify-between items-center shadow-sm sticky top-0 z-30 transition-colors border-b border-slate-100 dark:border-slate-800">
+        <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 flex justify-between items-center shadow-sm sticky top-0 z-30 transition-colors border-b border-slate-100 dark:border-slate-800 pt-safe">
           <div className="flex items-center gap-3">
              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-purple to-brand-blue flex items-center justify-center text-white font-bold font-display shadow-lg shadow-brand-purple/30">PV</div>
              <span className="font-display font-bold text-lg text-slate-800 dark:text-white hidden sm:block">PYQverse</span>

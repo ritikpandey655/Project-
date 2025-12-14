@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#f97316" />
     
     <!-- Primary SEO -->
@@ -100,6 +99,13 @@
               sans: ['Inter', 'sans-serif'],
               display: ['Poppins', 'sans-serif'],
             },
+            // Added Safe Area Utilities for Mobile Notch
+            spacing: {
+              'safe-top': 'env(safe-area-inset-top)',
+              'safe-bottom': 'env(safe-area-inset-bottom)',
+              'safe-left': 'env(safe-area-inset-left)',
+              'safe-right': 'env(safe-area-inset-right)',
+            },
             colors: {
               brand: {
                 purple: '#5B2EFF',
@@ -168,6 +174,11 @@
         }
       }
     </script>
+    <style>
+      /* Utility classes for safe area in case tailwind config load delays */
+      .pt-safe { padding-top: env(safe-area-inset-top); }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
 <script type="importmap">
 {
   "imports": {
@@ -186,7 +197,11 @@
     "path": "https://aistudiocdn.com/path@^0.12.7",
     "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
     "helmet": "https://aistudiocdn.com/helmet@^8.1.0",
-    "@mlc-ai/web-llm": "https://aistudiocdn.com/@mlc-ai/web-llm@^0.2.80"
+    "@mlc-ai/web-llm": "https://aistudiocdn.com/@mlc-ai/web-llm@^0.2.80",
+    "@capacitor/core": "https://aistudiocdn.com/@capacitor/core@^6.0.0",
+    "@capacitor/app": "https://aistudiocdn.com/@capacitor/app@^6.0.0",
+    "@capacitor/android": "https://aistudiocdn.com/@capacitor/android@^6.0.0",
+    "@capacitor/cli": "https://esm.sh/@capacitor/cli@^6.0.0"
   }
 }
 </script>

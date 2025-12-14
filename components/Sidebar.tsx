@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { User, UserStats } from '../types';
 import { THEME_PALETTES, TRANSLATIONS } from '../constants';
@@ -106,8 +105,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Profile Header (Restored on Right) */}
-        <div className="p-6 bg-gradient-to-br from-indigo-600 to-purple-700 text-white relative overflow-hidden shrink-0">
+        {/* Profile Header (Restored on Right) with Safe Area Top Padding */}
+        <div className="p-6 pt-safe bg-gradient-to-br from-indigo-600 to-purple-700 text-white relative overflow-hidden shrink-0">
            {/* Decorative Background */}
            <div className="absolute top-[-20%] left-[-20%] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
            <div className="absolute bottom-[-10%] right-[-10%] w-24 h-24 bg-blue-500/20 rounded-full blur-xl pointer-events-none"></div>
@@ -278,7 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-3 bg-slate-50 dark:bg-slate-800/50">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-3 bg-slate-50 dark:bg-slate-800/50 pb-safe">
            {canInstall && onInstall && (
              <Button onClick={onInstall} className="w-full bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-none">
                 {t.install}

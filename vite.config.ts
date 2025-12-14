@@ -215,8 +215,15 @@ export default defineConfig(({ mode }) => {
         }
     },
     define: {
+      // 1. BACKEND URL: Points to your hosted Vercel backend.
+      // This allows the Android app to talk to the secure server.
+      'process.env.BACKEND_URL': JSON.stringify("https://pyqverse.vercel.app"), 
+      
+      // 2. We keep this empty or mock for security. 
+      // The Key should NOT be in the client if we use the backend.
       'process.env.API_KEY': JSON.stringify(""), 
-      'process.env.GROQ_API_KEY': JSON.stringify(""),
+      
+      'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY || ""),
       'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID),
     },
   };
