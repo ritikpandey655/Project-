@@ -41,6 +41,7 @@ import { CurrentAffairsFeed } from './components/CurrentAffairsFeed';
 import { PYQLibrary } from './components/PYQLibrary';
 import { BackgroundAnimation } from './components/BackgroundAnimation';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { auth, db } from './src/firebaseConfig';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { onSnapshot, doc } from "firebase/firestore";
@@ -198,6 +199,11 @@ const App: React.FC = () => {
     const action = urlParams.get('action');
     const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
     
+    if (action === 'privacy') {
+        setState(prev => ({ ...prev, view: 'privacy' }));
+        return;
+    }
+
     if (prefs.selectedExam) {
        if (action === 'upload') {
           setState(prev => ({ ...prev, view: 'upload' }));
@@ -253,6 +259,14 @@ const App: React.FC = () => {
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser: any) => {
       clearTimeout(timeoutId);
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('action') === 'privacy') {
+          setState(prev => ({ ...prev, view: 'privacy' }));
+          setIsAppInitializing(false);
+          return;
+      }
+
       if (currentUser) {
         loadUserData(currentUser.uid).then(() => setIsAppInitializing(false));
       } else {
@@ -286,7 +300,7 @@ const App: React.FC = () => {
   const navigateTo = useCallback((view: ViewState) => {
     setState(prev => ({ ...prev, view }));
     setIsSidebarOpen(false);
-    if (!['practice', 'paperView', 'paperGenerator', 'login', 'signup', 'landing'].includes(view)) {
+    if (!['practice', 'paperView', 'paperGenerator', 'login', 'signup', 'landing', 'privacy'].includes(view)) {
        localStorage.setItem(LAST_VIEW_KEY, view);
     }
   }, []);
@@ -564,6 +578,15 @@ const App: React.FC = () => {
             onForgotPassword={() => {}}
         />
     );
+  }
+
+  // PRIVACY POLICY (Public or Private)
+  if (state.view === 'privacy') {
+      return <PrivacyPolicy onBack={() => {
+          // If logged in, go dashboard, else login
+          if (state.user) navigateTo('dashboard');
+          else navigateTo('login');
+      }} />;
   }
 
   // LOGIN FLOW

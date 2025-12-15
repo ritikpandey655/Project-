@@ -119,6 +119,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                  <span className="font-medium">{t.downloads}</span>
               </button>
               
+              <button onClick={() => { onNavigate('privacy'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
+                 <span className="text-xl">🔒</span>
+                 <span className="font-medium">Privacy Policy</span>
+              </button>
+
               <a href="mailto:support@pyqverse.in?subject=Help%20Center%20-%20PYQverse" onClick={onClose} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
                  <span className="text-xl">📧</span>
                  <span className="font-medium">Contact Support</span>

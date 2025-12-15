@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
@@ -389,7 +390,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
                             value={password}
                             onChange={(e) => { setPassword(e.target.value); setError(''); }}
                             className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600 tracking-wide"
-                            placeholder="••••••••"
+                            placeholder="••••••"
                             required
                         />
                         <div className="text-right mt-2">
@@ -500,9 +501,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
          <p className="text-xs text-slate-500">
             Need help? Contact <a href="mailto:support@pyqverse.in?subject=Login%20Issue%20-%20PYQverse" className="text-orange-400 hover:text-orange-300 font-bold transition-colors">support@pyqverse.in</a>
          </p>
-         <p className="text-[10px] text-slate-600">
-            © 2025 PYQverse. All rights reserved.
-         </p>
+         <div className="text-[10px] text-slate-600 flex gap-2 justify-center">
+            <a href="/?action=privacy" className="hover:text-slate-400">Privacy Policy</a>
+            <span>•</span>
+            <span>© 2025 PYQverse</span>
+         </div>
       </div>
     </div>
   );
