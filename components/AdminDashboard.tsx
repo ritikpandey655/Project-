@@ -8,7 +8,7 @@ import {
   getTransactions, saveExamConfig, getExamConfig, getSystemLogs, SystemLog, clearSystemLogs,
   saveSyllabus, logSystemError
 } from '../services/storageService';
-import { parseSmartInput, generateSingleQuestion, extractSyllabusFromImage, resetAIQuota } from '../services/geminiService';
+import { parseSmartInput, generateSingleQuestion, extractSyllabusFromImage, resetAIQuota, checkAIConnectivity } from '../services/geminiService';
 import { EXAM_SUBJECTS, NEWS_CATEGORIES } from '../constants';
 
 interface AdminDashboardProps {
@@ -23,7 +23,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   
   // System Health States
   const [backendStatus, setBackendStatus] = useState<'Checking' | 'Online' | 'Offline' | 'Error'>('Checking');
-  const [aiStatus, setAiStatus] = useState<'Checking' | 'Operational' | 'Degraded' | 'Failed'>('Checking');
+  const [aiStatus, setAiStatus] = useState<'Checking' | 'Operational' | 'Degraded' | 'Rate Limited' | 'Failed'>('Checking');
   const [latency, setLatency] = useState<number>(0);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [isTestRunning, setIsTestRunning] = useState(false);
@@ -123,18 +123,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         setLatency(0);
     }
 
-    // 2. Test AI Generation
+    // 2. Test AI Generation with dedicated check function
     try {
-        const testQ = await generateSingleQuestion('UPSC', 'General', 'Diagnostic Test');
-        if (testQ && testQ.text) {
-            setAiStatus('Operational');
-        } else {
-            setAiStatus('Degraded');
-            await logSystemError('API_FAIL', 'Diagnostic: AI returned empty response', { details: 'No text/question field' });
+        const status = await checkAIConnectivity();
+        setAiStatus(status);
+        
+        if (status === 'Failed') {
+            await logSystemError('API_FAIL', 'Diagnostic: AI Check Failed');
+        } else if (status === 'Rate Limited') {
+            await logSystemError('INFO', 'Diagnostic: Rate Limit Hit (429)');
         }
     } catch(e: any) {
         setAiStatus('Failed');
-        // Explicitly log this failure so it appears in the table
         console.error("Diagnostic Error:", e);
         await logSystemError('ERROR', 'Diagnostic Test Failed', { error: e.message || e.toString() });
     }
@@ -468,15 +468,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
          {/* Main Content Area */}
          <div className="flex-1 p-4 sm:p-6 overflow-y-auto bg-slate-900 pb-20">
             
-            {/* ... other tabs ... */}
-            {(activeTab === 'monitor' || activeTab === 'users' || activeTab === 'upload' || activeTab === 'syllabus' || activeTab === 'questions' || activeTab === 'exams' || activeTab === 'payments') && (
-               // Render existing content for these tabs (retained from previous file version implicitly via manual merge logic if needed, but since I'm replacing the whole file, I will include the minimal rendering structure or assume the user wants the FULL previous logic + changes. 
-               // I will include the FULL previous logic here for safety.
-               // *Truncated for brevity in thought process, but will output FULL content in XML*
-               // See below for full implementation
-               <></>
-            )}
-
             {activeTab === 'monitor' && (
                 <div className="space-y-6 max-w-5xl mx-auto">
                     {/* Status Grid */}
@@ -490,12 +481,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             </div>
                             <h3 className={`text-2xl font-bold ${backendStatus === 'Online' ? 'text-green-400' : 'text-red-400'}`}>{backendStatus}</h3>
                         </div>
-                        <div className={`p-6 rounded border ${aiStatus === 'Operational' ? 'bg-green-900/20 border-green-500/50' : 'bg-red-900/20 border-red-500/50'}`}>
+                        <div className={`p-6 rounded border ${
+                            aiStatus === 'Operational' ? 'bg-green-900/20 border-green-500/50' : 
+                            aiStatus === 'Rate Limited' ? 'bg-orange-900/20 border-orange-500/50' :
+                            'bg-red-900/20 border-red-500/50'
+                        }`}>
                             <div className="flex justify-between items-start">
                                 <p className="text-xs text-slate-400 uppercase mb-2">AI Engine Status</p>
                                 <button onClick={handleResetAI} className="text-[10px] bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">Reset Quota</button>
                             </div>
-                            <h3 className={`text-2xl font-bold ${aiStatus === 'Operational' ? 'text-green-400' : 'text-red-400'}`}>{aiStatus}</h3>
+                            <h3 className={`text-2xl font-bold ${
+                                aiStatus === 'Operational' ? 'text-green-400' : 
+                                aiStatus === 'Rate Limited' ? 'text-orange-400' : 
+                                'text-red-400'
+                            }`}>{aiStatus}</h3>
                         </div>
                         <div className="p-6 rounded border bg-slate-800 border-slate-700">
                             <p className="text-xs text-slate-400 uppercase mb-2">Total Users</p>
@@ -556,10 +555,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* Other tabs omitted for brevity in thought process but included in output if file structure demands full replacement. 
-                Since I am replacing the file content, I MUST include everything.
-            */}
-            
             {activeTab === 'users' && (
                 <div className="space-y-4">
                     <div className="flex gap-2">
@@ -590,7 +585,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
             {activeTab === 'upload' && (
                 <div className="max-w-2xl mx-auto bg-slate-800 p-6 rounded border border-slate-700">
-                    {/* ... Upload Logic (Same as before) ... */}
                     <div className="flex gap-4 mb-6 border-b border-slate-700 pb-4">
                         <button onClick={() => setUploadType('Question')} className={`text-sm font-bold uppercase ${uploadType === 'Question' ? 'text-red-500 border-b-2 border-red-500' : 'text-slate-500'}`}>Question Entry</button>
                         <button onClick={() => setUploadType('News')} className={`text-sm font-bold uppercase ${uploadType === 'News' ? 'text-red-500 border-b-2 border-red-500' : 'text-slate-500'}`}>News Broadcast</button>

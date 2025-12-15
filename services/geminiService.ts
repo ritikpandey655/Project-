@@ -9,7 +9,7 @@ const CLIENT_API_KEY = process.env.API_KEY || "AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQ
 const clientAI = new GoogleGenAI({ apiKey: CLIENT_API_KEY });
 
 // --- RATE LIMIT CONFIGURATION ---
-const RATE_LIMIT_DELAY = 1500;
+const RATE_LIMIT_DELAY = 2000; // Increased to 2s to be safer
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
 
@@ -184,7 +184,8 @@ const commonConfig = {
     ]
 };
 
-const generateWithGemini = async (
+// Exported for direct access (e.g. diagnostics)
+export const generateWithGemini = async (
     contents: any, 
     isJson: boolean = true, 
     temperature: number = 0.3, 
@@ -256,6 +257,23 @@ const safeOptions = (opts: any): string[] => {
 };
 
 // --- EXPORTS ---
+
+export const checkAIConnectivity = async (): Promise<'Operational' | 'Degraded' | 'Rate Limited' | 'Failed'> => {
+    try {
+        // Use 1.5 Flash for diagnostics to avoid hitting 2.5 limits (5 RPM)
+        const response = await generateWithGemini(
+            { parts: [{ text: "Reply 'OK' if you see this." }] }, 
+            false, 
+            0.1, 
+            'gemini-1.5-flash'
+        );
+        return response ? 'Operational' : 'Degraded';
+    } catch (e: any) {
+        console.warn("Diagnostic Check Failed:", e.message);
+        if (e.message.includes("QUOTA") || e.message.includes("429")) return 'Rate Limited';
+        return 'Failed';
+    }
+};
 
 export const generateExamQuestions = async (
   exam: string,
