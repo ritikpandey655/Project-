@@ -42,8 +42,8 @@ router.post('/ai/generate', async (req, res) => {
     
     const { model, contents, config } = req.body;
     
-    // Force stable model
-    const modelToUse = 'gemini-1.5-flash';
+    // Allow client to request 2.5 or fallback to 2.5
+    const modelToUse = model || 'gemini-2.5-flash';
 
     const response = await ai.models.generateContent({
         model: modelToUse,

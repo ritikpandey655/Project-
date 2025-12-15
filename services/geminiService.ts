@@ -5,12 +5,10 @@ import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions } from "./storageService";
 
 // --- CLIENT-SIDE FALLBACK SETUP ---
-// We use the provided key if available, otherwise fallback to the known key for reliability
 const CLIENT_API_KEY = process.env.API_KEY || "AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0";
 const clientAI = new GoogleGenAI({ apiKey: CLIENT_API_KEY });
 
 // --- RATE LIMIT CONFIGURATION ---
-
 const RATE_LIMIT_DELAY = 1500;
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
@@ -72,7 +70,6 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
   if (!checkQuota()) throw new Error("QUOTA_COOL_DOWN");
 
   try {
-    // 1. Try Backend First
     const endpoint = `${BASE_URL}/api/ai/generate`.replace('//api', '/api'); 
     
     const response = await fetch(endpoint, {
@@ -81,19 +78,11 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
         body: JSON.stringify(params),
     });
 
-    // If backend 404/500/Offline, throw to trigger catch block
     if (!response.ok) {
         throw new Error(`Backend Status: ${response.status}`);
     }
 
-    const contentType = response.headers.get("content-type");
-    let result;
-    
-    if (contentType && contentType.indexOf("application/json") !== -1) {
-        result = await response.json();
-    } else {
-        throw new Error(`Invalid Response Type`);
-    }
+    const result = await response.json();
 
     if (!result.success) {
       const errorMsg = result.error || 'Unknown AI Error';
@@ -111,7 +100,6 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
   } catch (error: any) {
     if (error.message === "QUOTA_EXCEEDED") throw error;
     
-    // 2. Fallback to Client-Side Direct Call
     console.warn("Backend failed, attempting direct client call...", error.message);
     try {
         return await callGeminiDirect(params);
@@ -122,16 +110,67 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
   }
 };
 
+// --- GROQ HANDLER ---
+const callGroqBackendRaw = async (messages: any[], jsonMode: boolean) => {
+    const apiKey = localStorage.getItem('groq_api_key');
+    const endpoint = `${BASE_URL}/api/ai/groq`.replace('//api', '/api'); 
+
+    // We can call backend proxy for Groq to hide key if set on server, 
+    // OR send client key if user provided it in settings.
+    const body = {
+        model: "llama-3.3-70b-versatile",
+        messages: messages,
+        jsonMode: jsonMode,
+        apiKey: apiKey // Send client key if available
+    };
+
+    const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) throw new Error("Groq API Failed");
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error);
+    
+    return result.data.choices[0].message.content;
+};
+
 // --- MASTER CONTROLLER ---
-const generateWithSwitcher = async (contents: any, isJson: boolean = true, temperature: number = 0.3): Promise<any> => {
-    // Force stable model
-    const modelToUse = 'gemini-1.5-flash';
+const generateWithSwitcher = async (promptOrContents: any, isJson: boolean = true, temperature: number = 0.3): Promise<any> => {
+    // Check Provider
+    const provider = localStorage.getItem('selected_ai_provider') || 'gemini-2.5';
 
     try {
-        const result = await generateWithGemini(contents, isJson, temperature, modelToUse);
-        return result;
+        if (provider === 'groq') {
+            // Convert Gemini 'contents' format to OpenAI/Groq 'messages' format if needed
+            let messages = [];
+            if (typeof promptOrContents === 'string') {
+                messages.push({ role: "system", content: "You are a helpful exam assistant. Return JSON." });
+                messages.push({ role: "user", content: promptOrContents });
+            } else if (promptOrContents.parts) {
+                // Simplified handling for mixed content - Groq mostly text
+                const textPart = promptOrContents.parts.find((p:any) => p.text)?.text || "";
+                messages.push({ role: "system", content: "You are a helpful exam assistant. Return JSON." });
+                messages.push({ role: "user", content: textPart });
+            }
+
+            const text = await callGroqBackendRaw(messages, isJson);
+            return isJson ? JSON.parse(cleanJson(text)) : text;
+
+        } else {
+            // Default: Gemini 2.5
+            const modelToUse = 'gemini-2.5-flash';
+            return await generateWithGemini(promptOrContents, isJson, temperature, modelToUse);
+        }
     } catch (e) {
-        console.error("Gemini Generation Failed:", e);
+        console.error(`${provider} Generation Failed:`, e);
+        // Fallback to Gemini 2.5 if Groq fails
+        if (provider === 'groq') {
+             console.log("Falling back to Gemini 2.5...");
+             return await generateWithGemini(promptOrContents, isJson, temperature, 'gemini-2.5-flash');
+        }
         throw e;
     }
 };
@@ -149,9 +188,12 @@ const generateWithGemini = async (
     contents: any, 
     isJson: boolean = true, 
     temperature: number = 0.3, 
-    model: string = 'gemini-1.5-flash'
+    model: string = 'gemini-2.5-flash'
 ): Promise<any> => {
     
+    // Normalize contents if string
+    const finalContents = typeof contents === 'string' ? { parts: [{ text: contents }] } : contents;
+
     const config: any = { 
         ...commonConfig, 
         temperature: temperature, 
@@ -160,7 +202,7 @@ const generateWithGemini = async (
 
     const wrappedCall = () => callGeminiBackendRaw({
         model: model,
-        contents: contents,
+        contents: finalContents,
         config: config
     });
 
