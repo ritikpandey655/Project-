@@ -134,17 +134,9 @@ export default defineConfig(({ mode }) => {
     build: {
       chunkSizeWarningLimit: 1600,
     },
-    server: {
-        proxy: {
-            '/api': {
-                target: 'http://localhost:5000', // Reverted to Node.js Backend Port
-                changeOrigin: true,
-                secure: false,
-            }
-        }
-    },
+    // Server proxy removed
     define: {
-      'process.env.BACKEND_URL': JSON.stringify(process.env.NODE_ENV === 'production' ? "https://pyqverse.vercel.app" : ""), 
+      'process.env.BACKEND_URL': JSON.stringify(""), 
       'process.env.API_KEY': JSON.stringify("AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0"), 
       'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY || ""),
       'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID),

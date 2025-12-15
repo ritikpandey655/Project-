@@ -22,9 +22,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'monitor' | 'users' | 'exams' | 'upload' | 'syllabus' | 'questions' | 'payments' | 'settings'>('monitor');
   
   // System Health States
-  const [backendStatus, setBackendStatus] = useState<'Checking' | 'Online' | 'Offline' | 'Error'>('Checking');
   const [aiStatus, setAiStatus] = useState<'Checking' | 'Operational' | 'Degraded' | 'Rate Limited' | 'Failed'>('Checking');
-  const [latency, setLatency] = useState<number>(0);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [isTestRunning, setIsTestRunning] = useState(false);
   
@@ -35,7 +33,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   
   const [questions, setQuestions] = useState<Question[]>([]);
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
-  const [questionSearch, setQuestionSearch] = useState('');
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [examConfig, setExamConfig] = useState<Record<string, string[]>>({});
@@ -102,28 +99,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   const runDiagnostics = async () => {
     setIsTestRunning(true);
-    setBackendStatus('Checking');
     setAiStatus('Checking');
 
-    const start = performance.now();
-
-    // 1. Check Backend Health & Latency
-    try {
-        const res = await fetch(`/api/health?t=${Date.now()}`); // Cache busting
-        if (res.ok) {
-            setBackendStatus('Online');
-            const end = performance.now();
-            setLatency(Math.round(end - start));
-        } else {
-            setBackendStatus('Offline');
-            setLatency(0);
-        }
-    } catch(e) {
-        setBackendStatus('Offline');
-        setLatency(0);
-    }
-
-    // 2. Test AI Generation with dedicated check function
+    // 1. Test AI Generation with dedicated check function (Direct Call)
     try {
         const status = await checkAIConnectivity();
         setAiStatus(status);
@@ -131,7 +109,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         if (status === 'Failed') {
             await logSystemError('API_FAIL', 'Diagnostic: AI Check Failed');
         } else if (status === 'Rate Limited') {
-            await logSystemError('INFO', 'Diagnostic: Rate Limit Hit (429)');
+            await logSystemError('INFO', 'Diagnostic: Rate Limit Hit');
         }
     } catch(e: any) {
         setAiStatus('Failed');
@@ -139,7 +117,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         await logSystemError('ERROR', 'Diagnostic Test Failed', { error: e.message || e.toString() });
     }
 
-    // 3. Fetch Logs with Delay (Ensure async write completes)
+    // 2. Fetch Logs with Delay (Ensure async write completes)
     setTimeout(async () => {
         const recentLogs = await getSystemLogs();
         setLogs(recentLogs);
@@ -176,10 +154,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       runDiagnostics();
   };
 
-  // Calculations
-  const totalUploads = questions.length;
-  const usagePercentage = Math.min((totalUploads / STORAGE_QUOTA_LIMIT) * 100, 100);
-
   // Handlers
   const handleUserSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value.toLowerCase();
@@ -203,7 +177,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   const handleNewsUpload = async () => {
     if (!nHeadline || !nSummary) return alert("Please fill headline and summary");
-    
     const newItem: NewsItem = {
       id: `news-${Date.now()}`,
       headline: nHeadline,
@@ -213,7 +186,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       tags: [],
       isOfficial: true
     };
-
     await saveAdminNews(newItem);
     alert("News Broadcasted!");
     setNHeadline('');
@@ -256,23 +228,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Check Size (Limit 25MB)
     if (file.size > 25 * 1024 * 1024) {
         alert("File too large. Please upload < 25MB.");
         return;
     }
-
     const reader = new FileReader();
     reader.onload = async (ev) => {
         const base64 = (ev.target?.result as string).split(',')[1];
         setIsProcessingSmart(true);
-        
-        // Auto Delete logic: clear input immediately after read
         if(fileInputRef.current) fileInputRef.current.value = '';
-
         try {
-            // Pass mimeType to service
             const extracted = await parseSmartInput(base64, 'image', uploadExam, file.type);
             saveBatchQuestions(extracted);
         } catch(e) {
@@ -322,7 +287,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   };
 
   // --- SYLLABUS HANDLERS ---
-
   const handleSyllabusFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -330,19 +294,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         alert("File too large. Please upload < 25MB.");
         return;
     }
-
     const reader = new FileReader();
     reader.onload = async (ev) => {
         const base64 = (ev.target?.result as string).split(',')[1];
         setIsProcessingSyllabus(true);
-        
-        // Auto Delete: Clear file input immediately
         if (syllabusFileRef.current) syllabusFileRef.current.value = '';
-
         try {
             const extractedText = await extractSyllabusFromImage(base64, file.type);
             setSyllabusText(extractedText);
-            setIsSyllabusReviewMode(true); // Switch to Review Mode
+            setIsSyllabusReviewMode(true);
         } catch(e) {
             alert("Failed to extract syllabus.");
         } finally {
@@ -354,7 +314,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   const handleSaveSyllabus = async () => {
       if (!syllabusText.trim()) return alert("Syllabus content is empty.");
-      
       try {
           const item: SyllabusItem = {
               id: `syl-${Date.now()}`,
@@ -384,27 +343,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     { id: 'settings', icon: '🔧', label: 'Config' }
   ];
 
-  const currentSubjects = examConfig[uploadExam] || EXAM_SUBJECTS[uploadExam as ExamType] || [];
-  const currentSyllabusSubjects = examConfig[syllabusExam] || EXAM_SUBJECTS[syllabusExam as ExamType] || [];
-
   const providerLabel = selectedProvider === 'groq' ? 'Groq' : 'Gemini';
 
   return (
     <div className="min-h-screen bg-slate-900 text-white font-mono animate-fade-in fixed inset-0 z-[100] overflow-y-auto">
       
-      {/* Top Bar (Separate PWA Feel) */}
+      {/* Top Bar */}
       <div className="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-20 flex justify-between items-center shadow-lg pt-safe">
          <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${backendStatus === 'Online' ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
             <h1 className="text-lg sm:text-xl font-bold tracking-widest uppercase text-slate-200">
                 PYQverse <span className="text-red-500">ADMIN</span>
             </h1>
-            {/* Ping Indicator in Header */}
-            {latency > 0 && (
-                <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${latency < 200 ? 'bg-green-900/50 text-green-400' : 'bg-orange-900/50 text-orange-400'}`}>
-                    {latency}ms
-                </span>
-            )}
          </div>
          <div className="flex gap-2">
             <button 
@@ -429,7 +378,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
          </div>
       </div>
 
-      {/* MOBILE NAVIGATION (Horizontal Scroll) */}
+      {/* MOBILE NAVIGATION */}
       <div className="md:hidden sticky top-[60px] z-10 bg-slate-900/95 backdrop-blur border-b border-slate-700 overflow-x-auto no-scrollbar">
          <div className="flex p-2 gap-2">
             {navItems.map((item) => (
@@ -474,14 +423,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 <div className="space-y-6 max-w-5xl mx-auto">
                     {/* Status Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className={`p-6 rounded border ${backendStatus === 'Online' ? 'bg-green-900/20 border-green-500/50' : 'bg-red-900/20 border-red-500/50'}`}>
-                            <div className="flex justify-between items-start">
-                                <p className="text-xs text-slate-400 uppercase mb-2">Backend Connection</p>
-                                <span className={`text-[10px] px-2 py-1 rounded text-white font-mono ${latency > 0 ? 'bg-black/30' : 'hidden'}`}>
-                                    {latency}ms
-                                </span>
-                            </div>
-                            <h3 className={`text-2xl font-bold ${backendStatus === 'Online' ? 'text-green-400' : 'text-red-400'}`}>{backendStatus}</h3>
+                        <div className="p-6 rounded border bg-slate-800 border-slate-700">
+                            <p className="text-xs text-slate-400 uppercase mb-2">Architecture</p>
+                            <h3 className="text-2xl font-bold text-blue-400">Client Mode</h3>
                         </div>
                         <div className={`p-6 rounded border ${
                             aiStatus === 'Operational' ? 'bg-green-900/20 border-green-500/50' : 
@@ -557,6 +501,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 </div>
             )}
 
+            {/* Other tabs remain identical... */}
             {activeTab === 'users' && (
                 <div className="space-y-4">
                     <div className="flex gap-2">
