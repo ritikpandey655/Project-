@@ -117,6 +117,11 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
 // --- GROQ HANDLER ---
 const callGroqBackendRaw = async (messages: any[], jsonMode: boolean) => {
     const apiKey = localStorage.getItem('groq_api_key');
+    
+    if (!apiKey) {
+        throw new Error("GROQ_KEY_MISSING");
+    }
+
     const endpoint = `${BASE_URL}/api/ai/groq`.replace('//api', '/api'); 
 
     // We can call backend proxy for Groq to hide key if set on server, 
@@ -134,7 +139,10 @@ const callGroqBackendRaw = async (messages: any[], jsonMode: boolean) => {
         body: JSON.stringify(body)
     });
 
-    if (!response.ok) throw new Error("Groq API Failed");
+    if (!response.ok) {
+        if(response.status === 429) throw new Error("GROQ_RATE_LIMIT");
+        throw new Error("Groq API Failed");
+    }
     const result = await response.json();
     if (!result.success) throw new Error(result.error);
     
@@ -168,9 +176,15 @@ const generateWithSwitcher = async (promptOrContents: any, isJson: boolean = tru
             const modelToUse = 'gemini-2.5-flash';
             return await generateWithGemini(promptOrContents, isJson, temperature, modelToUse);
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error(`${provider} Generation Failed:`, e);
-        // Fallback to Gemini 2.5 if Groq fails
+        
+        // Don't fallback if the issue is just missing key, alert user instead
+        if (e.message === 'GROQ_KEY_MISSING') {
+            throw new Error("Groq API Key is missing. Check Admin Settings.");
+        }
+
+        // Fallback to Gemini 2.5 if Groq fails (network/server error)
         if (provider === 'groq') {
              console.log("Falling back to Gemini 2.5...");
              return await generateWithGemini(promptOrContents, isJson, temperature, 'gemini-2.5-flash');
@@ -267,19 +281,32 @@ const safeOptions = (opts: any): string[] => {
 // --- EXPORTS ---
 
 export const checkAIConnectivity = async (): Promise<'Operational' | 'Degraded' | 'Rate Limited' | 'Failed'> => {
+    const provider = localStorage.getItem('selected_ai_provider') || 'gemini-2.5';
+    
     try {
-        // Use gemini-2.5-flash for diagnostics to ensure main model connectivity.
-        // gemini-1.5-flash caused issues with text/plain configs in some contexts.
-        const response = await generateWithGemini(
-            { parts: [{ text: "Reply 'OK'." }] }, 
-            false, 
-            0.1, 
-            'gemini-2.5-flash'
-        );
-        return response ? 'Operational' : 'Degraded';
+        if (provider === 'groq') {
+            // --- TEST GROQ ---
+            console.log("Diagnostics: Testing Groq...");
+            const response = await callGroqBackendRaw(
+                [{ role: "user", content: "Ping" }],
+                false
+            );
+            return response ? 'Operational' : 'Failed';
+        } else {
+            // --- TEST GEMINI ---
+            console.log("Diagnostics: Testing Gemini...");
+            const response = await generateWithGemini(
+                { parts: [{ text: "Reply 'OK'." }] }, 
+                false, 
+                0.1, 
+                'gemini-2.5-flash'
+            );
+            return response ? 'Operational' : 'Degraded';
+        }
     } catch (e: any) {
         console.warn("Diagnostic Check Failed:", e.message);
-        if (e.message.includes("QUOTA") || e.message.includes("429")) return 'Rate Limited';
+        if (e.message.includes("QUOTA") || e.message.includes("429") || e.message.includes("GROQ_RATE_LIMIT")) return 'Rate Limited';
+        if (e.message.includes("GROQ_KEY_MISSING")) return 'Failed'; // Explicit fail for config error
         return 'Failed';
     }
 };

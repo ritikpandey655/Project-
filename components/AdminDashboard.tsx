@@ -387,6 +387,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const currentSubjects = examConfig[uploadExam] || EXAM_SUBJECTS[uploadExam as ExamType] || [];
   const currentSyllabusSubjects = examConfig[syllabusExam] || EXAM_SUBJECTS[syllabusExam as ExamType] || [];
 
+  const providerLabel = selectedProvider === 'groq' ? 'Groq' : 'Gemini';
+
   return (
     <div className="min-h-screen bg-slate-900 text-white font-mono animate-fade-in fixed inset-0 z-[100] overflow-y-auto">
       
@@ -487,7 +489,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             'bg-red-900/20 border-red-500/50'
                         }`}>
                             <div className="flex justify-between items-start">
-                                <p className="text-xs text-slate-400 uppercase mb-2">AI Engine Status</p>
+                                <p className="text-xs text-slate-400 uppercase mb-2">AI Status ({providerLabel})</p>
                                 <button onClick={handleResetAI} className="text-[10px] bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">Reset Quota</button>
                             </div>
                             <h3 className={`text-2xl font-bold ${
