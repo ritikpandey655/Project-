@@ -199,6 +199,8 @@ const App: React.FC = () => {
     const action = urlParams.get('action');
     const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
     
+    // Handle persistent privacy view but DO NOT return early
+    // loadUserData populates user state, which is critical
     if (action === 'privacy') {
         setState(prev => ({ ...prev, view: 'privacy' }));
         return;
@@ -254,6 +256,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (isAppInitializing) {
+        // Fallback if auth takes too long
       }
     }, 8000);
 
@@ -261,18 +264,24 @@ const App: React.FC = () => {
       clearTimeout(timeoutId);
       
       const urlParams = new URLSearchParams(window.location.search);
-      // Prioritize Privacy URL param
-      if (urlParams.get('action') === 'privacy') {
-          setState(prev => ({ ...prev, view: 'privacy' }));
-          setIsAppInitializing(false);
-          return;
-      }
+      const isPrivacyAction = urlParams.get('action') === 'privacy';
 
       if (currentUser) {
-        loadUserData(currentUser.uid).then(() => setIsAppInitializing(false));
+        loadUserData(currentUser.uid).then(() => {
+            setIsAppInitializing(false);
+            // If privacy param exists, ensure we stay on privacy even after loading user data
+            // But state.user WILL be populated now
+            if (isPrivacyAction) {
+                setState(prev => ({ ...prev, view: 'privacy' }));
+            }
+        });
       } else {
-        // If not logged in, go straight to LOGIN view
-        setState(prev => ({ ...prev, user: null, view: 'login' }));
+        // Not logged in
+        setState(prev => ({ 
+            ...prev, 
+            user: null, 
+            view: isPrivacyAction ? 'privacy' : 'login' 
+        }));
         setIsAppInitializing(false);
       }
     });
@@ -306,7 +315,10 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleLogin = useCallback((user: User) => {}, []);
+  const handleLogin = useCallback((user: User) => {
+      // Manually load data on login to ensure immediate state update
+      loadUserData(user.id);
+  }, [loadUserData]);
 
   const handleSignup = useCallback(async (user: User, exam: ExamType) => {
     await saveUserPref(user.id, { selectedExam: exam });
@@ -592,6 +604,7 @@ const App: React.FC = () => {
           }
 
           // If logged in, go dashboard, else login
+          // Check state.user instead of relying on auth status alone to prevent flickers
           if (state.user) navigateTo('dashboard');
           else navigateTo('login');
       }} />;

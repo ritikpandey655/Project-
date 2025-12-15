@@ -16,8 +16,79 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         injectRegister: null, // MANUAL REGISTRATION IN index.html
         filename: 'service-worker.js', // Standard name for better detection
-        manifestFilename: 'manifest.json', // Will use existing public/manifest.json
+        manifestFilename: 'manifest.json', // Ensure output is manifest.json to match index.html
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'widget-template.json', 'widget-data.json', 'robots.txt'],
+        // DEFINING MANIFEST HERE FIXES THE "theme_color is missing" WARNING
+        manifest: {
+          name: "PYQverse: All exams ka pura universe",
+          short_name: "PYQverse",
+          description: "Master UPSC, SSC, JEE, NEET & more with AI-powered Previous Year Questions, smart analytics, and unlimited practice.",
+          theme_color: "#f97316",
+          background_color: "#111827",
+          display: "standalone",
+          orientation: "portrait",
+          scope: "/",
+          start_url: "/",
+          categories: ["education", "productivity", "study"],
+          lang: "en",
+          dir: "ltr",
+          icons: [
+            {
+              src: "/icon.svg",
+              sizes: "192x192",
+              type: "image/svg+xml",
+              purpose: "any"
+            },
+            {
+              src: "/icon.svg",
+              sizes: "512x512",
+              type: "image/svg+xml",
+              purpose: "any"
+            },
+            {
+              src: "/icon.svg",
+              sizes: "192x192",
+              type: "image/svg+xml",
+              purpose: "maskable"
+            },
+            {
+              src: "/icon.svg",
+              sizes: "512x512",
+              type: "image/svg+xml",
+              purpose: "maskable"
+            }
+          ],
+          shortcuts: [
+            {
+              name: "Start Practice",
+              short_name: "Practice",
+              url: "/?action=practice",
+              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
+            },
+            {
+              name: "Doubt Solver",
+              short_name: "Doubts",
+              url: "/?action=upload",
+              icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }]
+            }
+          ],
+          screenshots: [
+            {
+              src: "https://placehold.co/1080x1920/111827/ffffff.png?text=PYQverse+Mobile+Dashboard&font=roboto",
+              sizes: "1080x1920",
+              type: "image/png",
+              form_factor: "narrow",
+              label: "Mobile Dashboard"
+            },
+            {
+              src: "https://placehold.co/1920x1080/111827/ffffff.png?text=PYQverse+Desktop+Experience&font=roboto",
+              sizes: "1920x1080",
+              type: "image/png",
+              form_factor: "wide",
+              label: "Desktop Dashboard"
+            }
+          ]
+        },
         workbox: {
           maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // Increase limit to 10MB
           importScripts: ['/custom-sw-logic.js'],
@@ -73,11 +144,7 @@ export default defineConfig(({ mode }) => {
         }
     },
     define: {
-      // Empty string for BACKEND_URL in dev means it uses the proxy above (localhost:5000)
-      // On Vercel production, this env var will be set automatically or via Vercel dashboard
       'process.env.BACKEND_URL': JSON.stringify(process.env.NODE_ENV === 'production' ? "https://pyqverse.vercel.app" : ""), 
-      
-      // Inject API Key into Client bundle for Fallback mode
       'process.env.API_KEY': JSON.stringify("AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0"), 
       'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY || ""),
       'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID),
