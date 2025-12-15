@@ -1,13 +1,11 @@
 
-import { HarmCategory, HarmBlockThreshold, GoogleGenAI } from "@google/genai";
+import { HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions } from "./storageService";
 
-// --- CLIENT-SIDE SETUP ---
-// Using key directly in client (Risk accepted for Client-only mode)
-const CLIENT_API_KEY = process.env.API_KEY || "AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0";
-const clientAI = new GoogleGenAI({ apiKey: CLIENT_API_KEY });
+// --- BACKEND CONNECTION SETUP ---
+const BASE_URL = process.env.BACKEND_URL || "";
 
 // --- RATE LIMIT CONFIGURATION ---
 const RATE_LIMIT_DELAY = 2000; 
@@ -32,61 +30,66 @@ const enqueueRequest = <T>(task: () => Promise<T>): Promise<T> => {
     return nextTask;
 };
 
-// --- DIRECT GEMINI CALL ---
-const callGeminiDirect = async (params: { model: string, contents: any, config?: any }) => {
-    try {
-        const response = await clientAI.models.generateContent({
-            model: params.model,
-            contents: params.contents,
-            config: params.config
-        });
-        return { text: response.text };
-    } catch (e: any) {
-        console.error("Gemini Direct Error:", e);
-        if (e.message?.includes("429") || e.status === 429) {
-             throw new Error("QUOTA_EXCEEDED");
-        }
-        throw e;
+// --- BACKEND GEMINI CALL (PYTHON) ---
+const callGeminiBackendRaw = async (params: { model: string, contents: any, config?: any }) => {
+  try {
+    const endpoint = `${BASE_URL}/api/ai/generate`.replace('//api', '/api'); 
+    
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+        if (response.status === 429) throw new Error("QUOTA_EXCEEDED");
+        throw new Error(`Backend Status: ${response.status}`);
     }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      const errorMsg = result.error || 'Unknown AI Error';
+      if (errorMsg.includes('429')) throw new Error("QUOTA_EXCEEDED");
+      throw new Error(errorMsg);
+    }
+    
+    return { text: result.data }; 
+
+  } catch (error: any) {
+    console.error("Backend Call Failed:", error);
+    throw error;
+  }
 };
 
-// --- DIRECT GROQ CALL ---
-const callGroqDirect = async (messages: any[], jsonMode: boolean) => {
+// --- BACKEND GROQ CALL (PYTHON) ---
+const callGroqBackendRaw = async (messages: any[], jsonMode: boolean) => {
     const apiKey = localStorage.getItem('groq_api_key');
-    
-    if (!apiKey) {
-        throw new Error("GROQ_KEY_MISSING");
-    }
+    if (!apiKey) throw new Error("GROQ_KEY_MISSING");
+
+    const endpoint = `${BASE_URL}/api/ai/groq`.replace('//api', '/api'); 
 
     const body = {
         model: "llama-3.3-70b-versatile",
         messages: messages,
-        response_format: jsonMode ? { type: "json_object" } : undefined,
-        temperature: 0.3
+        jsonMode: jsonMode,
+        apiKey: apiKey
     };
 
-    try {
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(body)
-        });
+    const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
 
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({ error: { message: response.statusText } }));
-            if(response.status === 429) throw new Error("GROQ_RATE_LIMIT");
-            throw new Error(`Groq Error: ${errData.error?.message || response.statusText}`);
-        }
-
-        const result = await response.json();
-        return result.choices[0].message.content;
-    } catch (error: any) {
-        console.error("Groq Fetch Error:", error);
-        throw error;
+    if (!response.ok) {
+        if(response.status === 429) throw new Error("GROQ_RATE_LIMIT");
+        throw new Error("Groq API Failed");
     }
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error);
+    
+    return result.data.choices[0].message.content;
 };
 
 // --- MASTER CONTROLLER ---
@@ -96,7 +99,6 @@ const generateWithSwitcher = async (promptOrContents: any, isJson: boolean = tru
 
     try {
         if (provider === 'groq') {
-            // Convert Gemini 'contents' format to OpenAI/Groq 'messages' format
             let messages = [];
             if (typeof promptOrContents === 'string') {
                 messages.push({ role: "system", content: "You are a helpful exam assistant. Return JSON." });
@@ -107,21 +109,19 @@ const generateWithSwitcher = async (promptOrContents: any, isJson: boolean = tru
                 messages.push({ role: "user", content: textPart });
             }
 
-            const text = await callGroqDirect(messages, isJson);
+            const text = await callGroqBackendRaw(messages, isJson);
             return isJson ? JSON.parse(cleanJson(text)) : text;
 
         } else {
-            // Default: Gemini 2.5
+            // Default: Gemini 2.5 (Proxied via Python)
             const modelToUse = 'gemini-2.5-flash';
             return await generateWithGemini(promptOrContents, isJson, temperature, modelToUse);
         }
     } catch (e: any) {
         console.error(`${provider} Generation Failed:`, e);
+        if (e.message === 'GROQ_KEY_MISSING') throw new Error("Groq API Key is missing.");
         
-        if (e.message === 'GROQ_KEY_MISSING') {
-            throw new Error("Groq API Key is missing. Check Admin Settings.");
-        }
-
+        // Fallback to Gemini 2.5 if Groq fails
         if (provider === 'groq') {
              console.log("Falling back to Gemini 2.5...");
              return await generateWithGemini(promptOrContents, isJson, temperature, 'gemini-2.5-flash');
@@ -139,7 +139,6 @@ const commonConfig = {
     ]
 };
 
-// Exported for direct access (e.g. diagnostics)
 export const generateWithGemini = async (
     contents: any, 
     isJson: boolean = true, 
@@ -147,7 +146,6 @@ export const generateWithGemini = async (
     model: string = 'gemini-2.5-flash'
 ): Promise<any> => {
     
-    // Normalize contents if string
     const finalContents = typeof contents === 'string' ? { parts: [{ text: contents }] } : contents;
 
     const config: any = { 
@@ -159,8 +157,7 @@ export const generateWithGemini = async (
         config.responseMimeType = "application/json";
     }
 
-    // Direct Call Wrapper for Queue
-    const wrappedCall = () => callGeminiDirect({
+    const wrappedCall = () => callGeminiBackendRaw({
         model: model,
         contents: finalContents,
         config: config
@@ -219,42 +216,26 @@ const safeOptions = (opts: any): string[] => {
 
 export const checkAIConnectivity = async (): Promise<'Operational' | 'Degraded' | 'Rate Limited' | 'Failed'> => {
     const provider = localStorage.getItem('selected_ai_provider') || 'gemini-2.5';
-    
     try {
         if (provider === 'groq') {
-            // --- TEST GROQ DIRECT ---
-            console.log("Diagnostics: Testing Groq Direct...");
-            const response = await callGroqDirect(
-                [{ role: "user", content: "Ping" }],
-                false
-            );
+            const response = await callGroqBackendRaw([{ role: "user", content: "Ping" }], false);
             return response ? 'Operational' : 'Failed';
         } else {
-            // --- TEST GEMINI DIRECT ---
-            console.log("Diagnostics: Testing Gemini Direct...");
-            const response = await generateWithGemini(
-                { parts: [{ text: "Reply 'OK'." }] }, 
-                false, 
-                0.1, 
-                'gemini-2.5-flash'
-            );
+            const response = await generateWithGemini({ parts: [{ text: "Ping" }] }, false, 0.1, 'gemini-2.5-flash');
             return response ? 'Operational' : 'Degraded';
         }
     } catch (e: any) {
-        console.warn("Diagnostic Check Failed:", e.message);
-        if (e.message.includes("QUOTA") || e.message.includes("429") || e.message.includes("GROQ_RATE_LIMIT")) return 'Rate Limited';
-        if (e.message.includes("GROQ_KEY_MISSING")) return 'Failed'; 
+        if (e.message.includes("QUOTA") || e.message.includes("429")) return 'Rate Limited';
+        if (e.message.includes("GROQ_KEY_MISSING")) return 'Failed';
         return 'Failed';
     }
 };
 
 export const resetAIQuota = () => {
-    // Reset any local rate limit counters if we implement them for client side later
     console.log("🔄 AI Quota Logic Reset");
 };
 
-// ... (Rest of the exports generateExamQuestions, generateFullPaper etc. remain same but use the new generateWithSwitcher)
-
+// (Same export functions as before, using generateWithSwitcher)
 export const generateExamQuestions = async (
   exam: string,
   subject: string,
@@ -323,20 +304,17 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
 
         const filledSections = [];
         for (const [sIdx, sec] of blueprint.sections.entries()) {
-            
             let qPromptText = `
                 Generate ${sec.questionCount} ${sec.type} questions for ${exam} (${subject}).
                 Follow the standard ${exam} exam pattern.
                 Return valid JSON Array.
             `;
-
             let questions = [];
             try {
                 questions = await generateWithSwitcher(qPromptText, true, 0.3);
             } catch (e) {
                 questions = MOCK_QUESTIONS_FALLBACK.slice(0, sec.questionCount);
             }
-
             if (!Array.isArray(questions) && (questions as any).questions) questions = (questions as any).questions;
 
             filledSections.push({
@@ -371,9 +349,7 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
             sections: filledSections,
             createdAt: Date.now()
         };
-    } catch (e) { 
-        return null;
-    }
+    } catch (e) { return null; }
 };
 
 export const generateCurrentAffairs = async (exam: string, count: number = 10): Promise<Question[]> => {
@@ -410,7 +386,6 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
   try {
     const prompt = `Extract MCQs from this content. Return JSON Array.`;
     const contents = { parts: [] as any[] };
-    
     if(type === 'image') {
         contents.parts.push({ inlineData: { mimeType: mimeType, data: input } });
         contents.parts.push({ text: prompt });
@@ -431,9 +406,7 @@ export const extractSyllabusFromImage = async (base64: string, mimeType: string)
         ]};
         const response = await generateWithSwitcher(contents, false, 0.1); 
         return response; 
-    } catch(e) {
-        return "";
-    }
+    } catch(e) { return ""; }
 };
 
 export const generateNews = async (exam: string, month?: string, year?: number, category?: string): Promise<NewsItem[]> => {

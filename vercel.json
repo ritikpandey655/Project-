@@ -4,16 +4,21 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "destination": "/api/index.py"
     },
     {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 60
+  "builds": [
+    {
+        "src": "api/index.py",
+        "use": "@vercel/python"
+    },
+    {
+        "src": "package.json",
+        "use": "@vercel/static-build"
     }
-  }
+  ]
 }
