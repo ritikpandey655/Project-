@@ -199,7 +199,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
         {/* Question Text */}
         <div className="px-6 py-2 mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white leading-relaxed">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white leading-relaxed">
             {displayText}
           </h2>
           {!displayHindi && language === 'hi' && (
@@ -208,7 +208,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         </div>
 
         {/* Options */}
-        <div className="px-6 pb-8 space-y-3">
+        <div className="px-6 pb-6 space-y-2">
           {displayOptions.length > 0 ? displayOptions.map((option, idx) => {
             let stateClass = "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-indigo-200 dark:hover:border-slate-600";
             
@@ -229,25 +229,25 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 key={idx}
                 disabled={isSubmitted}
                 onClick={() => setSelectedOption(idx)}
-                className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 flex items-center gap-4 group active:scale-[0.99] animate-slide-up-fade ${stateClass}`}
-                style={{ animationDelay: `${idx * 100}ms` }}
+                className={`w-full text-left p-3 rounded-xl border-2 transition-all duration-200 flex items-center gap-3 group active:scale-[0.99] animate-slide-up-fade ${stateClass}`}
+                style={{ animationDelay: `${idx * 50}ms` }}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors flex-shrink-0
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors flex-shrink-0
                   ${isSubmitted && idx === question.correctIndex ? 'bg-green-500 border-green-500 text-white' : 
                     isSubmitted && idx === selectedOption ? 'bg-red-500 border-red-500 text-white' :
                     selectedOption === idx ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500'}`}>
                   {String.fromCharCode(65 + idx)}
                 </div>
-                <span className={`text-base font-medium ${isSubmitted && idx === question.correctIndex ? 'font-bold' : ''} text-slate-700 dark:text-slate-200`}>
+                <span className={`text-sm font-medium ${isSubmitted && idx === question.correctIndex ? 'font-bold' : ''} text-slate-700 dark:text-slate-200 leading-snug`}>
                   {option}
                 </span>
                 {isSubmitted && idx === question.correctIndex && (
-                  <svg className="w-6 h-6 text-green-600 dark:text-green-400 ml-auto animate-bounce-slight" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 text-green-600 dark:text-green-400 ml-auto animate-bounce-slight" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
                 {isSubmitted && idx === selectedOption && idx !== question.correctIndex && (
-                   <svg className="w-6 h-6 text-red-600 dark:text-red-400 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <svg className="w-5 h-5 text-red-600 dark:text-red-400 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                    </svg>
                 )}
@@ -278,12 +278,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       </div>
 
       {/* Action Button */}
-      <div className="mt-6">
+      <div className="mt-4 mb-4">
         {!isSubmitted ? (
           <Button 
             onClick={handleSubmit} 
             disabled={selectedOption === null} 
-            className="w-full py-4 text-lg font-bold shadow-xl shadow-indigo-200 dark:shadow-none transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full py-3 text-base font-bold shadow-xl shadow-indigo-200 dark:shadow-none transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
             Check Answer
           </Button>
@@ -291,7 +291,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           <Button 
             onClick={onNext} 
             isLoading={isLoadingNext}
-            className={`w-full py-4 text-lg font-bold shadow-xl transition-transform hover:scale-[1.02] active:scale-[0.98] ${
+            className={`w-full py-3 text-base font-bold shadow-xl transition-transform hover:scale-[1.02] active:scale-[0.98] ${
                 isLast && !isLoadingNext ? 'bg-slate-800 dark:bg-white text-white dark:text-slate-900' : ''
             }`}
           >

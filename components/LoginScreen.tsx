@@ -16,6 +16,7 @@ interface LoginScreenProps {
   onLogin: (user: User) => void;
   onNavigateToSignup: () => void;
   onForgotPassword: () => void;
+  onNavigateToPrivacy?: () => void;
   isOnline?: boolean;
   isInitializing?: boolean;
 }
@@ -26,7 +27,14 @@ declare global {
   }
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToSignup, onForgotPassword, isOnline = true, isInitializing = false }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ 
+  onLogin, 
+  onNavigateToSignup, 
+  onForgotPassword, 
+  onNavigateToPrivacy,
+  isOnline = true, 
+  isInitializing = false 
+}) => {
   // Login Method State
   const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
 
@@ -502,7 +510,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onNavigateToS
             Need help? Contact <a href="mailto:support@pyqverse.in?subject=Login%20Issue%20-%20PYQverse" className="text-orange-400 hover:text-orange-300 font-bold transition-colors">support@pyqverse.in</a>
          </p>
          <div className="text-[10px] text-slate-600 flex gap-2 justify-center">
-            <a href="/?action=privacy" className="hover:text-slate-400">Privacy Policy</a>
+            {onNavigateToPrivacy ? (
+                <button onClick={onNavigateToPrivacy} className="hover:text-slate-400">Privacy Policy</button>
+            ) : (
+                <a href="/?action=privacy" className="hover:text-slate-400">Privacy Policy</a>
+            )}
             <span>•</span>
             <span>© 2025 PYQverse</span>
          </div>

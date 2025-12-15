@@ -261,6 +261,7 @@ const App: React.FC = () => {
       clearTimeout(timeoutId);
       
       const urlParams = new URLSearchParams(window.location.search);
+      // Prioritize Privacy URL param
       if (urlParams.get('action') === 'privacy') {
           setState(prev => ({ ...prev, view: 'privacy' }));
           setIsAppInitializing(false);
@@ -583,6 +584,13 @@ const App: React.FC = () => {
   // PRIVACY POLICY (Public or Private)
   if (state.view === 'privacy') {
       return <PrivacyPolicy onBack={() => {
+          // Clear URL params to ensure navigation doesn't get stuck
+          if (window.location.search.includes('action=privacy')) {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('action');
+              window.history.replaceState({}, '', url.toString());
+          }
+
           // If logged in, go dashboard, else login
           if (state.user) navigateTo('dashboard');
           else navigateTo('login');
@@ -596,6 +604,7 @@ const App: React.FC = () => {
         onLogin={handleLogin} 
         onNavigateToSignup={() => navigateTo('signup')}
         onForgotPassword={() => navigateTo('forgotPassword')}
+        onNavigateToPrivacy={() => navigateTo('privacy')}
         isOnline={isOnline}
       />
     );
@@ -717,6 +726,7 @@ const App: React.FC = () => {
                 />
             )}
 
+            {/* Other views omitted for brevity, they remain unchanged but included in final compilation if needed */}
             {state.view === 'tutorial' && (
                 <Tutorial onComplete={() => {
                     saveUserPref(state.user!.id, { hasSeenTutorial: true });
@@ -739,7 +749,6 @@ const App: React.FC = () => {
 
             {state.view === 'practice' && (
                 <div className="fixed inset-0 z-50 bg-[#F3F4F6] dark:bg-[#111827] flex flex-col h-full overflow-hidden">
-                    {/* Top Bar */}
                     <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex justify-between items-center shadow-sm shrink-0 safe-top">
                         <div className="flex items-center gap-3">
                             <button onClick={() => { 
@@ -760,7 +769,6 @@ const App: React.FC = () => {
                         {state.showTimer && <Timer />}
                     </div>
 
-                    {/* Question Area */}
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-safe">
                         <QuestionCard
                             question={practiceQueue[currentQIndex]}
@@ -867,7 +875,7 @@ const App: React.FC = () => {
             {state.view === 'analytics' && (
                 <SmartAnalytics 
                     stats={state.stats}
-                    history={[]} // Pass history if available in state
+                    history={[]} 
                     onBack={() => navigateTo('dashboard')}
                 />
             )}
@@ -884,12 +892,10 @@ const App: React.FC = () => {
                     news={state.newsFeed || []}
                     onBack={() => navigateTo('dashboard')}
                     onTakeQuiz={() => {
-                        setPracticeQueue([]); // Clear queue
-                        // Start quiz with news content (mock logic)
+                        setPracticeQueue([]);
                         startPracticeSession({ subject: 'Current Affairs', count: 10, mode: 'finite' });
                     }}
                     onFilterChange={handleNewsFilterChange}
-                    // Determine mode based on whether we are showing news categories or subject notes
                     mode={state.newsFeed && state.newsFeed.length > 0 && state.newsFeed[0].category === 'Notes' ? 'notes' : 'news'}
                     examType={state.selectedExam || undefined}
                 />
@@ -910,13 +916,11 @@ const App: React.FC = () => {
                         <span>←</span> Back to Dashboard
                     </button>
                     <h2 className="text-2xl font-bold mb-6 dark:text-white">Your Bookmarks</h2>
-                    {/* Reuse PYQ Library Logic for display or simple list */}
                     <PYQLibrary 
                         examType={state.selectedExam!} 
                         onBack={() => navigateTo('dashboard')}
                         language={state.language}
                     /> 
-                    {/* Note: Ideally create a separate BookmarkList component, but reusing for brevity */}
                 </div>
             )}
 
@@ -970,14 +974,16 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Mobile Bottom Nav */}
-      <MobileBottomNav 
-         currentView={state.view} 
-         onNavigate={navigateTo} 
-         onAction={(action) => {
-            if (action === 'practice') setShowPracticeConfig(true);
-         }}
-      />
+      {/* Mobile Bottom Nav - Hide in Practice/Paper modes */}
+      {state.view !== 'practice' && state.view !== 'paperView' && (
+        <MobileBottomNav 
+           currentView={state.view} 
+           onNavigate={navigateTo} 
+           onAction={(action) => {
+              if (action === 'practice') setShowPracticeConfig(true);
+           }}
+        />
+      )}
 
       {/* Global Loading Overlay */}
       {isLoading && (
