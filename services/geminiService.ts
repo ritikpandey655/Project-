@@ -79,6 +79,10 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
     });
 
     if (!response.ok) {
+        // Handle 429 specifically from Vercel/Backend
+        if (response.status === 429) {
+             throw new Error("QUOTA_EXCEEDED");
+        }
         throw new Error(`Backend Status: ${response.status}`);
     }
 
@@ -197,9 +201,13 @@ export const generateWithGemini = async (
 
     const config: any = { 
         ...commonConfig, 
-        temperature: temperature, 
-        responseMimeType: isJson ? "application/json" : "text/plain" 
+        temperature: temperature,
     };
+
+    // Only set responseMimeType if strictly needed (JSON), otherwise let it default
+    if (isJson) {
+        config.responseMimeType = "application/json";
+    }
 
     const wrappedCall = () => callGeminiBackendRaw({
         model: model,
@@ -260,12 +268,13 @@ const safeOptions = (opts: any): string[] => {
 
 export const checkAIConnectivity = async (): Promise<'Operational' | 'Degraded' | 'Rate Limited' | 'Failed'> => {
     try {
-        // Use 1.5 Flash for diagnostics to avoid hitting 2.5 limits (5 RPM)
+        // Use gemini-2.5-flash for diagnostics to ensure main model connectivity.
+        // gemini-1.5-flash caused issues with text/plain configs in some contexts.
         const response = await generateWithGemini(
-            { parts: [{ text: "Reply 'OK' if you see this." }] }, 
+            { parts: [{ text: "Reply 'OK'." }] }, 
             false, 
             0.1, 
-            'gemini-1.5-flash'
+            'gemini-2.5-flash'
         );
         return response ? 'Operational' : 'Degraded';
     } catch (e: any) {
