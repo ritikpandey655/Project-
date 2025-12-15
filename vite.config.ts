@@ -77,8 +77,8 @@ export default defineConfig(({ mode }) => {
       // On Vercel production, this env var will be set automatically or via Vercel dashboard
       'process.env.BACKEND_URL': JSON.stringify(process.env.NODE_ENV === 'production' ? "https://pyqverse.vercel.app" : ""), 
       
-      // SECURITY FIX: Do not expose API_KEY to client bundle
-      'process.env.API_KEY': JSON.stringify(""), 
+      // Inject API Key into Client bundle for Fallback mode
+      'process.env.API_KEY': JSON.stringify("AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0"), 
       'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY || ""),
       'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID),
     },

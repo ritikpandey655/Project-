@@ -1,8 +1,13 @@
 
-import { HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { HarmCategory, HarmBlockThreshold, GoogleGenAI } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
-import { getOfficialQuestions, logSystemError } from "./storageService";
+import { getOfficialQuestions } from "./storageService";
+
+// --- CLIENT-SIDE FALLBACK SETUP ---
+// We use the provided key if available, otherwise fallback to the known key for reliability
+const CLIENT_API_KEY = process.env.API_KEY || "AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0";
+const clientAI = new GoogleGenAI({ apiKey: CLIENT_API_KEY });
 
 // --- RATE LIMIT CONFIGURATION ---
 
@@ -51,11 +56,23 @@ const checkQuota = () => {
 // --- BACKEND CONNECTION SETUP ---
 const BASE_URL = process.env.BACKEND_URL || "";
 
-// --- GEMINI CALL HANDLER (BACKEND ONLY) ---
+// --- DIRECT CLIENT CALL (FALLBACK) ---
+const callGeminiDirect = async (params: { model: string, contents: any, config?: any }) => {
+    console.log("⚠️ Switching to Client-Side AI (Fallback Mode)");
+    const response = await clientAI.models.generateContent({
+        model: params.model,
+        contents: params.contents,
+        config: params.config
+    });
+    return { text: response.text };
+};
+
+// --- MAIN CALL HANDLER ---
 const callGeminiBackendRaw = async (params: { model: string, contents: any, config?: any }) => {
   if (!checkQuota()) throw new Error("QUOTA_COOL_DOWN");
 
   try {
+    // 1. Try Backend First
     const endpoint = `${BASE_URL}/api/ai/generate`.replace('//api', '/api'); 
     
     const response = await fetch(endpoint, {
@@ -64,13 +81,18 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
         body: JSON.stringify(params),
     });
 
+    // If backend 404/500/Offline, throw to trigger catch block
+    if (!response.ok) {
+        throw new Error(`Backend Status: ${response.status}`);
+    }
+
     const contentType = response.headers.get("content-type");
     let result;
     
     if (contentType && contentType.indexOf("application/json") !== -1) {
         result = await response.json();
     } else {
-        throw new Error(`Server Error: Backend unavailable.`);
+        throw new Error(`Invalid Response Type`);
     }
 
     if (!result.success) {
@@ -85,10 +107,18 @@ const callGeminiBackendRaw = async (params: { model: string, contents: any, conf
     }
     
     return { text: result.data }; 
+
   } catch (error: any) {
-    if (error.message === "QUOTA_EXCEEDED" || error.message === "QUOTA_COOL_DOWN") throw error;
-    console.error("Secure AI Call Failed:", error);
-    throw error;
+    if (error.message === "QUOTA_EXCEEDED") throw error;
+    
+    // 2. Fallback to Client-Side Direct Call
+    console.warn("Backend failed, attempting direct client call...", error.message);
+    try {
+        return await callGeminiDirect(params);
+    } catch (clientError: any) {
+        console.error("Both Backend and Client AI Failed:", clientError);
+        throw clientError;
+    }
   }
 };
 

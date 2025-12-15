@@ -9,9 +9,8 @@ const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-// Updated Key provided by user
+// API Key setup
 const apiKey = process.env.API_KEY || "AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0";
-
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 app.use(helmet({
@@ -24,7 +23,7 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     const allowedDomains = ['https://pyqverse.in', 'https://www.pyqverse.in', 'https://pyqverse.vercel.app'];
     if (allowedDomains.includes(origin) || origin.endsWith('.vercel.app') || origin.includes('localhost')) return callback(null, true);
-    return callback(null, true); // Allow open CORS for now to fix connection issues
+    return callback(null, true);
   },
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type'],
@@ -90,4 +89,7 @@ router.get('/health', (req, res) => res.json({ status: 'online', timestamp: Date
 app.use('/api', router);
 app.use('/', router);
 
-export default app;
+// Explicitly export the handler for Vercel
+export default async function handler(req, res) {
+  await app(req, res);
+}
