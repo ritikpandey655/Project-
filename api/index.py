@@ -9,56 +9,76 @@ app = Flask(__name__)
 CORS(app)
 
 
+# -----------------------
+# Health Check
+# -----------------------
 @app.route("/api/health", methods=["GET"])
 def health():
-    return jsonify({"status": "online"}), 200
+    return jsonify({"status": "online"})
 
 
+# -----------------------
+# Gemini 2.5 Flash
+# -----------------------
 @app.route("/api/ai/generate", methods=["POST"])
 def generate_gemini():
     try:
-        data = request.get_json(force=True)
+        data = request.get_json()
 
-        model_name = data.get("model")
         contents = data.get("contents")
         config = data.get("config", {})
 
-        if not model_name or not contents:
-            return jsonify({"success": False, "error": "Missing model or contents"}), 400
+        if not contents:
+            return jsonify({
+                "success": False,
+                "error": "contents field is required"
+            }), 400
 
-        api_key = os.getenv("GOOGLE_API_KEY")
+        api_key = os.environ.get("GOOGLE_API_KEY")
         if not api_key:
-            return jsonify({"success": False, "error": "GOOGLE_API_KEY not set"}), 500
+            return jsonify({
+                "success": False,
+                "error": "GOOGLE_API_KEY not set"
+            }), 500
 
         genai.configure(api_key=api_key)
 
-        model = genai.GenerativeModel(
-            model_name=model_name,
+        model = genai.GenerativeModel("models/gemini-2.5-flash")
+
+        response = model.generate_content(
+            contents=contents,
             generation_config=config
         )
 
-        response = model.generate_content(contents)
-
-        return jsonify({"success": True, "data": response.text}), 200
+        return jsonify({
+            "success": True,
+            "data": response.text
+        })
 
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({
             "success": False,
-            "error": str(e),
-            "trace": traceback.format_exc()
+            "error": str(e)
         }), 500
 
 
+# -----------------------
+# Groq Proxy
+# -----------------------
 @app.route("/api/ai/groq", methods=["POST"])
 def generate_groq():
     try:
-        data = request.get_json(force=True)
+        data = request.get_json()
 
         groq_api_key = data.get("api_key")
         payload = data.get("payload")
 
         if not groq_api_key or not payload:
-            return jsonify({"success": False, "error": "Missing Groq key or payload"}), 400
+            return jsonify({
+                "success": False,
+                "error": "api_key and payload required"
+            }), 400
 
         headers = {
             "Authorization": f"Bearer {groq_api_key}",
@@ -77,10 +97,9 @@ def generate_groq():
     except Exception as e:
         return jsonify({
             "success": False,
-            "error": str(e),
-            "trace": traceback.format_exc()
+            "error": str(e)
         }), 500
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
