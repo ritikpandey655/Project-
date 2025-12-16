@@ -2,13 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
-import { 
-  signInWithEmailAndPassword, 
-  signInWithPopup, 
-  RecaptchaVerifier, 
-  signInWithPhoneNumber,
-  ConfirmationResult
-} from "firebase/auth";
+import firebase from "firebase/compat/app";
+import "firebase/compat/auth";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { Button } from './Button';
 
@@ -45,7 +40,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   // Phone State
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [confirmationResult, setConfirmationResult] = useState<any | null>(null);
   const [isOtpSent, setIsOtpSent] = useState(false);
 
   // General State
@@ -73,7 +68,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   useEffect(() => {
     if (loginMethod === 'phone' && !window.recaptchaVerifier && recaptchaRef.current) {
       try {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, recaptchaRef.current, {
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier(recaptchaRef.current, {
           'size': 'invisible',
           'callback': () => {
             // reCAPTCHA solved, allow signInWithPhoneNumber.
@@ -169,7 +164,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setError('');
 
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
+      const result = await auth.signInWithEmailAndPassword(email, password);
       
       if (result.user) {
         const user = await syncUserToDB(result.user);
@@ -200,7 +195,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setIsLoading(true);
     setError('');
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await auth.signInWithPopup(googleProvider);
       if (result.user) {
          const user = await syncUserToDB(result.user);
          onLogin(user);
@@ -235,7 +230,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     const formatPh = phoneNumber.includes('+') ? phoneNumber : "+91" + phoneNumber;
 
     try {
-        const confirmation = await signInWithPhoneNumber(auth, formatPh, appVerifier);
+        const confirmation = await auth.signInWithPhoneNumber(formatPh, appVerifier);
         setConfirmationResult(confirmation);
         setIsOtpSent(true);
         setIsLoading(false);

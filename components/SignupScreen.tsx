@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { User, ExamType } from '../types';
 import { Button } from './Button';
 import { auth, db } from '../src/firebaseConfig';
-import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { getExamConfig } from '../services/storageService';
 import { EXAM_SUBJECTS } from '../constants';
@@ -52,14 +51,17 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
 
     try {
       // 1. Create Auth User
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
       const firebaseUser = userCredential.user;
 
       if (firebaseUser) {
           setLoadingText('Setting up Profile...');
           
           // 2. Update Profile Display Name
-          await updateProfile(firebaseUser, { displayName: name });
+          // Note: In Compat API (v8 style), currentUser is available on auth instance
+          // But userCredential.user is a User object which might have updateProfile method in compat
+          // In Compat, `user.updateProfile` is correct.
+          await firebaseUser.updateProfile({ displayName: name });
 
           // 3. Create Firestore User Doc
           const lowerEmail = email.toLowerCase().trim();
@@ -85,7 +87,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
           setLoadingText('Sending Verification Link...');
 
           // 5. Send Verification Email
-          await sendEmailVerification(firebaseUser);
+          await firebaseUser.sendEmailVerification();
           
           // 6. Show Success Screen Immediately
           setIsVerificationSent(true);

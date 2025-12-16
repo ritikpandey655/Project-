@@ -1,7 +1,8 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+
+import firebase from "firebase/compat/app";
+import "firebase/compat/auth";
+import "firebase/compat/analytics";
 import { getFirestore } from "firebase/firestore";
-import { getAnalytics, isSupported } from "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDJ48kwjfVfIm6Pi7v8Kc4fgd_PzZilZwY",
@@ -14,26 +15,23 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app = firebase.initializeApp(firebaseConfig);
 
-// App Check has been removed to resolve auth/internal-error during development.
-// This is a common issue if ReCaptcha Enterprise is not fully configured.
-// For production, App Check should be re-enabled with a properly configured provider.
-
-// Initialize Services
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Auth & Analytics (Compat)
+const auth = firebase.auth();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 let analytics: any = null;
-isSupported().then((supported) => {
-  if (supported) {
-    analytics = getAnalytics(app);
+if (typeof window !== 'undefined') {
+  try {
+     analytics = firebase.analytics();
+  } catch(e) {
+     console.log("Firebase Analytics failed:", e);
   }
-}).catch((err) => {
-  console.log("Firebase Analytics not supported:", err);
-});
+}
 
-const googleProvider = new GoogleAuthProvider();
+// Firestore (Modular - required for storageService compatibility)
+const db = getFirestore(app);
 
 export { app, auth, db, analytics, googleProvider };
 export default app;

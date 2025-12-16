@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { AppState, ExamType, Question, User, ViewState } from './types';
-import { EXAM_SUBJECTS, THEME_PALETTES, TECHNICAL_EXAMS, MONTHS } from './constants';
+import { AppState, ExamType, Question, User, ViewState } from '../types';
+import { EXAM_SUBJECTS, THEME_PALETTES, TECHNICAL_EXAMS, MONTHS } from '../constants';
 import { 
   getUserPref, 
   getStats, 
@@ -17,33 +17,32 @@ import {
   getExamConfig,
   updateUserActivity,
   updateUserSession
-} from './services/storageService';
-import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion, generateNews, generateStudyNotes } from './services/geminiService';
-import { Dashboard } from './components/Dashboard';
-import { QuestionCard } from './components/QuestionCard';
-import { UploadForm } from './components/UploadForm';
-import { LoginScreen } from './components/LoginScreen';
-import { SignupScreen } from './components/SignupScreen';
-import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
-import { Timer } from './components/Timer';
-import { Tutorial } from './components/Tutorial';
-import { ProfileScreen } from './components/ProfileScreen';
-import { PaperGenerator } from './components/PaperGenerator';
-import { PaperView } from './components/PaperView';
-import { PracticeConfigModal } from './components/PracticeConfigModal';
-import { PaymentModal } from './components/PaymentModal';
-import { Sidebar } from './components/Sidebar';
-import { AdminDashboard } from './components/AdminDashboard';
-import { OfflinePapersList } from './components/OfflinePapersList';
-import { SmartAnalytics } from './components/SmartAnalytics';
-import { Leaderboard } from './components/Leaderboard';
-import { CurrentAffairsFeed } from './components/CurrentAffairsFeed';
-import { PYQLibrary } from './components/PYQLibrary';
-import { BackgroundAnimation } from './components/BackgroundAnimation';
-import { MobileBottomNav } from './components/MobileBottomNav';
-import { PrivacyPolicy } from './components/PrivacyPolicy';
-import { auth, db } from './src/firebaseConfig';
-import { onAuthStateChanged, signOut } from "firebase/auth";
+} from '../services/storageService';
+import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion, generateNews, generateStudyNotes } from '../services/geminiService';
+import { Dashboard } from './Dashboard';
+import { QuestionCard } from './QuestionCard';
+import { UploadForm } from './UploadForm';
+import { LoginScreen } from './LoginScreen';
+import { SignupScreen } from './SignupScreen';
+import { ForgotPasswordScreen } from './ForgotPasswordScreen';
+import { Timer } from './Timer';
+import { Tutorial } from './Tutorial';
+import { ProfileScreen } from './ProfileScreen';
+import { PaperGenerator } from './PaperGenerator';
+import { PaperView } from './PaperView';
+import { PracticeConfigModal } from './PracticeConfigModal';
+import { PaymentModal } from './PaymentModal';
+import { Sidebar } from './Sidebar';
+import { AdminDashboard } from './AdminDashboard';
+import { OfflinePapersList } from './OfflinePapersList';
+import { SmartAnalytics } from './SmartAnalytics';
+import { Leaderboard } from './Leaderboard';
+import { CurrentAffairsFeed } from './CurrentAffairsFeed';
+import { PYQLibrary } from './PYQLibrary';
+import { BackgroundAnimation } from './BackgroundAnimation';
+import { MobileBottomNav } from './MobileBottomNav';
+import { PrivacyPolicy } from './PrivacyPolicy';
+import { auth, db } from '../src/firebaseConfig';
 import { onSnapshot, doc } from "firebase/firestore";
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
@@ -241,7 +240,7 @@ const App: React.FC = () => {
             // someone else logged in on another device.
             if (data?.sessionId && data.sessionId !== currentSessionId.current) {
                 alert("You have been logged out because your account was accessed from another device.");
-                signOut(auth).then(() => {
+                auth.signOut().then(() => {
                     window.location.reload(); // Refresh to clean state
                 });
             }
@@ -260,7 +259,7 @@ const App: React.FC = () => {
       }
     }, 8000);
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser: any) => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser: any) => {
       clearTimeout(timeoutId);
       
       const urlParams = new URLSearchParams(window.location.search);
@@ -325,7 +324,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    await signOut(auth);
+    await auth.signOut();
     navigateTo('login');
   }, [navigateTo]);
 
