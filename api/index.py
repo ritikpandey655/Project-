@@ -1,31 +1,44 @@
 import os
+import traceback
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
 import requests
-import traceback
 
 app = Flask(__name__)
 CORS(app)
 
 
+# -----------------------
+# Health Check
+# -----------------------
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "online"}), 200
 
 
+# -----------------------
+# Gemini 2.5 Flash (Flexible Input)
+# Accepts: prompt OR contents
+# -----------------------
 @app.route("/api/ai/generate", methods=["POST"])
 def generate_gemini():
     try:
         data = request.get_json(force=True)
 
+        # Preferred field
         prompt = data.get("prompt")
-        config = data.get("config", {})
+
+        # Fallback for old frontend
+        if not prompt:
+            contents = data.get("contents")
+            if isinstance(contents, str):
+                prompt = contents
 
         if not prompt:
             return jsonify({
                 "success": False,
-                "error": "prompt field is required"
+                "error": "prompt or contents is required"
             }), 400
 
         api_key = os.getenv("GOOGLE_API_KEY")
@@ -39,10 +52,7 @@ def generate_gemini():
 
         model = genai.GenerativeModel("models/gemini-2.5-flash")
 
-        response = model.generate_content(
-            prompt,
-            generation_config=config
-        )
+        response = model.generate_content(prompt)
 
         return jsonify({
             "success": True,
@@ -50,7 +60,6 @@ def generate_gemini():
         }), 200
 
     except Exception as e:
-        print("🔥 GEMINI ERROR")
         print(traceback.format_exc())
         return jsonify({
             "success": False,
@@ -58,6 +67,9 @@ def generate_gemini():
         }), 500
 
 
+# -----------------------
+# Groq Proxy
+# -----------------------
 @app.route("/api/ai/groq", methods=["POST"])
 def generate_groq():
     try:
