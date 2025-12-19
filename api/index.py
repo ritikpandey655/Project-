@@ -1,40 +1,34 @@
 import os
-import traceback
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
 import requests
+import traceback
 
 app = Flask(__name__)
 CORS(app)
 
 
-# -----------------------
-# Health Check
-# -----------------------
 @app.route("/api/health", methods=["GET"])
 def health():
-    return jsonify({"status": "online"})
+    return jsonify({"status": "online"}), 200
 
 
-# -----------------------
-# Gemini 2.5 Flash
-# -----------------------
 @app.route("/api/ai/generate", methods=["POST"])
 def generate_gemini():
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)
 
-        contents = data.get("contents")
+        prompt = data.get("prompt")
         config = data.get("config", {})
 
-        if not contents:
+        if not prompt:
             return jsonify({
                 "success": False,
-                "error": "contents field is required"
+                "error": "prompt field is required"
             }), 400
 
-        api_key = os.environ.get("GOOGLE_API_KEY")
+        api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             return jsonify({
                 "success": False,
@@ -46,16 +40,17 @@ def generate_gemini():
         model = genai.GenerativeModel("models/gemini-2.5-flash")
 
         response = model.generate_content(
-            contents=contents,
+            prompt,
             generation_config=config
         )
 
         return jsonify({
             "success": True,
             "data": response.text
-        })
+        }), 200
 
     except Exception as e:
+        print("🔥 GEMINI ERROR")
         print(traceback.format_exc())
         return jsonify({
             "success": False,
@@ -63,13 +58,10 @@ def generate_gemini():
         }), 500
 
 
-# -----------------------
-# Groq Proxy
-# -----------------------
 @app.route("/api/ai/groq", methods=["POST"])
 def generate_groq():
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)
 
         groq_api_key = data.get("api_key")
         payload = data.get("payload")
@@ -102,4 +94,4 @@ def generate_groq():
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
