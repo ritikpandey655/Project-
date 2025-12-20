@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: null,
+        injectRegister: null, // We handle SW registration manually in index.html
         filename: 'service-worker.js',
         manifestFilename: 'manifest.json',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'widget-template.json', 'widget-data.json', 'robots.txt'],
@@ -38,6 +38,7 @@ export default defineConfig(({ mode }) => {
           categories: ["education", "productivity", "study"],
           lang: "en",
           dir: "ltr",
+          prefer_related_applications: false,
           icons: [
             { src: "/icon.svg", sizes: "192x192", type: "image/svg+xml", purpose: "any" },
             { src: "/icon.svg", sizes: "512x512", type: "image/svg+xml", purpose: "any" },
