@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES, TECHNICAL_EXAMS, MONTHS } from '../constants';
@@ -94,6 +95,11 @@ const App: React.FC = () => {
       root.style.setProperty(`--primary-${key}`, palette[key]);
     });
   }, []);
+
+  // Initialize Default Theme immediately for Landing Page Visibility
+  useEffect(() => {
+    applyTheme('PYQverse Prime');
+  }, [applyTheme]);
 
   // --- SMART REMINDER LOGIC ---
   const scheduleStudyReminder = async () => {

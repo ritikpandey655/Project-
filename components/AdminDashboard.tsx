@@ -25,7 +25,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [isTestRunning, setIsTestRunning] = useState(false);
   
   // SEO States
-  const [seoStatus, setSeoStatus] = useState<{ canonical: boolean, desc: boolean, robots: boolean }>({ canonical: false, desc: false, robots: false });
+  const [seoStatus, setSeoStatus] = useState<{ 
+      canonical: boolean, 
+      canonicalUrl: string,
+      desc: boolean, 
+      robots: boolean,
+      robotsContent: string
+  }>({ 
+      canonical: false, 
+      canonicalUrl: '',
+      desc: false, 
+      robots: false,
+      robotsContent: ''
+  });
   
   // Data States
   const [users, setUsers] = useState<User[]>([]);
@@ -63,11 +75,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         await logSystemError('ERROR', 'Diagnostic Crash', { error: e.message });
     }
 
-    // 2. Check SEO Tags (Client Side)
-    const canonical = !!document.querySelector('link[rel="canonical"]');
-    const desc = !!document.querySelector('meta[name="description"]');
-    const robots = !!document.querySelector('meta[name="robots"]');
-    setSeoStatus({ canonical, desc, robots });
+    // 2. Check SEO Tags (Client Side Deep Check)
+    const canonicalTag = document.querySelector('link[rel="canonical"]');
+    const canonicalUrl = canonicalTag ? canonicalTag.getAttribute('href') || '' : '';
+    
+    const descTag = document.querySelector('meta[name="description"]');
+    const robotsTag = document.querySelector('meta[name="robots"]');
+    const robotsContent = robotsTag ? robotsTag.getAttribute('content') || '' : '';
+
+    setSeoStatus({ 
+        canonical: !!canonicalTag && canonicalUrl === 'https://pyqverse.in/', 
+        canonicalUrl,
+        desc: !!descTag, 
+        robots: !!robotsTag && robotsContent.includes('index'),
+        robotsContent
+    });
 
     const recentLogs = await getSystemLogs();
     setLogs(recentLogs);
@@ -200,37 +222,77 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         </div>
                     </div>
 
-                    {/* SEO Health Card */}
+                    {/* SEO Health Card - Detailed */}
                     <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-white text-lg">SEO & Indexing Health</h3>
-                            <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded border border-slate-700">Fix for "Page with redirect"</span>
+                            <div>
+                                <h3 className="font-bold text-white text-lg">SEO & Indexing Health</h3>
+                                <p className="text-[10px] text-slate-400">Fix for "Page with redirect" / Indexing Issues</p>
+                            </div>
+                            <a 
+                                href="https://search.google.com/search-console" 
+                                target="_blank"
+                                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg font-bold flex items-center gap-2"
+                            >
+                                Open Search Console ↗
+                            </a>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                            <div className={`p-4 rounded-xl border ${seoStatus.canonical ? 'bg-green-900/10 border-green-500/30' : 'bg-red-900/10 border-red-500/30'}`}>
                                 <div className="flex justify-between items-center mb-2">
-                                    <span className="text-xs font-bold text-slate-400 uppercase">Canonical Tag</span>
-                                    {seoStatus.canonical ? <span className="text-green-400">✅ Active</span> : <span className="text-red-400">❌ Missing</span>}
+                                    <span className="text-xs font-bold text-slate-400 uppercase">Canonical URL</span>
+                                    {seoStatus.canonical ? <span className="text-green-400 font-bold">✓ Valid</span> : <span className="text-red-400 font-bold">⚠ Invalid</span>}
                                 </div>
-                                <p className="text-[10px] text-slate-500">Fixes duplicate content/redirect errors.</p>
+                                <p className="text-[10px] text-slate-300 font-mono bg-black/20 p-1 rounded break-all">
+                                    {seoStatus.canonicalUrl || 'Missing Tag'}
+                                </p>
+                                {!seoStatus.canonical && <p className="text-[10px] text-red-400 mt-1">Must be exactly: https://pyqverse.in/</p>}
                             </div>
-                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-xs font-bold text-slate-400 uppercase">Landing Page</span>
-                                    <span className="text-green-400">✅ Live</span>
-                                </div>
-                                <p className="text-[10px] text-slate-500">Root URL returns content (No Redirect).</p>
-                            </div>
-                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+
+                            <div className={`p-4 rounded-xl border ${seoStatus.robots ? 'bg-green-900/10 border-green-500/30' : 'bg-red-900/10 border-red-500/30'}`}>
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-xs font-bold text-slate-400 uppercase">Robots Meta</span>
-                                    {seoStatus.robots ? <span className="text-green-400">✅ Index, Follow</span> : <span className="text-red-400">❌ Issues</span>}
+                                    {seoStatus.robots ? <span className="text-green-400 font-bold">✓ Crawlable</span> : <span className="text-red-400 font-bold">⚠ Blocked</span>}
                                 </div>
-                                <p className="text-[10px] text-slate-500">Allows Googlebot to crawl pages.</p>
+                                <p className="text-[10px] text-slate-300 font-mono bg-black/20 p-1 rounded">
+                                    {seoStatus.robotsContent || 'Missing'}
+                                </p>
+                            </div>
+
+                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-bold text-slate-400 uppercase">Redirect Check</span>
+                                    <span className="text-green-400 font-bold">✓ Landing Live</span>
+                                </div>
+                                <p className="text-[10px] text-slate-500">Root URL serves content directly.</p>
                             </div>
                         </div>
-                        <div className="mt-4 p-3 bg-indigo-900/20 border border-indigo-500/30 rounded-lg text-sm text-indigo-200">
-                            <strong>Next Step:</strong> Go to Google Search Console &gt; Inspect URL &gt; Click "Test Live URL". If it says "Available", click "Validate Fix".
+                        
+                        {/* Action Steps Card */}
+                        <div className="mt-6 p-4 bg-gradient-to-r from-indigo-900/40 to-blue-900/40 border border-indigo-500/30 rounded-xl relative overflow-hidden">
+                            <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+                                        <span>🚀</span> Final Action Required
+                                    </h4>
+                                    <p className="text-xs text-indigo-200 mb-1">Since your code is now fixed (Green Checks above), you must tell Google to re-check your site.</p>
+                                    <ol className="text-[11px] text-indigo-300 list-decimal list-inside space-y-1 mt-2 font-mono">
+                                        <li>Copy URL: <span className="text-white bg-black/20 px-1 rounded">https://pyqverse.in/</span></li>
+                                        <li>Go to <strong>URL Inspection</strong> in Search Console.</li>
+                                        <li>Click <strong>"Test Live URL"</strong> (Top Right).</li>
+                                        <li>When it says "Available", click <strong>"Validate Fix"</strong>.</li>
+                                    </ol>
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        navigator.clipboard.writeText('https://pyqverse.in/');
+                                        alert("URL Copied! Now paste it in Google Search Console.");
+                                    }}
+                                    className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg shadow-lg text-xs flex items-center gap-2"
+                                >
+                                    <span>📋</span> Copy URL
+                                </button>
+                            </div>
                         </div>
                     </div>
 

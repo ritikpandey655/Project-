@@ -58,7 +58,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
           </p>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <Button onClick={onSignup} size="lg" className="shadow-xl shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all transform hover:scale-105">
+            <Button onClick={onSignup} size="lg" className="!bg-brand-purple hover:!bg-brand-purple/90 text-white shadow-xl shadow-indigo-500/30 transition-all transform hover:scale-105">
               Start Practicing Free
             </Button>
             <button 
@@ -133,7 +133,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
          <div className="max-w-2xl mx-auto">
             <h2 className="text-3xl font-display font-bold mb-6">Ready to enter the universe?</h2>
             <p className="text-slate-400 mb-8">Join thousands of aspirants preparing smarter, not harder.</p>
-            <Button onClick={onSignup} size="lg" className="bg-white text-slate-900 hover:bg-slate-100">
+            <Button onClick={onSignup} size="lg" className="!bg-white !text-slate-900 hover:!bg-slate-100">
                Get Started Now
             </Button>
             <p className="mt-8 text-xs text-slate-600">© 2025 PYQverse. All rights reserved.</p>
