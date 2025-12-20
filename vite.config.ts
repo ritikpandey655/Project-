@@ -34,6 +34,7 @@ export default defineConfig(({ mode }) => {
           orientation: "portrait",
           scope: "/",
           start_url: "/",
+          id: "/",
           categories: ["education", "productivity", "study"],
           lang: "en",
           dir: "ltr",
@@ -46,6 +47,22 @@ export default defineConfig(({ mode }) => {
           shortcuts: [
             { name: "Start Practice", short_name: "Practice", url: "/?action=practice", icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }] },
             { name: "Doubt Solver", short_name: "Doubts", url: "/?action=upload", icons: [{ src: "/icon.svg", sizes: "512x512", type: "image/svg+xml" }] }
+          ],
+          screenshots: [
+            {
+              src: "https://placehold.co/1080x1920/111827/ffffff.png?text=PYQverse+Mobile+Dashboard&font=roboto",
+              sizes: "1080x1920",
+              type: "image/png",
+              form_factor: "narrow",
+              label: "Mobile Dashboard"
+            },
+            {
+              src: "https://placehold.co/1920x1080/111827/ffffff.png?text=PYQverse+Desktop+Experience&font=roboto",
+              sizes: "1920x1080",
+              type: "image/png",
+              form_factor: "wide",
+              label: "Desktop Dashboard"
+            }
           ]
         },
         workbox: {

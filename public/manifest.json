@@ -58,7 +58,7 @@
       "src": "https://placehold.co/1080x1920/111827/ffffff.png?text=PYQverse+Mobile+Dashboard&font=roboto",
       "sizes": "1080x1920",
       "type": "image/png",
-      "form_factor: ": "narrow",
+      "form_factor": "narrow",
       "label": "Mobile Dashboard"
     },
     {
