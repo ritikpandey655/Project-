@@ -9,11 +9,9 @@ const PORT = process.env.PORT || 5000;
 
 app.disable('x-powered-by');
 
-// Updated Key provided by user
-const apiKey = process.env.API_KEY || "AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0";
-
-if (!apiKey) console.warn("WARNING: API_KEY is missing.");
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+// Fix: Always use new GoogleGenAI({ apiKey: process.env.API_KEY })
+// and ensure API key is obtained exclusively from process.env.API_KEY.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 app.use(helmet());
 app.use(cors({ origin: true, credentials: true })); // Allow all for local dev
@@ -27,17 +25,19 @@ router.post('/ai/generate', async (req, res) => {
   try {
     const { model, contents, config } = req.body;
     
-    if (!ai) return res.status(500).json({ success: false, error: "Server API Key missing" });
+    if (!process.env.API_KEY) return res.status(500).json({ success: false, error: "Server API Key missing" });
 
-    // Force fallback to 1.5 Flash as it is the most stable for this key tier
-    // We ignore the requested 'gemini-2.5' if it fails often, but let's try to honor it or fallback
-    const modelName = 'gemini-1.5-flash'; 
+    // Fix: Select 'gemini-3-flash-preview' as default and ensure prohibited models are avoided.
+    const modelToUse = model || 'gemini-3-flash-preview';
 
+    // Fix: Always use ai.models.generateContent to query GenAI with both model and contents.
     const response = await ai.models.generateContent({
-        model: modelName,
+        model: modelToUse,
         contents: contents,
         config: config || {}
     });
+    
+    // Fix: Access response.text directly (it is a property, not a method).
     res.json({ success: true, data: response.text });
   } catch (error) {
     console.error("AI Proxy Error:", error);

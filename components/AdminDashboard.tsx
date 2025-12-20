@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './Button';
 import { Question, QuestionSource, NewsItem, User, Transaction, QuestionType, ExamType, SyllabusItem } from '../types';
@@ -166,7 +165,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       runDiagnostics();
   };
 
-  // Handlers omitted for brevity (same as previous)
+  // Handlers
   const handleUserSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value.toLowerCase();
     setUserSearch(term);
@@ -184,7 +183,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setUsers(prev => prev.filter(u => u.id !== userId));
     setFilteredUsers(prev => prev.filter(u => u.id !== userId));
   };
-  // ... (Other handlers identical to previous version) ...
+  
   const handleNewsUpload = async () => {
     if (!nHeadline || !nSummary) return alert("Please fill headline and summary");
     const newItem: NewsItem = { id: `news-${Date.now()}`, headline: nHeadline, summary: nSummary, category: nCategory, date: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), tags: [], isOfficial: true };
@@ -196,7 +195,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     await saveAdminQuestion(newQ); alert("Question Uploaded!"); setQText(''); setQOptions(['', '', '', '']); setQExplanation(''); loadInitialData();
   };
   const handleAddExam = async () => { if(!newExamName || !newExamSubjects) return; const subjects = newExamSubjects.split(',').map(s => s.trim()); const newConfig = { ...examConfig, [newExamName]: subjects }; await saveExamConfig(newConfig); setExamConfig(newConfig); setNewExamName(''); setNewExamSubjects(''); };
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 25 * 1024 * 1024) { alert("File too large. Please upload < 25MB."); return; } const reader = new FileReader(); reader.onload = async (ev) => { const base64 = (ev.target?.result as string).split(',')[1]; setIsProcessingSmart(true); if(fileInputRef.current) fileInputRef.current.value = ''; try { const extracted = await parseSmartInput(base64, 'image', uploadExam, file.type); saveBatchQuestions(extracted); } catch(e) { alert("Failed to process file."); setIsProcessingSmart(false); } }; reader.readAsDataURL(file); };
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 25 * 1024 * 1024) { alert("File too large. Please upload < 25MB."); return; } const reader = new FileReader(); reader.onload = async (ev) => { const base64 = (ev.target?.result as string).split(',')[1]; setIsProcessingSmart(true); if(fileInputRef.current) fileInputRef.current.value = ''; try { 
+    // Fix: Corrected parseSmartInput call to match its 3-argument signature
+    const extracted = await parseSmartInput(base64, 'image', uploadExam); 
+    saveBatchQuestions(extracted); 
+  } catch(e) { alert("Failed to process file."); setIsProcessingSmart(false); } }; reader.readAsDataURL(file); };
   const handleSmartImport = async () => { if(!smartInput) return; setIsProcessingSmart(true); try { const extracted = await parseSmartInput(smartInput, 'text', uploadExam); saveBatchQuestions(extracted); } catch(e) { alert("Import failed. Check format."); setIsProcessingSmart(false); } };
   const saveBatchQuestions = async (extracted: any[]) => { let count = 0; for (const q of extracted) { if(!q.text || !q.options) continue; const newQ: Question = { id: `admin-${Date.now()}-${Math.random()}`, text: q.text, options: q.options, correctIndex: q.correctIndex ?? 0, explanation: q.explanation || '', source: QuestionSource.OFFICIAL, examType: uploadExam, subject: uploadSubject, createdAt: Date.now(), type: QuestionType.MCQ, moderationStatus: 'APPROVED' }; await saveAdminQuestion(newQ); count++; } alert(`Imported ${count} questions successfully for ${uploadExam} (${uploadSubject})!`); setSmartInput(''); setIsProcessingSmart(false); loadInitialData(); };
   const handleSyllabusFile = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 25 * 1024 * 1024) { alert("File too large. Please upload < 25MB."); return; } const reader = new FileReader(); reader.onload = async (ev) => { const base64 = (ev.target?.result as string).split(',')[1]; setIsProcessingSyllabus(true); if (syllabusFileRef.current) syllabusFileRef.current.value = ''; try { const extractedText = await extractSyllabusFromImage(base64, file.type); setSyllabusText(extractedText); setIsSyllabusReviewMode(true); } catch(e) { alert("Failed to extract syllabus."); } finally { setIsProcessingSyllabus(false); } }; reader.readAsDataURL(file); };
@@ -235,7 +238,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
          </div>
       </div>
 
-      {/* MOBILE NAV (Hidden for brevity, same as before) */}
       <div className="md:hidden sticky top-[60px] z-10 bg-slate-900/95 backdrop-blur border-b border-slate-700 overflow-x-auto no-scrollbar"><div className="flex p-2 gap-2">{navItems.map((item) => (<button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${activeTab === item.id ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-slate-800 border-slate-700 text-slate-400'}`}><span>{item.icon}</span> {item.label}</button>))}</div></div>
 
       <div className="flex h-[calc(100vh-64px)]">
