@@ -76,8 +76,10 @@
     <!-- Apple Support & Icons -->
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon.svg" />
-    <!-- Critical: Crossorigin use-credentials helps with some PWA validators -->
-    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
+    
+    <!-- Modified: Removed crossorigin to fix PWA validation issues -->
+    <link rel="manifest" href="/manifest.json" />
+    
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PYQverse" />
@@ -217,7 +219,9 @@
     "path": "https://aistudiocdn.com/path@^0.12.7",
     "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
     "helmet": "https://aistudiocdn.com/helmet@^8.1.0",
-    "@mlc-ai/web-llm": "https://esm.sh/@mlc-ai/web-llm@^0.2.80"
+    "@mlc-ai/web-llm": "https://esm.sh/@mlc-ai/web-llm@^0.2.80",
+    "dotenv/": "https://esm.sh/dotenv@^17.2.3/",
+    "@capacitor/cli": "https://esm.sh/@capacitor/cli@^8.0.0"
   }
 }
 </script>

@@ -26,7 +26,6 @@ export default defineConfig(({ mode }) => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'widget-template.json', 'widget-data.json', 'robots.txt'],
         workbox: {
           maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-          importScripts: ['/custom-sw-logic.js'],
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,txt}'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/auth/, /^\/api/, /^\/docs/, /^\/openapi.json/],
@@ -50,10 +49,11 @@ export default defineConfig(({ mode }) => {
       alias: { '@': path.resolve('.') },
     },
     build: {
+      outDir: 'dist', // Capacitor defaults to 'dist'
       chunkSizeWarningLimit: 1600,
     },
     define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || "AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0"), 
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || ""), 
       'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY || ""),
       'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID),
     },
