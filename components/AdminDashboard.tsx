@@ -1,27 +1,26 @@
-
-// Add React to the import to fix "Cannot find namespace 'React'" errors on lines 19 and 106
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './Button';
 import { Question, QuestionSource, NewsItem, User, Transaction, QuestionType, ExamType, SyllabusItem } from '../types';
 import { 
   saveAdminQuestion, getAdminQuestions, 
-  saveAdminNews, getAllUsers, removeUser, toggleUserPro,
+  getAllUsers, removeUser, toggleUserPro,
   getTransactions, saveExamConfig, getExamConfig, getSystemLogs, SystemLog, clearSystemLogs,
-  saveSyllabus, logSystemError
+  logSystemError
 } from '../services/storageService';
-import { parseSmartInput, extractSyllabusFromImage, resetAIQuota, checkAIConnectivity } from '../services/geminiService';
-import { EXAM_SUBJECTS, NEWS_CATEGORIES } from '../constants';
+import { checkAIConnectivity } from '../services/geminiService';
+import { EXAM_SUBJECTS } from '../constants';
 
 interface AdminDashboardProps {
   onBack: () => void;
 }
 
-// Fix: Use React.FC which requires the React namespace to be imported
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'monitor' | 'users' | 'exams' | 'upload' | 'syllabus' | 'questions' | 'payments' | 'settings'>('monitor');
   
-  // System Health States (Cleaned for Client-Side Only)
-  const [aiStatus, setAiStatus] = useState<'Checking' | 'Operational' | 'Degraded' | 'Rate Limited' | 'Failed'>('Checking');
+  // System Health States
+  const [aiStatus, setAiStatus] = useState<'Checking' | 'Operational' | 'Failed'>('Checking');
+  const [latency, setLatency] = useState<number>(0);
+  const [isSecure, setIsSecure] = useState<boolean>(false);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [isTestRunning, setIsTestRunning] = useState(false);
   
@@ -29,33 +28,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [userSearch, setUserSearch] = useState('');
-  const [examConfig, setExamConfig] = useState<Record<string, string[]>>({});
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   
   // Upload States
-  const [uploadType, setUploadType] = useState<'Question' | 'News'>('Question');
-  const [uploadExam, setUploadExam] = useState<string>('UPSC');
-  const [uploadSubject, setUploadSubject] = useState('');
-  const [entryMode, setEntryMode] = useState<'smart' | 'manual'>('smart');
-  
   const [qText, setQText] = useState('');
   const [qOptions, setQOptions] = useState(['', '', '', '']);
   const [qCorrect, setQCorrect] = useState(0);
   const [qExplanation, setQExplanation] = useState('');
-  const [nHeadline, setNHeadline] = useState('');
-  const [nSummary, setNSummary] = useState('');
-  const [nCategory, setNCategory] = useState('National');
-  const [smartInput, setSmartInput] = useState('');
-  const [isProcessingSmart, setIsProcessingSmart] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Syllabus States
-  const [syllabusExam, setSyllabusExam] = useState<string>('UPSC');
-  const [syllabusSubject, setSyllabusSubject] = useState('');
-  const [syllabusText, setSyllabusText] = useState('');
-  const [isSyllabusReviewMode, setIsSyllabusReviewMode] = useState(false);
-  const [isProcessingSyllabus, setIsProcessingSyllabus] = useState(false);
-  const syllabusFileRef = useRef<HTMLInputElement>(null);
+  const [uploadExam, setUploadExam] = useState<string>('UPSC');
+  const [uploadSubject, setUploadSubject] = useState('');
 
   useEffect(() => {
     loadInitialData();
@@ -65,14 +45,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const runDiagnostics = async () => {
     setIsTestRunning(true);
     setAiStatus('Checking');
+    setLatency(0);
 
     try {
-        const status = await checkAIConnectivity();
-        setAiStatus(status);
-        if (status === 'Failed') await logSystemError('API_FAIL', 'Diagnostic: Direct AI Check Failed');
+        const result = await checkAIConnectivity();
+        setAiStatus(result.status);
+        setLatency(result.latency);
+        setIsSecure(result.secure);
+        
+        if (result.status === 'Failed') await logSystemError('API_FAIL', 'Diagnostic: Backend Health Check Failed');
     } catch(e: any) {
         setAiStatus('Failed');
-        await logSystemError('ERROR', 'Diagnostic AI Test Failed', { error: e.message });
+        await logSystemError('ERROR', 'Diagnostic Crash', { error: e.message });
     }
 
     const recentLogs = await getSystemLogs();
@@ -81,17 +65,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   };
 
   const loadInitialData = async () => {
-    const [usersData, questionsData, txData, exams] = await Promise.all([
+    const [usersData] = await Promise.all([
         getAllUsers(),
-        getAdminQuestions(),
-        getTransactions(),
-        getExamConfig()
     ]);
-    
     setUsers(usersData);
     setFilteredUsers(usersData);
-    setTransactions(txData);
-    setExamConfig(exams || EXAM_SUBJECTS);
     refreshLogs();
   };
 
@@ -100,13 +78,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       setLogs(recent);
   };
 
-  const handleResetAI = () => {
-      resetAIQuota();
-      alert("AI Quota Lock has been reset. Retrying diagnostics...");
-      runDiagnostics();
-  };
-
-  // Fix: Use React.ChangeEvent which requires the React namespace to be imported
   const handleUserSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value.toLowerCase();
     setUserSearch(term);
@@ -150,7 +121,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     { id: 'monitor', icon: '📡', label: 'Engine' },
     { id: 'users', icon: '👥', label: 'Users' },
     { id: 'upload', icon: '📤', label: 'Upload' },
-    { id: 'syllabus', icon: '📚', label: 'Syllabus' },
     { id: 'settings', icon: '⚙️', label: 'Config' }
   ];
 
@@ -161,11 +131,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             <h1 className="text-lg font-bold tracking-widest uppercase text-slate-200">
                 PYQverse <span className="text-orange-500">ADMIN</span>
             </h1>
-            <span className="text-[10px] bg-indigo-900/50 text-indigo-400 px-2 py-1 rounded border border-indigo-500/30">CLIENT-ONLY MODE</span>
+            <span className="text-[10px] bg-green-900/50 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                SECURE CLOUD
+            </span>
          </div>
          <div className="flex gap-2">
             <button onClick={runDiagnostics} className={`px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-[10px] font-bold uppercase ${isTestRunning ? 'animate-pulse' : ''}`}>
-                {isTestRunning ? 'Testing...' : 'Refresh AI'}
+                {isTestRunning ? 'Scanning...' : 'System Diagnostic'}
             </button>
             <button onClick={onBack} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-[10px] font-bold uppercase">Exit</button>
          </div>
@@ -183,26 +156,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
          <div className="flex-1 p-6 overflow-y-auto bg-slate-900 pb-20">
             {activeTab === 'monitor' && (
                 <div className="space-y-6 max-w-5xl mx-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Security & Health Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Status Card */}
                         <div className={`p-6 rounded-2xl border ${aiStatus === 'Operational' ? 'bg-green-900/10 border-green-500/30' : 'bg-red-900/10 border-red-500/30'}`}>
-                            <div className="flex justify-between items-start mb-4">
-                                <p className="text-xs text-slate-400 uppercase font-bold tracking-widest">Gemini Engine Status</p>
-                                <button onClick={handleResetAI} className="text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded-md font-bold transition-colors">RESET QUOTA</button>
-                            </div>
+                            <p className="text-xs text-slate-400 uppercase font-bold tracking-widest mb-4">Backend Status</p>
                             <div className="flex items-center gap-4">
                                 <div className={`w-4 h-4 rounded-full ${aiStatus === 'Operational' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-red-500'} animate-pulse`}></div>
                                 <h3 className={`text-3xl font-bold ${aiStatus === 'Operational' ? 'text-green-400' : 'text-red-400'}`}>{aiStatus}</h3>
                             </div>
-                            <p className="text-[10px] text-slate-500 mt-4 leading-relaxed">
-                                AI requests are being sent directly from this browser to Google APIs. 
-                                Status based on latest "ping" test.
-                            </p>
+                            <p className="text-[10px] text-slate-500 mt-4">Node.js Proxy is handling requests.</p>
                         </div>
-                        
+
+                        {/* Latency Card */}
                         <div className="p-6 rounded-2xl border bg-slate-800/50 border-slate-700">
-                            <p className="text-xs text-slate-400 uppercase font-bold tracking-widest mb-4">User Statistics</p>
-                            <h3 className="text-4xl font-bold text-white">{users.length}</h3>
-                            <p className="text-[10px] text-slate-500 mt-4 leading-relaxed">Total registered aspirants in the universe.</p>
+                            <p className="text-xs text-slate-400 uppercase font-bold tracking-widest mb-4">Network Latency</p>
+                            <h3 className="text-4xl font-bold text-white flex items-end gap-2">
+                                {latency} <span className="text-lg text-slate-500 font-medium">ms</span>
+                            </h3>
+                            <p className="text-[10px] text-slate-500 mt-4">Round-trip time to Server.</p>
+                        </div>
+
+                        {/* Security Card */}
+                        <div className={`p-6 rounded-2xl border ${isSecure ? 'bg-indigo-900/10 border-indigo-500/30' : 'bg-red-900/10 border-red-500/30'}`}>
+                            <p className="text-xs text-slate-400 uppercase font-bold tracking-widest mb-4">Security Integrity</p>
+                            <div className="flex items-center gap-3">
+                                <span className="text-3xl">{isSecure ? '🔒' : '⚠️'}</span>
+                                <h3 className="text-xl font-bold text-white">{isSecure ? 'Key Secured' : 'Key Missing'}</h3>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-4">
+                                {isSecure ? 'API Key is hidden on server-side.' : 'CRITICAL: Env Config Missing.'}
+                            </p>
                         </div>
                     </div>
 
@@ -270,21 +254,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* Other tabs simplified for brevity as the logic is similar to previously implemented versions */}
-            {activeTab === 'settings' && (
+            {activeTab === 'upload' && (
                 <div className="max-w-2xl mx-auto space-y-6">
                     <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                        <h3 className="font-bold text-lg mb-4 text-white">System Configuration</h3>
-                        <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-                            This application is currently running in "Direct-to-Client" mode. All AI logic is executed 
-                            within the user's browser for maximum privacy and zero latency from intermediate servers.
-                        </p>
+                        <h3 className="font-bold text-lg mb-4">Manual Question Upload</h3>
                         <div className="space-y-4">
-                            <div className="p-4 bg-slate-900 rounded-xl border border-slate-700">
-                                <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Active AI Model</p>
-                                <p className="text-indigo-400 font-bold">gemini-3-flash-preview</p>
+                            <input className="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl" placeholder="Question Text" value={qText} onChange={e => setQText(e.target.value)} />
+                            {qOptions.map((o, i) => (
+                                <input key={i} className="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl" placeholder={`Option ${i+1}`} value={o} onChange={e => {
+                                    const n = [...qOptions]; n[i] = e.target.value; setQOptions(n);
+                                }} />
+                            ))}
+                            <div className="flex gap-4">
+                                <input className="p-3 bg-slate-900 border border-slate-700 rounded-xl" type="number" min="0" max="3" placeholder="Correct Index (0-3)" value={qCorrect} onChange={e => setQCorrect(parseInt(e.target.value))} />
+                                <input className="flex-1 p-3 bg-slate-900 border border-slate-700 rounded-xl" placeholder="Subject" value={uploadSubject} onChange={e => setUploadSubject(e.target.value)} />
                             </div>
-                            <Button onClick={handleResetAI} className="w-full bg-slate-700 border-0 hover:bg-slate-600">Clear Local AI Cache</Button>
+                            <Button onClick={handleManualUpload} className="w-full">Upload to Official Bank</Button>
                         </div>
                     </div>
                 </div>

@@ -1,12 +1,50 @@
-import { GoogleGenAI } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, NewsItem } from "../types";
-import { MOCK_QUESTIONS_FALLBACK, EXAM_SUBJECTS } from "../constants";
+import { MOCK_QUESTIONS_FALLBACK } from "../constants";
 import { getOfficialQuestions } from "./storageService";
 
-// Initialize AI directly in the client using the environment variable
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// --- BACKEND API HANDLER ---
 
-const RATE_LIMIT_DELAY = 3000; 
+const callBackend = async (payload: { model: string, contents: any, config?: any }) => {
+    try {
+        const response = await fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            if (response.status === 429) throw new Error("429: AI Quota Exceeded");
+            throw new Error(`Backend Error: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || "Unknown Backend Error");
+        }
+
+        return result.data; // The raw text from AI
+    } catch (e) {
+        console.error("API Call Failed:", e);
+        throw e;
+    }
+};
+
+// --- UTILS ---
+
+const cleanJson = (text: string) => {
+  const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (jsonBlockMatch && jsonBlockMatch[1]) return jsonBlockMatch[1].trim();
+  let cleaned = text.replace(/```json/gi, '').replace(/```/g, '');
+  const start = Math.min(cleaned.indexOf('{') === -1 ? Infinity : cleaned.indexOf('{'), cleaned.indexOf('[') === -1 ? Infinity : cleaned.indexOf('['));
+  const end = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
+  return (start !== Infinity && end !== -1) ? cleaned.substring(start, end + 1).trim() : cleaned.trim();
+};
+
+const safeOptions = (opts: any): string[] => Array.isArray(opts) ? opts : ["A", "B", "C", "D"];
+
+// --- RATE LIMITER ---
+const RATE_LIMIT_DELAY = 2000; 
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
 
@@ -24,21 +62,7 @@ const enqueueRequest = <T>(task: () => Promise<T>): Promise<T> => {
     return nextTask;
 };
 
-export const resetAIQuota = () => {
-    lastCallTime = 0;
-    queuePromise = Promise.resolve();
-};
-
-const cleanJson = (text: string) => {
-  const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-  if (jsonBlockMatch && jsonBlockMatch[1]) return jsonBlockMatch[1].trim();
-  let cleaned = text.replace(/```json/gi, '').replace(/```/g, '');
-  const start = Math.min(cleaned.indexOf('{') === -1 ? Infinity : cleaned.indexOf('{'), cleaned.indexOf('[') === -1 ? Infinity : cleaned.indexOf('['));
-  const end = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
-  return (start !== Infinity && end !== -1) ? cleaned.substring(start, end + 1).trim() : cleaned.trim();
-};
-
-const safeOptions = (opts: any): string[] => Array.isArray(opts) ? opts : ["A", "B", "C", "D"];
+// --- MAIN GENERATION FUNCTION ---
 
 export const generateWithAI = async (
     prompt: string, 
@@ -47,16 +71,17 @@ export const generateWithAI = async (
     modelName: string = 'gemini-3-flash-preview'
 ): Promise<any> => {
     const task = async () => {
-        const response = await ai.models.generateContent({
+        const payload = {
             model: modelName,
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             config: {
                 temperature: temperature,
                 responseMimeType: isJson ? "application/json" : "text/plain"
             }
-        });
+        };
 
-        const text = response.text || (isJson ? "{}" : "");
+        const text = await callBackend(payload);
+
         if (isJson) {
             try {
                 return JSON.parse(cleanJson(text));
@@ -71,21 +96,29 @@ export const generateWithAI = async (
     try {
         return await enqueueRequest(task);
     } catch (e: any) {
-        console.error("AI Generation Failed:", e);
         throw e;
     }
 };
 
-export const checkAIConnectivity = async (): Promise<'Operational' | 'Degraded' | 'Rate Limited' | 'Failed'> => {
+// Enhanced Connectivity Check with Latency
+export const checkAIConnectivity = async (): Promise<{ status: 'Operational' | 'Failed', latency: number, secure: boolean }> => {
+    const start = Date.now();
     try {
-        await generateWithAI("ping", false, 0.1);
-        return 'Operational';
+        const res = await fetch('/api/health');
+        const end = Date.now();
+        const latency = end - start;
+        
+        if (res.ok) {
+            const data = await res.json();
+            return { status: 'Operational', latency, secure: data.secure };
+        }
+        return { status: 'Failed', latency: 0, secure: false };
     } catch (e: any) {
-        const msg = e.message?.toLowerCase() || "";
-        if (msg.includes("429") || msg.includes("quota")) return 'Rate Limited';
-        return 'Failed';
+        return { status: 'Failed', latency: 0, secure: false };
     }
 };
+
+// --- EXAM LOGIC (Unchanged) ---
 
 export const generateExamQuestions = async (
     exam: string, 
@@ -199,22 +232,23 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
 
 export const parseSmartInput = async (input: string, type: 'text' | 'image', examContext: string): Promise<any[]> => {
     try {
-      let contentPart: any;
+      let contentParts: any[] = [];
+      
       if (type === 'image') {
-          contentPart = { inlineData: { mimeType: 'image/jpeg', data: input } };
+          contentParts.push({ inlineData: { mimeType: 'image/jpeg', data: input } });
+          contentParts.push({ text: `Extract MCQs from this image. Context: ${examContext}. JSON array: [{text, options:[], correctIndex, explanation}].` });
       } else {
-          contentPart = { text: `Data: ${input}` };
+          contentParts.push({ text: `Extract MCQs from this text: ${input}. Context: ${examContext}. JSON array: [{text, options:[], correctIndex, explanation}].` });
       }
 
-      const prompt = `Extract MCQs from this input. Context: ${examContext}. JSON array: [{text, options:[], correctIndex, explanation}].`;
-
-      const response = await ai.models.generateContent({
+      const payload = {
           model: type === 'image' ? 'gemini-2.5-flash-image' : 'gemini-3-flash-preview',
-          contents: [{ role: 'user', parts: [contentPart, { text: prompt }] }],
+          contents: [{ role: 'user', parts: contentParts }],
           config: { temperature: 0.1, responseMimeType: "application/json" }
-      });
+      };
 
-      const result = JSON.parse(cleanJson(response.text || "[]"));
+      const text = await callBackend(payload);
+      const result = JSON.parse(cleanJson(text || "[]"));
       return Array.isArray(result) ? result : (result.questions || []);
     } catch (e) { 
         return []; 
@@ -251,7 +285,7 @@ export const generateFullPaper = async (
 
 export const extractSyllabusFromImage = async (base64: string, mimeType: string): Promise<string> => {
     try {
-        const response = await ai.models.generateContent({
+        const payload = {
             model: 'gemini-2.5-flash-image',
             contents: [{ 
                 role: 'user', 
@@ -261,7 +295,8 @@ export const extractSyllabusFromImage = async (base64: string, mimeType: string)
                 ] 
             }],
             config: { temperature: 0.1 }
-        });
-        return response.text || "No data.";
+        };
+        const text = await callBackend(payload);
+        return text || "No data.";
     } catch(e) { return "Error."; }
 };
