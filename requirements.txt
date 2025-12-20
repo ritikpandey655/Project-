@@ -1,4 +1,1 @@
-flask==3.0.3
-flask-cors==4.0.1
-google-generativeai==0.5.4
-werkzeug==3.0.3
+# Client-only application. No python dependencies required.
