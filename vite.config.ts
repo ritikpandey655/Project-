@@ -1,4 +1,3 @@
-
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -68,19 +67,8 @@ export default defineConfig(({ mode }) => {
     build: {
       chunkSizeWarningLimit: 1600,
     },
-    // Proxy for Local Python Development
-    server: {
-      proxy: {
-        '/api': {
-          target: 'http://localhost:5000',
-          changeOrigin: true,
-          secure: false
-        }
-      }
-    },
     define: {
-      'process.env.BACKEND_URL': JSON.stringify(""), // Handled via Proxy
-      'process.env.API_KEY': JSON.stringify("AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0"), 
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || "AIzaSyCOGUM81Ex7pU_-QSFPgx3bdo_eQDAAfj0"), 
       'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY || ""),
       'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID),
     },

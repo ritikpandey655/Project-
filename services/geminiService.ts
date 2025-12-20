@@ -1,8 +1,14 @@
+import { GoogleGenAI } from "@google/genai";
 import { Question, QuestionSource, QuestionType, QuestionPaper, ExamType, NewsItem } from "../types";
-import { MOCK_QUESTIONS_FALLBACK } from "../constants";
+import { MOCK_QUESTIONS_FALLBACK, EXAM_SUBJECTS } from "../constants";
 import { getOfficialQuestions } from "./storageService";
 
-const RATE_LIMIT_DELAY = 2500; 
+// Initialize AI directly in the client
+// The API_KEY is provided via process.env.API_KEY in vite.config.ts
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+// --- RATE LIMIT CONFIGURATION ---
+const RATE_LIMIT_DELAY = 3000; 
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
 
@@ -25,70 +31,6 @@ export const resetAIQuota = () => {
     queuePromise = Promise.resolve();
 };
 
-const callAIBackendProxy = async (params: { model: string, contents?: any, messages?: any, provider?: string, config?: any }) => {
-  try {
-    const response = await fetch(`/api/ai/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI_ERROR_${response.status}: ${errorText}`);
-    }
-
-    const result = await response.json();
-    if (!result.success) throw new Error(result.error || 'Unknown AI Error');
-    return { text: result.data }; 
-
-  } catch (error: any) {
-    console.error("AI Proxy Failed:", error);
-    throw error;
-  }
-};
-
-export const generateWithAI = async (
-    prompt: string, 
-    isJson: boolean = true, 
-    temperature: number = 0.3
-): Promise<any> => {
-    
-    const provider = localStorage.getItem('selected_ai_provider') || 'gemini';
-    const config = { 
-        temperature: temperature,
-        responseMimeType: isJson ? "application/json" : "text/plain"
-    };
-
-    let params: any;
-
-    if (provider === 'groq') {
-        const groqKey = localStorage.getItem('groq_api_key');
-        params = {
-            provider: 'groq',
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'user', content: prompt }],
-            config
-        };
-    } else {
-        params = {
-            provider: 'gemini',
-            model: 'gemini-3-flash-preview', // Instructions specify this for text
-            contents: { parts: [{ text: prompt }] },
-            config
-        };
-    }
-
-    try {
-        const response = await enqueueRequest(() => callAIBackendProxy(params));
-        const text = response.text || (isJson ? "{}" : "");
-        return isJson ? JSON.parse(cleanJson(text)) : text;
-    } catch (e: any) {
-        console.error("Generation Failed:", e);
-        throw e;
-    }
-};
-
 const cleanJson = (text: string) => {
   const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
   if (jsonBlockMatch && jsonBlockMatch[1]) return jsonBlockMatch[1].trim();
@@ -98,19 +40,59 @@ const cleanJson = (text: string) => {
   return (start !== Infinity && end !== -1) ? cleaned.substring(start, end + 1).trim() : cleaned.trim();
 };
 
+const safeOptions = (opts: any): string[] => Array.isArray(opts) ? opts : ["A", "B", "C", "D"];
+
+// --- CORE GENERATION ENGINE ---
+
+export const generateWithAI = async (
+    prompt: string, 
+    isJson: boolean = true, 
+    temperature: number = 0.3,
+    modelName: string = 'gemini-3-flash-preview'
+): Promise<any> => {
+    const task = async () => {
+        const response = await ai.models.generateContent({
+            model: modelName,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: {
+                temperature: temperature,
+                responseMimeType: isJson ? "application/json" : "text/plain"
+            }
+        });
+
+        const text = response.text || (isJson ? "{}" : "");
+        if (isJson) {
+            try {
+                return JSON.parse(cleanJson(text));
+            } catch (e) {
+                console.error("JSON Parse Error:", text);
+                throw new Error("AI returned invalid JSON format.");
+            }
+        }
+        return text;
+    };
+
+    try {
+        return await enqueueRequest(task);
+    } catch (e: any) {
+        console.error("AI Generation Failed:", e);
+        throw e;
+    }
+};
+
 export const checkAIConnectivity = async (): Promise<'Operational' | 'Degraded' | 'Rate Limited' | 'Failed'> => {
     try {
         await generateWithAI("ping", false, 0.1);
         return 'Operational';
     } catch (e: any) {
-        if (e.message.includes("429")) return 'Rate Limited';
+        const msg = e.message?.toLowerCase() || "";
+        if (msg.includes("429") || msg.includes("quota")) return 'Rate Limited';
         return 'Failed';
     }
 };
 
-const safeOptions = (opts: any): string[] => Array.isArray(opts) ? opts : ["A", "B", "C", "D"];
+// --- EXAM LOGIC ---
 
-// Fix: Updated signature to accept difficulty and topics to match App.tsx calls
 export const generateExamQuestions = async (
     exam: string, 
     subject: string, 
@@ -121,13 +103,19 @@ export const generateExamQuestions = async (
   const officialQs = await getOfficialQuestions(exam, subject, count);
   if (officialQs.length >= count) return officialQs;
   
-  const prompt = `ACT AS A STRICT EXAMINER for ${exam}. Subject: ${subject}. Difficulty: ${difficulty}. ${topics.length > 0 ? `Topics: ${topics.join(', ')}.` : ''} Create ${count} MCQs in JSON array format: [{text, options:[], correctIndex, explanation}].`;
+  const prompt = `ACT AS A STRICT EXAMINER for ${exam}. 
+  Subject: ${subject}. 
+  Difficulty: ${difficulty}. 
+  ${topics.length > 0 ? `Specific Topics: ${topics.join(', ')}.` : ''} 
+  Create ${count} High-Quality MCQs.
+  OUTPUT FORMAT (JSON ARRAY ONLY):
+  [ { "text": "...", "options": ["A","B","C","D"], "correctIndex": 0, "explanation": "..." } ]`;
 
   try {
       const items = await generateWithAI(prompt, true, 0.4);
       const formatted = (Array.isArray(items) ? items : (items.questions || [])).map((q: any) => ({
           text: q.text || q.question,
-          id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          id: `ai-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           source: QuestionSource.PYQ_AI,
           examType: exam,
           subject: subject,
@@ -144,12 +132,13 @@ export const generateExamQuestions = async (
 };
 
 export const generateCurrentAffairs = async (exam: string, count: number = 5): Promise<Question[]> => {
-  const prompt = `Generate ${count} Current Affairs MCQs for ${exam} (2024-2025) in JSON array format: [{text, options:[], correctIndex, explanation}].`;
+  const prompt = `ACT AS A GK EXPERT. Generate ${count} Current Affairs MCQs for ${exam} for the current month and year (2024-2025). 
+  Return a JSON array: [{text, options:[], correctIndex, explanation}].`;
   try {
     const items = await generateWithAI(prompt, true, 0.4);
     return (Array.isArray(items) ? items : (items.questions || [])).map((q: any) => ({
         text: q.text || q.question,
-        id: `ca-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        id: `ca-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         source: QuestionSource.PYQ_AI,
         examType: exam,
         subject: 'Current Affairs',
@@ -164,11 +153,12 @@ export const generateCurrentAffairs = async (exam: string, count: number = 5): P
 
 export const generatePYQList = async (exam: string, subject: string, year: number, topic?: string): Promise<Question[]> => {
     try {
-        const prompt = `Generate 10 PYQs for ${year} ${exam} (${subject}). ${topic ? `Topic: ${topic}` : ''} JSON array.`;
+        const prompt = `Generate 10 authentic Past Year Questions (PYQs) for year ${year} ${exam} (${subject}). ${topic ? `Specific Topic: ${topic}` : ''} 
+        Format: JSON array of MCQs with text, options, correctIndex, explanation.`;
         const data = await generateWithAI(prompt, true, 0.2);
-        return data.map((q: any) => ({
+        return (Array.isArray(data) ? data : (data.questions || [])).map((q: any) => ({
             ...q,
-            id: `pyq-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            id: `pyq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
             text: q.text || q.question,
             source: QuestionSource.PYQ_AI,
             examType: exam,
@@ -183,17 +173,18 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
 
 export const generateSingleQuestion = async (exam: string, subject: string, topic: string): Promise<Partial<Question> | null> => {
   try {
-      const data = await generateWithAI(`Generate 1 MCQ for ${exam} (${subject}: ${topic}). Output JSON {text, options, correctIndex, explanation}.`, true, 0.2);
+      const data = await generateWithAI(`Create 1 tough MCQ for ${exam} (${subject}: ${topic}). Output JSON {text, options, correctIndex, explanation}.`, true, 0.2);
       return { ...data, text: data.text || data.question, options: safeOptions(data.options) };
   } catch (e) { return null; }
 };
 
 export const generateNews = async (exam: string, month?: string, year?: number, category?: string): Promise<NewsItem[]> => {
     try {
-        const prompt = `Provide 5 news items for ${exam} students for ${month} ${year}${category ? ` in ${category}` : ''}. JSON array {headline, summary}.`;
+        const prompt = `Provide 5 latest news items relevant for ${exam} aspirants for ${month} ${year}${category ? ` in ${category}` : ''}. 
+        Return JSON array of objects {headline, summary}.`;
         const data = await generateWithAI(prompt, true, 0.2);
-        return data.map((n: any) => ({
-            id: `n-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        return (Array.isArray(data) ? data : (data.news || [])).map((n: any) => ({
+            id: `n-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
             headline: n.headline,
             summary: n.summary,
             category: category || 'General',
@@ -205,8 +196,8 @@ export const generateNews = async (exam: string, month?: string, year?: number, 
 
 export const generateStudyNotes = async (exam: string, subject?: string): Promise<NewsItem[]> => {
     try {
-        const data = await generateWithAI(`5 formulas/notes for ${exam} ${subject}. JSON array {headline, summary}.`, true, 0.2);
-        return data.map((n: any) => ({
+        const data = await generateWithAI(`Generate 5 critical formulas or short notes for ${exam} ${subject}. Output JSON array {headline, summary}.`, true, 0.2);
+        return (Array.isArray(data) ? data : (data.notes || [])).map((n: any) => ({
             id: `note-${Date.now()}`,
             headline: n.headline || n.title,
             summary: n.summary || n.content,
@@ -219,23 +210,37 @@ export const generateStudyNotes = async (exam: string, subject?: string): Promis
 
 export const parseSmartInput = async (input: string, type: 'text' | 'image', examContext: string): Promise<any[]> => {
     try {
-      const prompt = `Extract MCQs from this ${type}. Context: ${examContext}. Return JSON array [{text, options:[], correctIndex, explanation}].`;
-      const result = await generateWithAI(`${prompt}\n\nInput: ${input}`, true, 0.1);
+      let contentPart: any;
+      if (type === 'image') {
+          contentPart = { inlineData: { mimeType: 'image/jpeg', data: input } };
+      } else {
+          contentPart = { text: `Input Data: ${input}` };
+      }
+
+      const prompt = `Extract all MCQs from the following input. Context: ${examContext}. 
+      Ensure output is a valid JSON array of objects: [{text, options:[], correctIndex, explanation}].`;
+
+      const response = await ai.models.generateContent({
+          model: type === 'image' ? 'gemini-2.5-flash-image' : 'gemini-3-flash-preview',
+          contents: [{ role: 'user', parts: [contentPart, { text: prompt }] }],
+          config: { temperature: 0.1, responseMimeType: "application/json" }
+      });
+
+      const result = JSON.parse(cleanJson(response.text || "[]"));
       return Array.isArray(result) ? result : (result.questions || []);
-    } catch (e) { return []; }
+    } catch (e) { 
+        console.error("Smart Parse Error:", e);
+        return []; 
+    }
 };
 
-// Fix: Added missing generateQuestionFromImage export for UploadForm.tsx
 export const generateQuestionFromImage = async (base64: string, mimeType: string, exam: string, subject: string): Promise<Partial<Question> | null> => {
     try {
         const result = await parseSmartInput(base64, 'image', `Exam: ${exam}, Subject: ${subject}`);
         return result.length > 0 ? result[0] : null;
-    } catch (e) {
-        return null;
-    }
+    } catch (e) { return null; }
 };
 
-// Fix: Added missing generateFullPaper export for PaperGenerator.tsx
 export const generateFullPaper = async (
     exam: string, 
     subject: string, 
@@ -243,21 +248,19 @@ export const generateFullPaper = async (
     seedData: string, 
     config: any
 ): Promise<QuestionPaper | null> => {
-    const prompt = `Generate a full ${exam} question paper for ${subject} with difficulty ${difficulty}. 
-    Topics/Hints: ${seedData}. 
-    Config: ${JSON.stringify(config)}.
-    Return JSON: {
-        "title": "Mock Paper",
-        "examType": "${exam}",
-        "subject": "${subject}",
-        "difficulty": "${difficulty}",
+    const prompt = `Generate a complete Exam Paper for ${exam}. 
+    Subject: ${subject}, Difficulty: ${difficulty}. 
+    User Hints: ${seedData}. 
+    Paper Config: ${JSON.stringify(config)}.
+    Return as a structured JSON object: {
+        "title": "Mock Exam Paper",
         "totalMarks": 100,
         "durationMinutes": 180,
         "sections": [
             {
                 "id": "sec-1",
                 "title": "Section A",
-                "instructions": "Answer all questions.",
+                "instructions": "MCQs",
                 "marksPerQuestion": 2,
                 "questions": [
                     { "text": "...", "options": ["...", "..."], "correctIndex": 0, "explanation": "...", "type": "MCQ", "marks": 2 }
@@ -271,13 +274,27 @@ export const generateFullPaper = async (
         return {
             ...data,
             id: `paper-${Date.now()}`,
+            examType: exam,
+            subject: subject,
+            difficulty: difficulty,
             createdAt: Date.now()
         } as QuestionPaper;
-    } catch (e) {
-        return null;
-    }
+    } catch (e) { return null; }
 };
 
 export const extractSyllabusFromImage = async (base64: string, mimeType: string): Promise<string> => {
-    return await generateWithAI("Extract syllabus from the provided image context.", false, 0.1);
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image',
+            contents: [{ 
+                role: 'user', 
+                parts: [
+                    { inlineData: { mimeType, data: base64 } },
+                    { text: "Extract the full syllabus and chapters from this image. Format as a clean Markdown list." }
+                ] 
+            }],
+            config: { temperature: 0.1 }
+        });
+        return response.text || "Could not read syllabus.";
+    } catch(e) { return "Error extracting syllabus."; }
 };
