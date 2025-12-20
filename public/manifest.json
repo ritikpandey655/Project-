@@ -1,14 +1,13 @@
 {
   "name": "PYQverse: All exams ka pura universe",
   "short_name": "PYQverse",
-  "description": "Master UPSC, SSC, JEE, NEET & more with AI-powered Previous Year Questions, smart analytics, and unlimited practice.",
+  "description": "Master UPSC, SSC, JEE, NEET and more with AI-powered Previous Year Questions, smart analytics, and unlimited practice.",
   "theme_color": "#f97316",
   "background_color": "#111827",
   "display": "standalone",
   "orientation": "portrait",
   "scope": "/",
   "start_url": "/",
-  "id": "/",
   "categories": [
     "education",
     "productivity",
