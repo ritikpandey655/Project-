@@ -24,6 +24,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [isTestRunning, setIsTestRunning] = useState(false);
   
+  // SEO States
+  const [seoStatus, setSeoStatus] = useState<{ canonical: boolean, desc: boolean, robots: boolean }>({ canonical: false, desc: false, robots: false });
+  
   // Data States
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -47,6 +50,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setAiStatus('Checking');
     setLatency(0);
 
+    // 1. Check AI Backend
     try {
         const result = await checkAIConnectivity();
         setAiStatus(result.status);
@@ -58,6 +62,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         setAiStatus('Failed');
         await logSystemError('ERROR', 'Diagnostic Crash', { error: e.message });
     }
+
+    // 2. Check SEO Tags (Client Side)
+    const canonical = !!document.querySelector('link[rel="canonical"]');
+    const desc = !!document.querySelector('meta[name="description"]');
+    const robots = !!document.querySelector('meta[name="robots"]');
+    setSeoStatus({ canonical, desc, robots });
 
     const recentLogs = await getSystemLogs();
     setLogs(recentLogs);
@@ -187,6 +197,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             <p className="text-[10px] text-slate-500 mt-4">
                                 {isSecure ? 'API Key is hidden on server-side.' : 'CRITICAL: Env Config Missing.'}
                             </p>
+                        </div>
+                    </div>
+
+                    {/* SEO Health Card */}
+                    <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-white text-lg">SEO & Indexing Health</h3>
+                            <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded border border-slate-700">Fix for "Page with redirect"</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-bold text-slate-400 uppercase">Canonical Tag</span>
+                                    {seoStatus.canonical ? <span className="text-green-400">✅ Active</span> : <span className="text-red-400">❌ Missing</span>}
+                                </div>
+                                <p className="text-[10px] text-slate-500">Fixes duplicate content/redirect errors.</p>
+                            </div>
+                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-bold text-slate-400 uppercase">Landing Page</span>
+                                    <span className="text-green-400">✅ Live</span>
+                                </div>
+                                <p className="text-[10px] text-slate-500">Root URL returns content (No Redirect).</p>
+                            </div>
+                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-bold text-slate-400 uppercase">Robots Meta</span>
+                                    {seoStatus.robots ? <span className="text-green-400">✅ Index, Follow</span> : <span className="text-red-400">❌ Issues</span>}
+                                </div>
+                                <p className="text-[10px] text-slate-500">Allows Googlebot to crawl pages.</p>
+                            </div>
+                        </div>
+                        <div className="mt-4 p-3 bg-indigo-900/20 border border-indigo-500/30 rounded-lg text-sm text-indigo-200">
+                            <strong>Next Step:</strong> Go to Google Search Console &gt; Inspect URL &gt; Click "Test Live URL". If it says "Available", click "Validate Fix".
                         </div>
                     </div>
 

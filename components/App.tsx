@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES, TECHNICAL_EXAMS, MONTHS } from '../constants';
@@ -42,6 +41,7 @@ import { PYQLibrary } from './PYQLibrary';
 import { BackgroundAnimation } from './BackgroundAnimation';
 import { MobileBottomNav } from './MobileBottomNav';
 import { PrivacyPolicy } from './PrivacyPolicy';
+import { LandingPage } from './LandingPage'; // Import LandingPage
 import { auth, db } from '../src/firebaseConfig';
 import { onSnapshot, doc } from "firebase/firestore";
 
@@ -49,7 +49,7 @@ const LAST_VIEW_KEY = 'pyqverse_last_view';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
-    view: 'login', // Direct to login instead of landing
+    view: 'landing', // SEO FIX: Default to Landing Page instead of Login
     selectedExam: null,
     stats: INITIAL_STATS,
     user: null,
@@ -279,7 +279,7 @@ const App: React.FC = () => {
         setState(prev => ({ 
             ...prev, 
             user: null, 
-            view: isPrivacyAction ? 'privacy' : 'login' 
+            view: isPrivacyAction ? 'privacy' : 'landing' // SEO FIX: Default to Landing
         }));
         setIsAppInitializing(false);
       }
@@ -325,7 +325,7 @@ const App: React.FC = () => {
 
   const handleLogout = useCallback(async () => {
     await auth.signOut();
-    navigateTo('login');
+    navigateTo('landing'); // Redirect to Landing instead of Login
   }, [navigateTo]);
 
   const handleExamSelect = useCallback(async (exam: ExamType) => {
@@ -602,11 +602,20 @@ const App: React.FC = () => {
               window.history.replaceState({}, '', url.toString());
           }
 
-          // If logged in, go dashboard, else login
-          // Check state.user instead of relying on auth status alone to prevent flickers
+          // If logged in, go dashboard, else landing
           if (state.user) navigateTo('dashboard');
-          else navigateTo('login');
+          else navigateTo('landing');
       }} />;
+  }
+
+  // LANDING PAGE (Public Entry)
+  if (state.view === 'landing') {
+    return (
+      <LandingPage 
+        onLogin={() => navigateTo('login')} 
+        onSignup={() => navigateTo('signup')} 
+      />
+    );
   }
 
   // LOGIN FLOW
