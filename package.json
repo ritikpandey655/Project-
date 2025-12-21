@@ -7,12 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "server": "node server/index.js",
-    "android": "npm run build && npx cap sync android && npx cap open android"
+    "server": "node server/index.js"
   },
   "dependencies": {
-    "@capacitor/android": "^7.0.0",
-    "@capacitor/core": "^7.0.0",
     "@google/genai": "^1.30.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -24,7 +21,6 @@
     "recharts": "^2.12.2"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.0.0",
     "@types/node": "^20.14.9",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
