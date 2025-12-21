@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
@@ -42,6 +41,7 @@ import { PrivacyPolicy } from './PrivacyPolicy';
 import { LandingPage } from './LandingPage'; 
 import { VerifyEmailScreen } from './VerifyEmailScreen';
 import { auth, db } from '../src/firebaseConfig';
+import { LogoIcon } from './LogoIcon';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 
@@ -142,7 +142,6 @@ const App: React.FC = () => {
     };
   }, [loadUserData]);
 
-  // Fix: Added handleStartPractice to handle practice session initialization
   const handleStartPractice = useCallback(async (conf?: any) => {
     const configToUse = conf || practiceConfig;
     if (!state.selectedExam) return;
@@ -166,7 +165,6 @@ const App: React.FC = () => {
     }
   }, [state.selectedExam, practiceConfig, navigateTo]);
 
-  // Fix: Added handleNextQuestion to handle navigation between questions and endless mode pagination
   const handleNextQuestion = useCallback(async () => {
     if (practiceConfig.mode === 'endless') {
       if (currentQIndex >= practiceQueue.length - 3) {
@@ -204,7 +202,7 @@ const App: React.FC = () => {
           {state.view !== 'landing' && state.view !== 'login' && state.view !== 'signup' && state.view !== 'privacy' && (
             <div className="flex justify-between items-center p-4 pt-safe sm:p-6 sticky top-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md z-40 border-b border-white/10">
                 <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateTo('dashboard')}>
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-bold font-display shadow-lg border border-white/20">PV</div>
+                  <LogoIcon size="sm" />
                   <div>
                     <h1 className="font-display font-bold text-lg text-slate-800 dark:text-white leading-none">PYQverse</h1>
                     <span className="text-[9px] font-bold text-orange-500 tracking-widest uppercase">Universe</span>
