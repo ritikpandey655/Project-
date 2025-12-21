@@ -16,21 +16,29 @@ interface LoginScreenProps {
 }
 
 const LogoIcon = ({ size = "md" }: { size?: "sm" | "md" | "lg" }) => {
-  const dimensions = size === "sm" ? "w-10 h-10" : size === "md" ? "w-24 h-24" : "w-32 h-32";
-  const fontSize = size === "sm" ? "text-lg" : size === "md" ? "text-3xl" : "text-5xl";
+  const dimensions = size === "sm" ? "w-12 h-12" : size === "md" ? "w-28 h-28" : "w-36 h-36";
+  const fontSize = size === "sm" ? "text-xl" : size === "md" ? "text-4xl" : "text-5xl";
   
   return (
-    <div className={`relative ${dimensions} flex items-center justify-center animate-float`}>
-      {/* Outer Orbit */}
-      <div className="absolute inset-0 border-2 border-orange-500/20 rounded-full animate-spin-slow">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-orange-400 rounded-full shadow-[0_0_15px_rgba(251,146,60,0.8)]"></div>
+    <div className={`relative ${dimensions} flex items-center justify-center`}>
+      {/* Outer Orbit Ring */}
+      <div className="absolute inset-0 border border-orange-500/30 rounded-full animate-spin-slow">
+        {/* The Orbiting Satellite Orb */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-[0_0_20px_rgba(251,146,60,1)]"></div>
       </div>
-      {/* Inner Core */}
-      <div className="relative z-10 w-4/5 h-4/5 bg-gradient-to-br from-orange-500 via-red-600 to-indigo-700 rounded-3xl shadow-[0_0_50px_rgba(249,115,22,0.4)] flex items-center justify-center border-2 border-white/20 transform rotate-12">
-        <span className={`${fontSize} font-extrabold text-white font-display -rotate-12 tracking-tighter`}>PV</span>
+      
+      {/* Secondary Orbit (Anti-clockwise) */}
+      <div className="absolute inset-4 border border-indigo-500/20 rounded-full animate-[spin_12s_linear_infinite_reverse]">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-1.5 h-1.5 bg-indigo-400 rounded-full"></div>
       </div>
-      {/* Glow Effect */}
-      <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-3xl -z-10 animate-pulse"></div>
+
+      {/* Glow Layer */}
+      <div className="absolute inset-4 bg-orange-600/20 rounded-full blur-3xl animate-pulse-glow"></div>
+
+      {/* Central Core Block */}
+      <div className="relative z-10 w-3/4 h-3/4 bg-gradient-to-br from-orange-500 via-red-600 to-indigo-800 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.4)] flex items-center justify-center border-2 border-white/20 transform rotate-12 transition-transform hover:rotate-0 duration-700 animate-float">
+        <span className={`${fontSize} font-black text-white font-display -rotate-12 tracking-tighter drop-shadow-lg`}>PV</span>
+      </div>
     </div>
   );
 };
@@ -154,7 +162,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             <div className="absolute bottom-[-20%] right-[-20%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]"></div>
          </div>
          <LogoIcon size="lg" />
-         <div className="relative z-10 text-center mt-8">
+         <div className="relative z-10 text-center mt-12 animate-fade-in">
             <h1 className="text-4xl font-display font-bold text-white tracking-tight">PYQverse</h1>
             <p className="text-orange-400 text-xs font-bold uppercase tracking-[0.3em] mt-3">All Exams Ka Universe</p>
          </div>
@@ -172,7 +180,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         <div className="cursor-pointer active:scale-95 transition-transform" onClick={() => setLogoClicks(p => p+1)}>
             <LogoIcon size="md" />
         </div>
-        <h1 className="text-2xl font-display font-bold mt-6 mb-1 text-white">Welcome Back</h1>
+        <h1 className="text-2xl font-display font-bold mt-8 mb-1 text-white">Welcome Back</h1>
         <p className="text-slate-400 text-sm mb-6">Login to access your universe.</p>
         
         <div className="w-full bg-black/30 p-1 rounded-xl flex mb-6">
