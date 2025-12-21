@@ -1,3 +1,4 @@
+
 // PWA Install Prompt Event
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -26,4 +27,6 @@ interface ImportMeta {
 // Global window extensions
 interface Window {
   deferInstallPrompt?: any;
+  // Fix: Added recaptchaVerifier to Window interface for Firebase Phone Auth compatibility
+  recaptchaVerifier?: any;
 }
