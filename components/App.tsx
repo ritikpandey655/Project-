@@ -109,7 +109,7 @@ const App: React.FC = () => {
         language: prefs.language,
         theme: prefs.theme,
         examConfig: config,
-        view: lastView === 'landing' || lastView === 'login' ? 'dashboard' : lastView
+        view: (lastView === 'landing' || lastView === 'login' || lastView === 'signup') ? 'dashboard' : lastView
       }));
 
       if (prefs.theme) applyTheme(prefs.theme);
@@ -121,18 +121,31 @@ const App: React.FC = () => {
     }
   }, [applyTheme, navigateTo]);
 
+  // Handle Logout properly
+  const handleLogout = useCallback(async () => {
+    setIsSidebarOpen(false); // Ensure sidebar closes first
+    try {
+      await auth.signOut();
+      // View update is handled by onAuthStateChanged
+    } catch (e) {
+      console.error("Logout Error:", e);
+    }
+  }, []);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         if (!firebaseUser.emailVerified && firebaseUser.email !== 'support@pyqverse.in') {
           setState(prev => ({ ...prev, user: { id: firebaseUser.uid, name: firebaseUser.displayName || 'User', email: firebaseUser.email || '' }, view: 'landing' }));
+          setIsAppInitializing(false);
         } else {
           await loadUserData(firebaseUser.uid);
+          setIsAppInitializing(false);
         }
       } else {
         setState(prev => ({ ...prev, user: null, view: 'landing' }));
+        setIsAppInitializing(false);
       }
-      setIsAppInitializing(false);
     });
 
     const fallbackTimer = setTimeout(() => setIsAppInitializing(false), 8000);
@@ -243,7 +256,7 @@ const App: React.FC = () => {
             {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={[]} onBack={() => navigateTo('dashboard')} />}
             {state.view === 'pyqLibrary' && state.selectedExam && <PYQLibrary examType={state.selectedExam} onBack={() => navigateTo('dashboard')} language={state.language} />}
             {state.view === 'privacy' && <PrivacyPolicy onBack={() => navigateTo('dashboard')} />}
-            {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={() => auth.signOut()} onUpdateUser={(u) => saveUser(u)} onExamChange={() => {}} />}
+            {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} onExamChange={() => {}} />}
             {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} />}
           </div>
 
@@ -272,7 +285,7 @@ const App: React.FC = () => {
             currentTheme={state.theme} 
             onThemeChange={(t) => { setState(s => ({ ...s, theme: t })); applyTheme(t); }} 
             onNavigate={navigateTo} 
-            onLogout={() => auth.signOut()} 
+            onLogout={handleLogout} 
             onEnableNotifications={() => {}} 
           />
           
