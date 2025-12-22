@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -53,7 +54,7 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-// Main Generation Endpoint
+// Main Generation Endpoint (Gemini)
 app.post('/api/ai/generate', async (req, res) => {
   try {
     const { model, contents, config } = req.body;
@@ -79,6 +80,51 @@ app.post('/api/ai/generate', async (req, res) => {
     const msg = status === 429 ? "AI Quota Exceeded. Please try again later." : "Secure Backend Error";
     
     res.status(status).json({ success: false, error: msg });
+  }
+});
+
+// Groq Generation Endpoint
+app.post('/api/ai/groq', async (req, res) => {
+  try {
+    const { model, messages, jsonMode, apiKey } = req.body;
+    
+    // Use Server Env Key if client doesn't provide one
+    const keyToUse = apiKey || process.env.GROQ_API_KEY;
+    
+    if (!keyToUse) {
+        return res.status(503).json({ success: false, error: "Groq Config Error: No API Key found on server." });
+    }
+
+    const body = { 
+        model: model || "llama-3.3-70b-versatile", 
+        messages: messages, 
+        temperature: 0.3 
+    };
+    
+    if (jsonMode) {
+        body.response_format = { type: "json_object" };
+    }
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { 
+            "Authorization": `Bearer ${keyToUse}`, 
+            "Content-Type": "application/json" 
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        if(response.status === 429) return res.status(429).json({ success: false, error: "Groq Quota Exceeded" });
+        throw new Error(`Upstream ${response.status}: ${errText}`);
+    }
+    
+    const data = await response.json();
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("Groq Proxy Error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './Button';
 import { Question, QuestionSource, NewsItem, User, Transaction, QuestionType, ExamType, SyllabusItem } from '../types';
@@ -5,9 +6,9 @@ import {
   saveAdminQuestion, getAdminQuestions, 
   getAllUsers, removeUser, toggleUserPro,
   getTransactions, saveExamConfig, getExamConfig, getSystemLogs, SystemLog, clearSystemLogs,
-  logSystemError
+  logSystemError, getSystemConfig, saveSystemConfig
 } from '../services/storageService';
-import { checkAIConnectivity } from '../services/geminiService';
+import { checkAIConnectivity, generateExamQuestions } from '../services/geminiService';
 import { EXAM_SUBJECTS } from '../constants';
 
 interface AdminDashboardProps {
@@ -45,17 +46,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [userSearch, setUserSearch] = useState('');
   
   // Upload States
+  const [uploadMode, setUploadMode] = useState<'manual' | 'bulk' | 'ai'>('manual');
+  
+  // Manual Upload State
   const [qText, setQText] = useState('');
+  const [qTextHindi, setQTextHindi] = useState('');
   const [qOptions, setQOptions] = useState(['', '', '', '']);
   const [qCorrect, setQCorrect] = useState(0);
   const [qExplanation, setQExplanation] = useState('');
   const [uploadExam, setUploadExam] = useState<string>('UPSC');
-  const [uploadSubject, setUploadSubject] = useState('');
+  const [uploadSubject, setUploadSubject] = useState('History');
+  const [uploadTopic, setUploadTopic] = useState('');
+  
+  // Bulk Upload State
+  const [bulkJson, setBulkJson] = useState('');
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+
+  // AI Upload State
+  const [aiCount, setAiCount] = useState(5);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+
+  // Config State
+  const [configJson, setConfigJson] = useState('');
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'groq'>('gemini');
 
   useEffect(() => {
     loadInitialData();
     runDiagnostics();
   }, []);
+
+  // Load config when tab changes to settings
+  useEffect(() => {
+    if (activeTab === 'settings') {
+        const loadConfig = async () => {
+            try {
+                const conf = await getExamConfig();
+                setConfigJson(JSON.stringify(conf, null, 2));
+                const sysConf = await getSystemConfig();
+                setAiProvider(sysConf.aiProvider || 'gemini');
+            } catch (e) {
+                setConfigJson(JSON.stringify(EXAM_SUBJECTS, null, 2));
+            }
+        };
+        loadConfig();
+    }
+  }, [activeTab]);
 
   const runDiagnostics = async () => {
     setIsTestRunning(true);
@@ -129,24 +165,102 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setFilteredUsers(prev => prev.filter(u => u.id !== userId));
   };
 
+  // --- UPLOAD HANDLERS ---
+
   const handleManualUpload = async () => {
     if (!qText || qOptions.some(o => !o)) return alert("Fill all fields");
     const newQ: Question = { 
         id: `off-${Date.now()}`, 
-        text: qText, 
+        text: qText,
+        textHindi: qTextHindi || undefined,
         options: qOptions, 
         correctIndex: qCorrect, 
         explanation: qExplanation, 
         source: QuestionSource.OFFICIAL, 
         examType: uploadExam, 
         subject: uploadSubject, 
+        tags: uploadTopic ? [uploadTopic] : [],
         createdAt: Date.now(), 
         type: QuestionType.MCQ, 
         moderationStatus: 'APPROVED' 
     };
     await saveAdminQuestion(newQ);
-    alert("Uploaded!");
-    setQText(''); setQOptions(['', '', '', '']); setQExplanation('');
+    alert("Question Uploaded Successfully!");
+    // Reset partial
+    setQText(''); setQTextHindi(''); setQOptions(['', '', '', '']); setQExplanation('');
+  };
+
+  const handleBulkUpload = async () => {
+      try {
+          setIsBulkUploading(true);
+          const data = JSON.parse(bulkJson);
+          if (!Array.isArray(data)) throw new Error("JSON must be an array of questions");
+          
+          let count = 0;
+          for (const item of data) {
+              const newQ: Question = {
+                  id: `off-bulk-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                  text: item.text || item.question,
+                  options: item.options,
+                  correctIndex: item.correctIndex ?? 0,
+                  explanation: item.explanation,
+                  source: QuestionSource.OFFICIAL,
+                  examType: item.examType || uploadExam,
+                  subject: item.subject || uploadSubject,
+                  createdAt: Date.now(),
+                  type: QuestionType.MCQ,
+                  moderationStatus: 'APPROVED'
+              };
+              await saveAdminQuestion(newQ);
+              count++;
+          }
+          alert(`Successfully uploaded ${count} questions!`);
+          setBulkJson('');
+      } catch (e: any) {
+          alert("Bulk Upload Failed: " + e.message);
+      } finally {
+          setIsBulkUploading(false);
+      }
+  };
+
+  const handleAiGenerateUpload = async () => {
+      setIsAiGenerating(true);
+      try {
+          const questions = await generateExamQuestions(uploadExam, uploadSubject, aiCount, 'Hard', uploadTopic ? [uploadTopic] : []);
+          
+          let count = 0;
+          for (const q of questions) {
+              // Convert AI question to Official Question
+              const officialQ: Question = {
+                  ...q,
+                  id: `off-ai-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                  source: QuestionSource.OFFICIAL, // Override source
+                  moderationStatus: 'APPROVED'
+              };
+              await saveAdminQuestion(officialQ);
+              count++;
+          }
+          alert(`Generated & Saved ${count} Questions to Official Bank!`);
+      } catch (e) {
+          alert("AI Generation Failed");
+      } finally {
+          setIsAiGenerating(false);
+      }
+  };
+
+  const handleSaveConfig = async () => {
+    try {
+        setIsSavingConfig(true);
+        const parsed = JSON.parse(configJson);
+        await saveExamConfig(parsed);
+        // Save Provider
+        await saveSystemConfig({ aiProvider });
+        alert("Configuration Saved & Cached Successfully!");
+    } catch(e: any) {
+        alert("Invalid JSON format: " + e.message);
+    } finally {
+        setIsSavingConfig(false);
+    }
   };
 
   const navItems = [
@@ -157,7 +271,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white font-mono animate-fade-in fixed inset-0 z-[100] overflow-y-auto">
+    <div className="min-h-screen bg-slate-900 text-white font-mono animate-fade-in fixed inset-0 z-[100] overflow-y-auto pb-safe">
       <div className="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-20 flex justify-between items-center shadow-lg pt-safe">
          <div className="flex items-center gap-3">
             <h1 className="text-lg font-bold tracking-widest uppercase text-slate-200">
@@ -169,14 +283,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             </span>
          </div>
          <div className="flex gap-2">
-            <button onClick={runDiagnostics} className={`px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-[10px] font-bold uppercase ${isTestRunning ? 'animate-pulse' : ''}`}>
-                {isTestRunning ? 'Scanning...' : 'System Diagnostic'}
+            <button onClick={runDiagnostics} className={`hidden sm:block px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-[10px] font-bold uppercase ${isTestRunning ? 'animate-pulse' : ''}`}>
+                {isTestRunning ? 'Scanning...' : 'Diagnostic'}
             </button>
             <button onClick={onBack} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-[10px] font-bold uppercase">Exit</button>
          </div>
       </div>
 
-      <div className="flex h-[calc(100vh-64px)]">
+      <div className="flex h-[calc(100vh-64px)] pb-20 md:pb-0">
          <div className="w-64 bg-slate-800 border-r border-slate-700 hidden md:flex flex-col p-4 space-y-2">
             {navItems.map((item) => (
                 <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`flex items-center gap-3 p-3 rounded text-sm font-bold text-left transition-all ${activeTab === item.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-700'}`}>
@@ -185,7 +299,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             ))}
          </div>
 
-         <div className="flex-1 p-6 overflow-y-auto bg-slate-900 pb-20">
+         <div className="flex-1 p-4 md:p-6 overflow-y-auto bg-slate-900">
             {activeTab === 'monitor' && (
                 <div className="space-y-6 max-w-5xl mx-auto">
                     {/* Security & Health Grid */}
@@ -219,80 +333,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             <p className="text-[10px] text-slate-500 mt-4">
                                 {isSecure ? 'API Key is hidden on server-side.' : 'CRITICAL: Env Config Missing.'}
                             </p>
-                        </div>
-                    </div>
-
-                    {/* SEO Health Card - Detailed */}
-                    <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <div>
-                                <h3 className="font-bold text-white text-lg">SEO & Indexing Health</h3>
-                                <p className="text-[10px] text-slate-400">Fix for "Page with redirect" / Indexing Issues</p>
-                            </div>
-                            <a 
-                                href="https://search.google.com/search-console" 
-                                target="_blank"
-                                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg font-bold flex items-center gap-2"
-                            >
-                                Open Search Console ↗
-                            </a>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className={`p-4 rounded-xl border ${seoStatus.canonical ? 'bg-green-900/10 border-green-500/30' : 'bg-red-900/10 border-red-500/30'}`}>
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-xs font-bold text-slate-400 uppercase">Canonical URL</span>
-                                    {seoStatus.canonical ? <span className="text-green-400 font-bold">✓ Valid</span> : <span className="text-red-400 font-bold">⚠ Invalid</span>}
-                                </div>
-                                <p className="text-[10px] text-slate-300 font-mono bg-black/20 p-1 rounded break-all">
-                                    {seoStatus.canonicalUrl || 'Missing Tag'}
-                                </p>
-                                {!seoStatus.canonical && <p className="text-[10px] text-red-400 mt-1">Must be exactly: https://pyqverse.in/</p>}
-                            </div>
-
-                            <div className={`p-4 rounded-xl border ${seoStatus.robots ? 'bg-green-900/10 border-green-500/30' : 'bg-red-900/10 border-red-500/30'}`}>
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-xs font-bold text-slate-400 uppercase">Robots Meta</span>
-                                    {seoStatus.robots ? <span className="text-green-400 font-bold">✓ Crawlable</span> : <span className="text-red-400 font-bold">⚠ Blocked</span>}
-                                </div>
-                                <p className="text-[10px] text-slate-300 font-mono bg-black/20 p-1 rounded">
-                                    {seoStatus.robotsContent || 'Missing'}
-                                </p>
-                            </div>
-
-                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-xs font-bold text-slate-400 uppercase">Redirect Check</span>
-                                    <span className="text-green-400 font-bold">✓ Landing Live</span>
-                                </div>
-                                <p className="text-[10px] text-slate-500">Root URL serves content directly.</p>
-                            </div>
-                        </div>
-                        
-                        {/* Action Steps Card */}
-                        <div className="mt-6 p-4 bg-gradient-to-r from-indigo-900/40 to-blue-900/40 border border-indigo-500/30 rounded-xl relative overflow-hidden">
-                            <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-                                        <span>🚀</span> Final Action Required
-                                    </h4>
-                                    <p className="text-xs text-indigo-200 mb-1">Since your code is now fixed (Green Checks above), you must tell Google to re-check your site.</p>
-                                    <ol className="text-[11px] text-indigo-300 list-decimal list-inside space-y-1 mt-2 font-mono">
-                                        <li>Copy URL: <span className="text-white bg-black/20 px-1 rounded">https://pyqverse.in/</span></li>
-                                        <li>Go to <strong>URL Inspection</strong> in Search Console.</li>
-                                        <li>Click <strong>"Test Live URL"</strong> (Top Right).</li>
-                                        <li>When it says "Available", click <strong>"Validate Fix"</strong>.</li>
-                                    </ol>
-                                </div>
-                                <button 
-                                    onClick={() => {
-                                        navigator.clipboard.writeText('https://pyqverse.in/');
-                                        alert("URL Copied! Now paste it in Google Search Console.");
-                                    }}
-                                    className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg shadow-lg text-xs flex items-center gap-2"
-                                >
-                                    <span>📋</span> Copy URL
-                                </button>
-                            </div>
                         </div>
                     </div>
 
@@ -360,27 +400,111 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {activeTab === 'upload' && (
-                <div className="max-w-2xl mx-auto space-y-6">
+            {activeTab === 'settings' && (
+                <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
                     <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                        <h3 className="font-bold text-lg mb-4">Manual Question Upload</h3>
-                        <div className="space-y-4">
-                            <input className="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl" placeholder="Question Text" value={qText} onChange={e => setQText(e.target.value)} />
-                            {qOptions.map((o, i) => (
-                                <input key={i} className="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl" placeholder={`Option ${i+1}`} value={o} onChange={e => {
-                                    const n = [...qOptions]; n[i] = e.target.value; setQOptions(n);
-                                }} />
-                            ))}
-                            <div className="flex gap-4">
-                                <input className="p-3 bg-slate-900 border border-slate-700 rounded-xl" type="number" min="0" max="3" placeholder="Correct Index (0-3)" value={qCorrect} onChange={e => setQCorrect(parseInt(e.target.value))} />
-                                <input className="flex-1 p-3 bg-slate-900 border border-slate-700 rounded-xl" placeholder="Subject" value={uploadSubject} onChange={e => setUploadSubject(e.target.value)} />
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 className="font-bold text-lg text-white">System Configuration</h3>
+                                <p className="text-xs text-slate-400">Manage dynamic exam structures and core settings.</p>
                             </div>
-                            <Button onClick={handleManualUpload} className="w-full">Upload to Official Bank</Button>
+                            <Button onClick={handleSaveConfig} isLoading={isSavingConfig} className="bg-green-600 hover:bg-green-700 text-xs">
+                                Save Changes
+                            </Button>
+                        </div>
+
+                        {/* AI Provider Switch */}
+                        <div className="mb-6 p-4 bg-slate-900/50 border border-slate-600 rounded-xl">
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-3">AI Engine Provider</label>
+                            <div className="flex gap-4">
+                                <label className={`flex-1 p-4 rounded-xl border-2 cursor-pointer transition-all ${aiProvider === 'gemini' ? 'border-indigo-500 bg-indigo-900/20' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}>
+                                    <input type="radio" name="aiProvider" value="gemini" checked={aiProvider === 'gemini'} onChange={() => setAiProvider('gemini')} className="hidden" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-4 h-4 rounded-full border-2 border-indigo-500 flex items-center justify-center">
+                                            {aiProvider === 'gemini' && <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>}
+                                        </div>
+                                        <div>
+                                            <span className="block font-bold text-white">Gemini 3.0 Flash</span>
+                                            <span className="text-[10px] text-slate-400">Google • Fastest • Best for General</span>
+                                        </div>
+                                    </div>
+                                </label>
+
+                                <label className={`flex-1 p-4 rounded-xl border-2 cursor-pointer transition-all ${aiProvider === 'groq' ? 'border-orange-500 bg-orange-900/20' : 'border-slate-700 bg-slate-800 hover:border-slate-600'}`}>
+                                    <input type="radio" name="aiProvider" value="groq" checked={aiProvider === 'groq'} onChange={() => setAiProvider('groq')} className="hidden" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-4 h-4 rounded-full border-2 border-orange-500 flex items-center justify-center">
+                                            {aiProvider === 'groq' && <div className="w-2 h-2 bg-orange-500 rounded-full"></div>}
+                                        </div>
+                                        <div>
+                                            <span className="block font-bold text-white">Llama 3 (Groq)</span>
+                                            <span className="text-[10px] text-slate-400">Meta • Open Source • High Logic</span>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        {/* Exam Config Editor */}
+                        <div className="mb-6">
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                Dynamic Exam Map (JSON)
+                            </label>
+                            <div className="relative">
+                                <textarea
+                                    className="w-full h-96 p-4 bg-slate-900 border border-slate-700 rounded-xl font-mono text-xs text-green-400 outline-none focus:border-indigo-500 leading-relaxed"
+                                    value={configJson}
+                                    onChange={(e) => setConfigJson(e.target.value)}
+                                    spellCheck={false}
+                                />
+                                <div className="absolute top-2 right-2 px-2 py-1 bg-black/50 rounded text-[10px] text-slate-400 pointer-events-none">
+                                    JSON Editor
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-2">
+                                Warning: Modifying the keys (Exam Names) will affect existing user data. Only add new exams or modify subject arrays.
+                            </p>
+                        </div>
+                        
+                        <div className="border-t border-slate-700 pt-6">
+                            <h4 className="font-bold text-sm text-white mb-3">Danger Zone</h4>
+                            <div className="flex gap-4">
+                                <button onClick={async () => {
+                                    if(confirm("Clear all system logs?")) {
+                                        await clearSystemLogs();
+                                        refreshLogs();
+                                        alert("Logs Cleared");
+                                    }
+                                }} className="px-4 py-2 bg-red-900/30 text-red-400 rounded-lg text-xs font-bold hover:bg-red-900/50 border border-red-900/50">
+                                    Flush System Logs
+                                </button>
+                                <button onClick={() => {
+                                    if(confirm("Reset configuration to default constants?")) {
+                                        setConfigJson(JSON.stringify(EXAM_SUBJECTS, null, 2));
+                                    }
+                                }} className="px-4 py-2 bg-slate-700 text-white rounded-lg text-xs font-bold hover:bg-slate-600">
+                                    Reset to Defaults
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
          </div>
+      </div>
+
+      {/* Mobile Bottom Navigation for Admin */}
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-slate-800 border-t border-slate-700 p-2 z-30 flex justify-around pb-safe">
+          {navItems.map((item) => (
+              <button 
+                key={item.id} 
+                onClick={() => setActiveTab(item.id as any)}
+                className={`flex flex-col items-center p-2 rounded-lg transition-colors ${activeTab === item.id ? 'text-indigo-400 bg-slate-700/50' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                  <span className="text-xl mb-1">{item.icon}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide">{item.label}</span>
+              </button>
+          ))}
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-
 import { db } from "../src/firebaseConfig";
 import { 
   collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, 
@@ -30,15 +29,19 @@ export interface SystemLog {
 
 export const logSystemError = async (type: 'ERROR' | 'API_FAIL' | 'INFO', message: string, details?: any) => {
   try {
+    // Ensure details is never undefined, as Firestore addDoc throws on undefined values
+    const safeDetails = details === undefined ? null : (typeof details === 'object' ? JSON.stringify(details) : details);
+
     // Fire and forget log
-    addDoc(collection(db, "system_logs"), {
-      type,
-      message,
-      details: typeof details === 'object' ? JSON.stringify(details) : details,
+    await addDoc(collection(db, "system_logs"), {
+      type: type || 'ERROR',
+      message: message || 'Unknown Error',
+      details: safeDetails,
       timestamp: Date.now()
     });
   } catch (e) {
-    console.error("Failed to write to system log", e);
+    // Fail silently in production or log to console
+    console.warn("Failed to write to system log", e);
   }
 };
 
@@ -47,9 +50,12 @@ export const getSystemLogs = async (): Promise<SystemLog[]> => {
     // Get last 50 logs
     const q = query(collection(db, "system_logs"), orderBy("timestamp", "desc"), limit(50));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SystemLog));
-  } catch (e) {
-    console.error("Failed to fetch logs", e);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as SystemLog));
+  } catch (e: any) {
+    // Suppress permission-denied errors to avoid console spam for non-admins
+    if (e.code !== 'permission-denied') {
+        console.error("Failed to fetch logs", e);
+    }
     return [];
   }
 };
@@ -118,8 +124,8 @@ export const getAllUsers = async (): Promise<User[]> => {
     if (e.code === 'permission-denied' || e.message?.includes('Missing or insufficient permissions')) {
         console.warn("⚠️ Firestore: Access to 'users' collection denied. Returning mock users for Admin Dashboard.");
         return [
-            { id: 'mock-1', name: 'Demo User (Mock)', email: 'demo@example.com', isPro: false, isAdmin: false },
-            { id: 'mock-2', name: 'Admin (Mock)', email: 'admin@pyqverse.in', isPro: true, isAdmin: true }
+            { id: 'mock-1', name: 'Demo User (Mock)', email: 'demo@example.com', isPro: false, isAdmin: false } as User,
+            { id: 'mock-2', name: 'Admin (Mock)', email: 'admin@pyqverse.in', isPro: true, isAdmin: true } as User
         ];
     }
     console.error("getAllUsers Failed:", e);
@@ -257,7 +263,43 @@ export const getGlobalStats = async () => {
   }
 };
 
-// --- DYNAMIC EXAM CONFIG (TANK MODE CACHING) ---
+// --- DYNAMIC CONFIG & SYSTEM SETTINGS ---
+
+export const saveSystemConfig = async (config: { aiProvider: 'gemini' | 'groq', modelName?: string }): Promise<void> => {
+  try {
+    localStorage.setItem('system_config', JSON.stringify(config));
+    await setDoc(doc(db, "settings", "system"), config, { merge: true });
+  } catch (e) {
+    console.error("Failed to save system config", e);
+  }
+};
+
+export const getSystemConfig = async (): Promise<{ aiProvider: 'gemini' | 'groq', modelName?: string }> => {
+  try {
+    // 1. Try local storage for instant access
+    const cached = localStorage.getItem('system_config');
+    if (cached) {
+       // Fire off async fetch to update cache, but return cached immediately
+       getDoc(doc(db, "settings", "system")).then(snap => {
+          if (snap.exists()) localStorage.setItem('system_config', JSON.stringify(snap.data()));
+       });
+       return JSON.parse(cached);
+    }
+
+    // 2. Fetch from DB
+    const docSnap = await getDoc(doc(db, "settings", "system"));
+    if (docSnap.exists()) {
+      const data = docSnap.data() as any;
+      localStorage.setItem('system_config', JSON.stringify(data));
+      return data;
+    }
+  } catch (e) {
+    // Ignore offline errors
+  }
+  
+  // Default to Gemini if nothing found
+  return { aiProvider: 'gemini' };
+};
 
 export const saveExamConfig = async (config: Record<string, string[]>): Promise<void> => {
   // Update local cache immediately for speed
@@ -275,7 +317,8 @@ export const getExamConfig = async (): Promise<Record<string, string[]>> => {
     // Try Network First
     const docSnap = await getDoc(doc(db, "settings", "exams"));
     if (docSnap.exists()) {
-      const config = docSnap.data()?.config;
+      const data = docSnap.data() as any;
+      const config = data?.config;
       // Update Cache
       localStorage.setItem('cached_exam_config', JSON.stringify(config));
       return config;
@@ -450,7 +493,7 @@ export const getUserPref = async (userId: string): Promise<UserPrefs> => {
   try {
     const docRef = doc(db, "users", userId, "data", "prefs");
     const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) return { ...DEFAULT_PREFS, ...docSnap.data() };
+    if (docSnap.exists()) return { ...DEFAULT_PREFS, ...(docSnap.data() as any) };
     return { ...DEFAULT_PREFS };
   } catch (e) {
     return { ...DEFAULT_PREFS };
@@ -474,7 +517,7 @@ export const getStoredQOTD = async (userId: string): Promise<Question | null> =>
     const docRef = doc(db, "users", userId, "data", "qotd");
     const docSnap = await getDoc(docRef);
     if(docSnap.exists()) {
-       const data = docSnap.data();
+       const data = docSnap.data() as any;
        const today = new Date().toISOString().split('T')[0];
        if(data?.date === today) return data.question;
     }

@@ -45,6 +45,13 @@ import { LogoIcon } from './LogoIcon';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 
+interface PracticeConfig {
+  mode: 'finite' | 'endless';
+  subject: string;
+  count: number;
+  topic?: string;
+}
+
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     view: 'landing', 
@@ -68,7 +75,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showPracticeConfig, setShowPracticeConfig] = useState(false);
-  const [practiceConfig, setPracticeConfig] = useState({ mode: 'finite' as const, subject: 'Mixed', count: 10, topic: undefined as string | undefined });
+  const [practiceConfig, setPracticeConfig] = useState<PracticeConfig>({ mode: 'finite', subject: 'Mixed', count: 10 });
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const currentSessionId = useRef<string>(Date.now().toString() + Math.random().toString());
@@ -155,7 +162,7 @@ const App: React.FC = () => {
     };
   }, [loadUserData]);
 
-  const handleStartPractice = useCallback(async (conf?: any) => {
+  const handleStartPractice = useCallback(async (conf?: PracticeConfig) => {
     const configToUse = conf || practiceConfig;
     if (!state.selectedExam) return;
     setIsLoading(true);
@@ -264,7 +271,7 @@ const App: React.FC = () => {
             <PracticeConfigModal 
                 examType={state.selectedExam} 
                 onClose={() => setShowPracticeConfig(false)} 
-                onStart={(conf) => { setPracticeConfig({ ...conf, mode: conf.mode as any }); handleStartPractice(conf); }} 
+                onStart={(conf) => { setPracticeConfig(conf); handleStartPractice(conf); }} 
                 onExamChange={(e) => setState(s => ({ ...s, selectedExam: e }))}
                 isPro={state.user?.isPro}
                 isAdmin={state.user?.isAdmin}

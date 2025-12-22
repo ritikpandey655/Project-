@@ -1,12 +1,13 @@
+
 import { Question, QuestionSource, QuestionType, QuestionPaper, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
-import { getOfficialQuestions } from "./storageService";
+import { getOfficialQuestions, getSystemConfig } from "./storageService";
 
 // --- BACKEND API HANDLER ---
 
-const callBackend = async (payload: { model: string, contents: any, config?: any }) => {
+const callBackend = async (endpoint: string, payload: any) => {
     try {
-        const response = await fetch('/api/ai/generate', {
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -23,7 +24,7 @@ const callBackend = async (payload: { model: string, contents: any, config?: any
             throw new Error(result.error || "Unknown Backend Error");
         }
 
-        return result.data; // The raw text from AI
+        return result.data; // The raw data from AI
     } catch (e) {
         console.error("API Call Failed:", e);
         throw e;
@@ -44,7 +45,7 @@ const cleanJson = (text: string) => {
 const safeOptions = (opts: any): string[] => Array.isArray(opts) ? opts : ["A", "B", "C", "D"];
 
 // --- RATE LIMITER ---
-const RATE_LIMIT_DELAY = 2000; 
+const RATE_LIMIT_DELAY = 1000; 
 let lastCallTime = 0;
 let queuePromise = Promise.resolve();
 
@@ -71,26 +72,43 @@ export const generateWithAI = async (
     modelName: string = 'gemini-3-flash-preview'
 ): Promise<any> => {
     const task = async () => {
-        const payload = {
-            model: modelName,
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: {
-                temperature: temperature,
-                responseMimeType: isJson ? "application/json" : "text/plain"
-            }
-        };
+        // 1. Check Config
+        const systemConfig = await getSystemConfig();
+        const provider = systemConfig.aiProvider || 'gemini';
 
-        const text = await callBackend(payload);
+        let textOutput = "";
+
+        if (provider === 'groq') {
+            // GROQ PATH
+            const payload = {
+                model: systemConfig.modelName || 'llama-3.3-70b-versatile',
+                messages: [{ role: 'user', content: prompt + (isJson ? " Respond in JSON." : "") }],
+                jsonMode: isJson
+            };
+            const response = await callBackend('/api/ai/groq', payload);
+            textOutput = response.choices?.[0]?.message?.content || "";
+        } else {
+            // GEMINI PATH (Default)
+            const payload = {
+                model: modelName,
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                config: {
+                    temperature: temperature,
+                    responseMimeType: isJson ? "application/json" : "text/plain"
+                }
+            };
+            textOutput = await callBackend('/api/ai/generate', payload);
+        }
 
         if (isJson) {
             try {
-                return JSON.parse(cleanJson(text));
+                return JSON.parse(cleanJson(textOutput));
             } catch (e) {
-                console.error("JSON Parse Error:", text);
+                console.error("JSON Parse Error:", textOutput);
                 throw new Error("AI returned invalid JSON format.");
             }
         }
-        return text;
+        return textOutput;
     };
 
     try {
@@ -241,13 +259,14 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
           contentParts.push({ text: `Extract MCQs from this text: ${input}. Context: ${examContext}. JSON array: [{text, options:[], correctIndex, explanation}].` });
       }
 
+      // Hardcoded to Gemini Flash for Vision capability (Groq Vision support varies, safer to stick to Gemini for now)
       const payload = {
           model: type === 'image' ? 'gemini-2.5-flash-image' : 'gemini-3-flash-preview',
           contents: [{ role: 'user', parts: contentParts }],
           config: { temperature: 0.1, responseMimeType: "application/json" }
       };
 
-      const text = await callBackend(payload);
+      const text = await callBackend('/api/ai/generate', payload);
       const result = JSON.parse(cleanJson(text || "[]"));
       return Array.isArray(result) ? result : (result.questions || []);
     } catch (e) { 
@@ -296,7 +315,7 @@ export const extractSyllabusFromImage = async (base64: string, mimeType: string)
             }],
             config: { temperature: 0.1 }
         };
-        const text = await callBackend(payload);
+        const text = await callBackend('/api/ai/generate', payload);
         return text || "No data.";
     } catch(e) { return "Error."; }
 };
