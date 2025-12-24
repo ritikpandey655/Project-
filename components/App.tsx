@@ -74,6 +74,10 @@ const App: React.FC = () => {
   const [practiceConfig, setPracticeConfig] = useState<PracticeConfig>({ mode: 'finite', subject: 'Mixed', count: 10 });
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
+  // New: Real-time session analytics state
+  const [sessionCorrect, setSessionCorrect] = useState(0);
+  const [sessionWrong, setSessionWrong] = useState(0);
+
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [canInstall, setCanInstall] = useState(false);
 
@@ -183,6 +187,8 @@ const App: React.FC = () => {
     if (!state.selectedExam) return;
     setIsLoading(true);
     setShowPracticeConfig(false);
+    setSessionCorrect(0);
+    setSessionWrong(0);
     try {
       const qs = await generateExamQuestions(
         state.selectedExam,
@@ -200,6 +206,15 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   }, [state.selectedExam, practiceConfig, navigateTo]);
+
+  const handleAnswer = useCallback((isCorrect: boolean) => {
+      if (isCorrect) setSessionCorrect(prev => prev + 1);
+      else setSessionWrong(prev => prev + 1);
+      
+      if (state.user && state.selectedExam) {
+          updateStats(state.user.id, isCorrect, practiceQueue[currentQIndex].subject || 'General', state.selectedExam);
+      }
+  }, [state.user, state.selectedExam, practiceQueue, currentQIndex]);
 
   const handleNextQuestion = useCallback(async () => {
     if (practiceConfig.mode === 'endless') {
@@ -220,7 +235,7 @@ const App: React.FC = () => {
     }
   }, [practiceConfig.mode, practiceConfig.subject, currentQIndex, practiceQueue.length, state.selectedExam, navigateTo]);
 
-  const hideHeader = state.view === 'landing' || state.view === 'login' || state.view === 'signup' || state.view === 'privacy';
+  const hideHeader = state.view === 'landing' || state.view === 'login' || state.view === 'signup' || state.view === 'privacy' || state.view === 'practice';
 
   return (
     <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans transition-colors duration-300`}>
@@ -258,13 +273,20 @@ const App: React.FC = () => {
             {state.view === 'practice' && practiceQueue[currentQIndex] && (
                 <QuestionCard 
                     question={practiceQueue[currentQIndex]} 
-                    onAnswer={(isCorrect) => state.user && updateStats(state.user.id, isCorrect, practiceQueue[currentQIndex].subject || 'General', state.selectedExam || '')} 
+                    onAnswer={handleAnswer}
                     onNext={handleNextQuestion} 
+                    onBack={() => navigateTo('dashboard')}
                     isLast={currentQIndex === practiceQueue.length - 1 && practiceConfig.mode !== 'endless'} 
                     isLoadingNext={isFetchingMore}
                     language={state.language}
                     onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))}
                     onBookmarkToggle={(q) => state.user && toggleBookmark(state.user.id, q)}
+                    sessionStats={{
+                        currentIndex: currentQIndex,
+                        total: practiceConfig.mode === 'endless' ? 100 : practiceConfig.count,
+                        correct: sessionCorrect,
+                        wrong: sessionWrong
+                    }}
                 />
             )}
             {state.view === 'upload' && state.user && state.selectedExam && <UploadForm userId={state.user.id} examType={state.selectedExam} onSuccess={() => navigateTo('dashboard')} />}
