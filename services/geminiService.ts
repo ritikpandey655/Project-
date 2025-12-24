@@ -119,6 +119,35 @@ export const generateWithAI = async (
 };
 
 /**
+ * Solves a specific question text directly.
+ */
+export const solveTextQuestion = async (
+    questionText: string,
+    examType: string,
+    subject: string
+): Promise<any> => {
+    const prompt = `ACT AS AN EXAM EXPERT for ${examType} (${subject}). 
+    Analyze and SOLVE this question: "${questionText}".
+    
+    If the question is just a topic, generate a high-quality MCQ for it.
+    If the question is a full MCQ or direct question, solve it.
+    
+    Respond in JSON format:
+    {
+        "text": "The original or cleaned up question text",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctIndex": 0,
+        "explanation": "Detailed step-by-step logic for the solution"
+    }`;
+
+    try {
+        return await generateWithAI(prompt, true, 0.2);
+    } catch (e) {
+        return null;
+    }
+};
+
+/**
  * Generates a question from an image using vision-capable models.
  */
 export const generateQuestionFromImage = async (

@@ -73,6 +73,9 @@ const App: React.FC = () => {
   const [showPracticeConfig, setShowPracticeConfig] = useState(false);
   const [practiceConfig, setPracticeConfig] = useState<PracticeConfig>({ mode: 'finite', subject: 'Mixed', count: 10 });
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+  
+  // To handle doubts from landing page
+  const [initialDoubtQuery, setInitialDoubtQuery] = useState<string | null>(null);
 
   // Real-time session analytics state
   const [sessionCorrect, setSessionCorrect] = useState(0);
@@ -139,7 +142,7 @@ const App: React.FC = () => {
         language: prefs.language,
         theme: prefs.theme,
         examConfig: config,
-        view: (lastView === 'landing' || lastView === 'login' || lastView === 'signup') ? 'dashboard' : lastView
+        view: initialDoubtQuery ? 'upload' : ((lastView === 'landing' || lastView === 'login' || lastView === 'signup') ? 'dashboard' : lastView)
       }));
       if (prefs.theme) applyTheme(prefs.theme);
       updateUserActivity(userId);
@@ -148,7 +151,7 @@ const App: React.FC = () => {
       console.error("User Data Load Error:", e);
       navigateTo('dashboard');
     }
-  }, [applyTheme, navigateTo]);
+  }, [applyTheme, navigateTo, initialDoubtQuery]);
 
   const handleLogout = useCallback(async () => {
     setIsSidebarOpen(false);
@@ -287,7 +290,7 @@ const App: React.FC = () => {
           )}
 
           <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-            {state.view === 'landing' && <LandingPage onLogin={() => navigateTo('login')} onSignup={() => navigateTo('signup')} />}
+            {state.view === 'landing' && <LandingPage onLogin={() => navigateTo('login')} onSignup={(q) => { if(q) setInitialDoubtQuery(q); navigateTo('signup'); }} />}
             {state.view === 'login' && <LoginScreen onLogin={(user) => loadUserData(user.id)} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} onNavigateToPrivacy={() => navigateTo('privacy')} />}
             {state.view === 'signup' && <SignupScreen onSignup={() => {}} onBackToLogin={() => navigateTo('login')} />}
             {state.view === 'forgotPassword' && <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />}
@@ -311,7 +314,14 @@ const App: React.FC = () => {
                     }}
                 />
             )}
-            {state.view === 'upload' && state.user && state.selectedExam && <UploadForm userId={state.user.id} examType={state.selectedExam} onSuccess={() => navigateTo('dashboard')} />}
+            {state.view === 'upload' && state.user && state.selectedExam && (
+              <UploadForm 
+                userId={state.user.id} 
+                examType={state.selectedExam} 
+                initialQuery={initialDoubtQuery || undefined}
+                onSuccess={() => { setInitialDoubtQuery(null); navigateTo('dashboard'); }} 
+              />
+            )}
             {state.view === 'paperGenerator' && state.selectedExam && <PaperGenerator examType={state.selectedExam} onGenerate={(p) => { setState(s => ({ ...s, generatedPaper: p })); navigateTo('paperView'); }} onBack={() => navigateTo('dashboard')} onExamChange={() => {}} />}
             {state.view === 'paperView' && state.generatedPaper && state.user && <PaperView paper={state.generatedPaper} userId={state.user.id} onClose={() => navigateTo('dashboard')} language={state.language} />}
             {state.view === 'leaderboard' && state.user && <Leaderboard user={state.user} onBack={() => navigateTo('dashboard')} />}

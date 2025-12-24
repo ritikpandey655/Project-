@@ -1,15 +1,22 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from './Button';
-import { EXAM_SUBJECTS } from '../constants';
 import { LogoIcon } from './LogoIcon';
 
 interface LandingPageProps {
   onLogin: () => void;
-  onSignup: () => void;
+  onSignup: (initialQuery?: string) => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) => {
+  const [query, setQuery] = useState('');
+
+  const handleSolve = () => {
+    if (!query.trim()) return;
+    // Direct user to signup but pass the query
+    onSignup(query);
+  };
+
   return (
     <div className="min-h-screen w-full bg-[#f8f9ff] dark:bg-[#0c0a1a] overflow-x-hidden">
       
@@ -28,7 +35,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
               >
                 Log In
               </button>
-              <Button onClick={onSignup} size="md" className="hidden sm:inline-flex !bg-indigo-600 !rounded-full shadow-2xl shadow-indigo-500/20">
+              <Button onClick={() => onSignup()} size="md" className="hidden sm:inline-flex !bg-indigo-600 !rounded-full shadow-2xl shadow-indigo-500/20">
                 Get Started Free
               </Button>
             </div>
@@ -36,7 +43,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
         </div>
       </nav>
 
-      {/* Hero Section - Mirroring OneSpace layout */}
+      {/* Hero Section */}
       <div className="relative pt-40 pb-20 sm:pt-52 sm:pb-32 overflow-hidden">
         {/* Animated Background Gradients */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[700px] bg-indigo-500/10 dark:bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
@@ -63,7 +70,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
           </div>
           
           <div className="flex flex-col sm:flex-row justify-center items-center gap-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <Button onClick={onSignup} size="lg" className="!bg-slate-900 dark:!bg-white !text-white dark:!text-slate-900 !px-10 !py-5 !rounded-full !text-xl font-black shadow-2xl transition-transform transform hover:scale-105 active:scale-95">
+            <Button onClick={() => onSignup()} size="lg" className="!bg-slate-900 dark:!bg-white !text-white dark:!text-slate-900 !px-10 !py-5 !rounded-full !text-xl font-black shadow-2xl transition-transform transform hover:scale-105 active:scale-95">
               Launch Universe Free
             </Button>
             <p className="text-slate-500 font-medium max-w-xs text-sm text-left hidden md:block">
@@ -73,11 +80,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
 
           {/* Screenshot-like prompt bar for Landing Page */}
           <div className="mt-24 max-w-3xl mx-auto p-4 bg-white/40 dark:bg-white/5 backdrop-blur-3xl rounded-[32px] border border-white dark:border-white/10 shadow-2xl animate-pop-in" style={{ animationDelay: '0.4s' }}>
-             <div className="w-full bg-white dark:bg-slate-900 rounded-[24px] p-6 text-left shadow-inner flex items-center justify-between border border-slate-100 dark:border-white/5">
-                <span className="text-slate-400 font-medium">Ask PYQverse to solve any question...</span>
-                <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+             <div className="w-full bg-white dark:bg-slate-900 rounded-[24px] p-2 sm:p-4 text-left shadow-inner flex items-center justify-between border border-slate-100 dark:border-white/5">
+                <input 
+                  type="text" 
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSolve()}
+                  className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-800 dark:text-white font-medium placeholder-slate-400"
+                  placeholder="Ask PYQverse to solve any question..." 
+                />
+                <button 
+                  onClick={handleSolve}
+                  className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 active:scale-90 transition-transform flex-shrink-0"
+                >
                    ↑
-                </div>
+                </button>
              </div>
           </div>
         </div>
