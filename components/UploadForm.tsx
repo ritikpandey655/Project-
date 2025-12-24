@@ -42,7 +42,6 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
     try {
       const aiQuestion = await generateSingleQuestion(examType, subject, topic);
       if (aiQuestion) {
-        // Artificial UX delay
         await new Promise(r => setTimeout(r, 1500));
         setText(aiQuestion.text || '');
         if (aiQuestion.options && aiQuestion.options.length === 4) {
@@ -127,11 +126,11 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
   if (isGenerating || isSaving) {
     return (
       <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
-         <div className="relative w-32 h-32 mb-8">
-            <div className="absolute inset-0 border-4 border-brand-500/20 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-t-brand-500 rounded-full animate-spin"></div>
-            <div className="absolute inset-0 flex items-center justify-center text-5xl animate-bounce">
-               {isSaving ? '📁' : '📸'}
+         <div className="mb-10">
+            <div className="sand-timer mx-auto">
+               <div className="sand-top"></div>
+               <div className="sand-bottom"></div>
+               <div className="sand-stream"></div>
             </div>
          </div>
          <div className="space-y-4 max-w-sm">

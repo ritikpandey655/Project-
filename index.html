@@ -109,6 +109,61 @@
         --primary-800: #291070;
         --primary-900: #1d0b4d;
       }
+
+      /* High-Quality Sand Timer CSS */
+      .sand-timer {
+        position: relative;
+        width: 40px;
+        height: 70px;
+        animation: sandFlip 3s cubic-bezier(0.8, 0, 0.2, 1) infinite;
+      }
+      .sand-timer:before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        border: 2px solid rgba(255,255,255,0.1);
+        border-radius: 4px;
+      }
+      .sand-top {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 50%;
+        background: var(--brand-primary);
+        clip-path: polygon(0 0, 100% 0, 50% 100%);
+        animation: sandDrain 3s linear infinite;
+        transform-origin: bottom;
+      }
+      .sand-bottom {
+        position: absolute;
+        bottom: 0; left: 0; width: 100%; height: 50%;
+        background: var(--brand-primary);
+        clip-path: polygon(50% 0, 0 100%, 100% 100%);
+        transform: scaleY(0);
+        animation: sandFill 3s linear infinite;
+        transform-origin: bottom;
+      }
+      .sand-stream {
+        position: absolute;
+        top: 50%; left: 50%; width: 2px; height: 50%;
+        background: var(--brand-primary);
+        transform: translateX(-50%);
+        animation: streamVisible 3s linear infinite;
+      }
+      @keyframes sandFlip { 
+        0%, 85% { transform: rotate(0); } 
+        100% { transform: rotate(180deg); } 
+      }
+      @keyframes sandDrain { 
+        0% { transform: scaleY(1); } 
+        85%, 100% { transform: scaleY(0); } 
+      }
+      @keyframes sandFill { 
+        0% { transform: scaleY(0); } 
+        85%, 100% { transform: scaleY(1); } 
+      }
+      @keyframes streamVisible { 
+        0%, 5% { opacity: 1; } 
+        85%, 100% { opacity: 0; } 
+      }
     </style>
 <script type="importmap">
 {
@@ -138,7 +193,6 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          // Use relative path for SW to avoid origin mismatch issues in previews
           navigator.serviceWorker.register('./sw.js').then(registration => {
             console.log('SW registered: ', registration);
           }).catch(registrationError => {

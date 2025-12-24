@@ -45,7 +45,6 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
                 return [...prev, ...uniqueNew];
             });
         } else {
-            // Artificial delay to show high-quality animation
             await new Promise(r => setTimeout(r, 1200));
             setQuestions(data);
         }
@@ -69,10 +68,12 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
       
       {isLoading && (
         <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
-           <div className="relative w-32 h-32 mb-8">
-              <div className="absolute inset-0 border-4 border-brand-500/20 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-t-brand-500 rounded-full animate-spin"></div>
-              <div className="absolute inset-0 flex items-center justify-center text-5xl animate-bounce">📜</div>
+           <div className="mb-10">
+              <div className="sand-timer mx-auto">
+                 <div className="sand-top"></div>
+                 <div className="sand-bottom"></div>
+                 <div className="sand-stream"></div>
+              </div>
            </div>
            <div className="space-y-4 max-w-sm">
               <h3 className="text-3xl font-display font-black text-white leading-tight">Accessing the archives...</h3>

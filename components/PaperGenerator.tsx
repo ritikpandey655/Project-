@@ -44,11 +44,10 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
     try {
       const paper = await generateFullPaper(examType, subject, difficulty, seedData, {
         ...config,
-        mcqCount: config.includeMCQ ? mcqCount : 0,
+        mcqCount: mcqCount,
       });
       
       if (paper) {
-        // Ensure a minimum loading visibility time for better UX
         setTimeout(() => {
             onGenerate(paper);
             setIsLoading(false);
@@ -67,11 +66,14 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
-         <div className="relative w-32 h-32 mb-8">
-            {/* Professional Ring Spinner */}
-            <div className="absolute inset-0 border-4 border-brand-500/20 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-t-brand-500 rounded-full animate-spin"></div>
-            <div className="absolute inset-0 flex items-center justify-center text-5xl animate-bounce">⚡</div>
+         <div className="mb-10 relative">
+            {/* Professional Sand Timer */}
+            <div className="sand-timer mx-auto">
+               <div className="sand-top"></div>
+               <div className="sand-bottom"></div>
+               <div className="sand-stream"></div>
+            </div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-white/5 rounded-full animate-ping"></div>
          </div>
          
          <div className="space-y-4 max-w-sm">
@@ -82,7 +84,7 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
                 <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"></div>
             </div>
             <p className="text-slate-400 text-sm font-medium tracking-wide">
-               Fetching latest {examType} patterns, generating smart MCQs and structuring the marking scheme.
+               Fetching latest {examType} patterns, generating {mcqCount} smart MCQs and calculating correct solution patterns.
             </p>
          </div>
       </div>
@@ -134,19 +136,6 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
                     </button>
                 ))}
             </div>
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Included Format</label>
-          <div className="grid grid-cols-1 gap-3">
-            <div className="flex items-center gap-4 p-4 border border-brand-purple/20 bg-brand-50/20 dark:bg-brand-900/10 rounded-2xl transition-colors">
-              <div className="w-10 h-10 bg-brand-purple text-white rounded-full flex items-center justify-center text-lg">✓</div>
-              <div>
-                 <span className="text-sm font-black text-slate-800 dark:text-white block">Objective MCQs</span>
-                 <span className="text-[10px] text-slate-500 font-bold uppercase">MANDATORY FOR MOCK TESTS</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="animate-fade-in bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[28px] border border-slate-100 dark:border-slate-700/50">

@@ -11,7 +11,6 @@ import { LogoIcon } from './LogoIcon';
 interface LoginScreenProps {
   onLogin: (user: User) => void;
   onNavigateToSignup: () => void;
-  onForgotPassword: () => void;
   onNavigateToPrivacy?: () => void;
   isOnline?: boolean;
   isInitializing?: boolean;
@@ -20,7 +19,6 @@ interface LoginScreenProps {
 export const LoginScreen: React.FC<LoginScreenProps> = ({ 
   onLogin, 
   onNavigateToSignup, 
-  onForgotPassword, 
   onNavigateToPrivacy,
   isOnline = true, 
   isInitializing = false 
@@ -111,8 +109,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             <div className="absolute top-[-20%] left-[-20%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]"></div>
             <div className="absolute bottom-[-20%] right-[-20%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px]"></div>
          </div>
-         <LogoIcon size="lg" />
-         <div className="relative z-10 text-center mt-12 animate-fade-in">
+         
+         <div className="mb-8">
+            <div className="sand-timer mx-auto">
+               <div className="sand-top"></div>
+               <div className="sand-bottom"></div>
+               <div className="sand-stream"></div>
+            </div>
+         </div>
+
+         <div className="relative z-10 text-center animate-fade-in">
             <h1 className="text-4xl font-display font-bold text-white tracking-tight">PYQverse</h1>
             <p className="text-indigo-400 text-xs font-bold uppercase tracking-[0.3em] mt-3">All Exams Ka Universe</p>
          </div>
@@ -161,7 +167,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                     <div className="space-y-1">
                         <div className="flex justify-between items-center px-2">
                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Password</label>
-                           <button type="button" onClick={onForgotPassword} className="text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-white">Forgot?</button>
                         </div>
                         <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 placeholder-slate-700 transition-all" placeholder="••••••••" required />
                     </div>
@@ -190,7 +195,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         </div>
       </div>
 
-      {/* FOOTER LINKS - Restored as requested */}
       <div className="max-w-md w-full px-4 mt-8 flex flex-col items-center gap-4 opacity-40 z-10">
          <div className="flex items-center gap-6">
             <button onClick={onNavigateToPrivacy} className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Privacy Policy</button>

@@ -120,7 +120,6 @@ export const generateWithAI = async (
 
 /**
  * Generates a question from an image using vision-capable models.
- * Used for the AI Doubt Solver feature.
  */
 export const generateQuestionFromImage = async (
     base64: string, 
@@ -178,7 +177,7 @@ export const generateExamQuestions = async (
   const prompt = `ACT AS A STRICT EXAMINER for ${exam}. Subject: ${subject}. Difficulty: ${difficulty}. 
   ${topics.length > 0 ? `Topics: ${topics.join(', ')}.` : ''} 
   Create ${count} High-Quality MCQs. Output JSON array: [{text, options:[], correctIndex, explanation}].
-  MANDATORY: Every question MUST have an explanation explaining WHY the correct option is right.`;
+  MANDATORY: Every single question MUST have a detailed explanation explaining WHY the correct option is right. DO NOT SKIP.`;
 
   try {
       const items = await generateWithAI(prompt, true, 0.4);
@@ -191,7 +190,7 @@ export const generateExamQuestions = async (
           type: QuestionType.MCQ,
           options: safeOptions(q.options),
           correctIndex: q.correctIndex ?? 0,
-          explanation: q.explanation || "Correct answer based on standard exam curriculum.",
+          explanation: q.explanation || "No explanation provided by AI.",
           createdAt: Date.now()
       }));
       return [...officialQs, ...formatted];
@@ -208,29 +207,29 @@ export const generateFullPaper = async (
     config: any
 ): Promise<QuestionPaper | null> => {
     const qCount = config.mcqCount || 20;
-    const prompt = `CRITICAL MISSION: Create a ${qCount}-question Professional Mock Paper for ${exam} (${subject}). 
-    Difficulty: ${difficulty}. Hints: ${seedData}. 
+    const prompt = `ABSOLUTE CRITICAL MISSION: You are an Exam Paper Setter for ${exam} (${subject}). 
+    You must generate a massive list of ${qCount} questions. 
     
     RULES:
-    1. You MUST generate exactly ${qCount} questions. If you cannot do all in one turn, provide as many as possible (at least 20+).
-    2. Every single question MUST include a detailed "explanation" field.
-    3. Output strictly JSON.
+    1. STICK TO THE COUNT: Generate exactly ${qCount} questions. No less.
+    2. MANDATORY SOLUTIONS: Every single question MUST have a field "explanation" with at least 2 sentences explaining the logic.
+    3. JSON Format strictly.
     
     JSON structure: {
-        "title": "${exam} Full Mock Test", 
+        "title": "${exam} Mock Test", 
         "totalMarks": ${qCount * 4}, 
         "durationMinutes": 180, 
         "sections": [
             {
-                "title": "Main Paper", 
-                "instructions": "Answer all questions. Each carries 4 marks.",
+                "title": "Comprehensive Section", 
+                "instructions": "All questions are compulsory.",
                 "questions": [
                     {
-                        "text": "Question text here...", 
+                        "text": "...", 
                         "type": "MCQ",
-                        "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], 
+                        "options": ["A", "B", "C", "D"], 
                         "correctIndex": 0, 
-                        "explanation": "Detailed explanation of why opt 1 is correct and others are not..."
+                        "explanation": "Detailed explanation here..."
                     }
                 ]
             }
@@ -248,7 +247,7 @@ export const generateFullPaper = async (
                     q.type = q.type || QuestionType.MCQ;
                     q.options = safeOptions(q.options);
                     q.correctIndex = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
-                    q.explanation = q.explanation || "Correct answer verified by AI patterns.";
+                    q.explanation = q.explanation || "Correct answer based on curriculum standards.";
                 });
             });
         }
@@ -286,7 +285,7 @@ export const checkAIConnectivity = async (): Promise<{ status: 'Operational' | '
 export const generatePYQList = async (exam: string, subject: string, year: number, topic?: string): Promise<Question[]> => {
     try {
         const prompt = `Generate 10 PYQs for ${year} ${exam} (${subject}). ${topic ? `Topic: ${topic}` : ''} 
-        JSON array: [{text, options:[], correctIndex, explanation}]. MANDATORY: Explanations required.`;
+        JSON array: [{text, options:[], correctIndex, explanation}]. MUST INCLUDE EXPLANATIONS.`;
         const data = await generateWithAI(prompt, true, 0.2);
         return (Array.isArray(data) ? data : (data.questions || [])).map((q: any) => ({
             ...q,
@@ -298,7 +297,7 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
             pyqYear: year,
             type: QuestionType.MCQ,
             options: safeOptions(q.options),
-            explanation: q.explanation || "Explanation available in standard archives.",
+            explanation: q.explanation || "Refer to archives for detailed solution.",
             createdAt: Date.now()
         }));
     } catch(e) { return []; }

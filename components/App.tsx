@@ -74,7 +74,7 @@ const App: React.FC = () => {
   const [practiceConfig, setPracticeConfig] = useState<PracticeConfig>({ mode: 'finite', subject: 'Mixed', count: 10 });
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
-  // New: Real-time session analytics state
+  // Real-time session analytics state
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionWrong, setSessionWrong] = useState(0);
 
@@ -111,7 +111,6 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // Sync theme variables on state change
   useEffect(() => {
     applyTheme(state.theme);
   }, [state.theme, applyTheme]);
@@ -197,11 +196,14 @@ const App: React.FC = () => {
         'Medium',
         configToUse.topic ? [configToUse.topic] : []
       );
+      // UX delay for sand timer visibility
+      await new Promise(resolve => setTimeout(resolve, 1500));
       setPracticeQueue(qs);
       setCurrentQIndex(0);
       navigateTo('practice');
     } catch (e) {
       console.error("Failed to start practice:", e);
+      alert("Failed to connect to AI universe. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -241,6 +243,26 @@ const App: React.FC = () => {
     <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans transition-colors duration-300`}>
       <BackgroundAnimation />
       
+      {/* Global AI Loading Screen (Sand Timer) */}
+      {isLoading && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+           <div className="mb-10">
+              <div className="sand-timer mx-auto">
+                 <div className="sand-top"></div>
+                 <div className="sand-bottom"></div>
+                 <div className="sand-stream"></div>
+              </div>
+           </div>
+           <div className="space-y-4 max-w-sm">
+              <h3 className="text-3xl font-display font-black text-white leading-tight">Starting Revision...</h3>
+              <p className="text-slate-400 text-sm font-medium tracking-wide">
+                 AI is generating your personalized {practiceConfig.subject} session for {state.selectedExam}. 
+                 Analyzing thousands of patterns to find your next challenge.
+              </p>
+           </div>
+        </div>
+      )}
+
       {isAppInitializing ? (
         <LoginScreen isInitializing={true} onLogin={() => {}} onNavigateToSignup={() => {}} onForgotPassword={() => {}} />
       ) : (
