@@ -42,7 +42,10 @@ const cleanJson = (text: string) => {
   return (start !== Infinity && end !== -1) ? cleaned.substring(start, end + 1).trim() : cleaned.trim();
 };
 
-const safeOptions = (opts: any): string[] => Array.isArray(opts) ? opts : ["A", "B", "C", "D"];
+const safeOptions = (opts: any): string[] => {
+    if (Array.isArray(opts)) return opts.map(o => String(o));
+    return ["Option A", "Option B", "Option C", "Option D"];
+};
 
 // --- RATE LIMITER ---
 const RATE_LIMIT_DELAY = 1000; 
@@ -72,14 +75,12 @@ export const generateWithAI = async (
     modelName: string = 'gemini-3-flash-preview'
 ): Promise<any> => {
     const task = async () => {
-        // 1. Check Config
         const systemConfig = await getSystemConfig();
         const provider = systemConfig.aiProvider || 'gemini';
 
         let textOutput = "";
 
         if (provider === 'groq') {
-            // GROQ PATH
             const payload = {
                 model: systemConfig.modelName || 'llama-3.3-70b-versatile',
                 messages: [{ role: 'user', content: prompt + (isJson ? " Respond in JSON." : "") }],
@@ -88,7 +89,6 @@ export const generateWithAI = async (
             const response = await callBackend('/api/ai/groq', payload);
             textOutput = response.choices?.[0]?.message?.content || "";
         } else {
-            // GEMINI PATH (Default)
             const payload = {
                 model: modelName,
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -136,7 +136,7 @@ export const checkAIConnectivity = async (): Promise<{ status: 'Operational' | '
     }
 };
 
-// --- EXAM LOGIC (Unchanged) ---
+// --- EXAM LOGIC ---
 
 export const generateExamQuestions = async (
     exam: string, 
@@ -170,6 +170,67 @@ export const generateExamQuestions = async (
   } catch (e) {
       return officialQs.length > 0 ? officialQs : MOCK_QUESTIONS_FALLBACK as any;
   }
+};
+
+export const generateFullPaper = async (
+    exam: string, 
+    subject: string, 
+    difficulty: string, 
+    seedData: string, 
+    config: any
+): Promise<QuestionPaper | null> => {
+    const prompt = `Create a Professional Exam Paper for ${exam} (${subject}). 
+    Difficulty: ${difficulty}. Hints: ${seedData}. 
+    MANDATORY: Every question in the "sections" must be an MCQ (Multiple Choice Question).
+    JSON structure: {
+        "title": "${exam} Mock Test", 
+        "totalMarks": 180, 
+        "durationMinutes": 180, 
+        "sections": [
+            {
+                "title": "Section A", 
+                "instructions": "Answer all questions.",
+                "questions": [
+                    {
+                        "text": "Question text here...", 
+                        "type": "MCQ",
+                        "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4"], 
+                        "correctIndex": 0, 
+                        "explanation": "Why opt 1 is correct..."
+                    }
+                ]
+            }
+        ]
+    }`;
+
+    try {
+        const data = await generateWithAI(prompt, true, 0.4);
+        
+        // Post-processing to ensure consistency
+        if (data && data.sections) {
+            data.sections.forEach((s: any) => {
+                s.id = `sec-${Math.random().toString(36).substr(2, 5)}`;
+                s.questions.forEach((q: any) => {
+                    q.id = `pq-${Math.random().toString(36).substr(2, 5)}`;
+                    q.type = q.type || QuestionType.MCQ; // Force MCQ
+                    q.options = safeOptions(q.options);
+                    q.correctIndex = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
+                });
+            });
+        }
+
+        return {
+            ...data,
+            id: `paper-${Date.now()}`,
+            examType: exam,
+            subject: subject,
+            difficulty: difficulty,
+            createdAt: Date.now()
+        } as QuestionPaper;
+    } catch (e) { 
+        console.error("Full Paper AI Error:", e);
+        return null; 
+    }
 };
 
 export const generateCurrentAffairs = async (exam: string, count: number = 5): Promise<Question[]> => {
@@ -259,7 +320,6 @@ export const parseSmartInput = async (input: string, type: 'text' | 'image', exa
           contentParts.push({ text: `Extract MCQs from this text: ${input}. Context: ${examContext}. JSON array: [{text, options:[], correctIndex, explanation}].` });
       }
 
-      // Hardcoded to Gemini Flash for Vision capability (Groq Vision support varies, safer to stick to Gemini for now)
       const payload = {
           model: type === 'image' ? 'gemini-2.5-flash-image' : 'gemini-3-flash-preview',
           contents: [{ role: 'user', parts: contentParts }],
@@ -278,27 +338,6 @@ export const generateQuestionFromImage = async (base64: string, mimeType: string
     try {
         const result = await parseSmartInput(base64, 'image', `Exam: ${exam}, Subject: ${subject}`);
         return result.length > 0 ? result[0] : null;
-    } catch (e) { return null; }
-};
-
-export const generateFullPaper = async (
-    exam: string, 
-    subject: string, 
-    difficulty: string, 
-    seedData: string, 
-    config: any
-): Promise<QuestionPaper | null> => {
-    const prompt = `Full Exam Paper for ${exam} (${subject}, ${difficulty}). Hints: ${seedData}. JSON: {title, totalMarks, durationMinutes, sections:[{title, questions:[{text, options, correctIndex, explanation}]}]}`;
-    try {
-        const data = await generateWithAI(prompt, true, 0.4);
-        return {
-            ...data,
-            id: `paper-${Date.now()}`,
-            examType: exam,
-            subject: subject,
-            difficulty: difficulty,
-            createdAt: Date.now()
-        } as QuestionPaper;
     } catch (e) { return null; }
 };
 

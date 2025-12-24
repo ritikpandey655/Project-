@@ -48,31 +48,43 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
       });
       
       if (paper) {
-        onGenerate(paper);
+        // Ensure a minimum loading visibility time for better UX
+        setTimeout(() => {
+            onGenerate(paper);
+            setIsLoading(false);
+        }, 1500);
       } else {
         alert("Failed to generate paper. Please check your connection and try again.");
+        setIsLoading(false);
       }
     } catch (e) {
       console.error(e);
       alert("An error occurred during generation.");
-    } finally {
       setIsLoading(false);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-12 text-center animate-fade-in">
-         <div className="relative w-20 h-20 mx-auto mb-6">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-indigo-500 animate-spin-slow">
-                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center text-3xl animate-bounce">⏳</div>
+      <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+         <div className="relative w-32 h-32 mb-8">
+            {/* Professional Ring Spinner */}
+            <div className="absolute inset-0 border-4 border-brand-500/20 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-t-brand-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center text-5xl animate-bounce">⚡</div>
          </div>
-         <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Structuring Your Paper...</h3>
-         <p className="text-slate-500 dark:text-slate-400 text-sm">
-            Fetching Exam Pattern & Generating Questions...
-         </p>
+         
+         <div className="space-y-4 max-w-sm">
+            <h3 className="text-3xl font-display font-black text-white leading-tight">AI is crafting your exam universe...</h3>
+            <div className="flex gap-1 justify-center">
+                <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"></div>
+            </div>
+            <p className="text-slate-400 text-sm font-medium tracking-wide">
+               Fetching latest {examType} patterns, generating smart MCQs and structuring the marking scheme.
+            </p>
+         </div>
       </div>
     );
   }
@@ -80,29 +92,29 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
   const subjectsList = examSubjects || EXAM_SUBJECTS[examType] || ['General'];
 
   return (
-    <div className="max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 animate-fade-in transition-colors">
-      <div className="mb-6">
-        <button onClick={onBack} className="text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 mb-2 flex items-center gap-1">
-          <span>←</span> Back to Dashboard
+    <div className="max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-[40px] shadow-sm border border-slate-100 dark:border-slate-700/50 p-8 sm:p-10 animate-slide-up transition-colors">
+      <div className="mb-10">
+        <button onClick={onBack} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-brand-purple mb-4 flex items-center gap-2 group transition-colors">
+          <span className="group-hover:-translate-x-1 transition-transform">←</span> Back to Home
         </button>
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Generate Mock Paper</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-sm">Create a custom exam paper with sections and marking scheme.</p>
+        <h2 className="text-4xl font-display font-black text-slate-900 dark:text-white tracking-tighter leading-none mb-3">Mock Generator</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Full-length professional papers powered by AI patterns.</p>
       </div>
 
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
-             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Exam</label>
-             <div className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold flex items-center gap-2">
-                <span>🔒</span> {examType}
+             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Exam Type</label>
+             <div className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 font-bold flex items-center gap-3">
+                <span className="text-lg opacity-50">🛡️</span> {examType}
              </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Subject</label>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Select Subject</label>
             <select 
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-brand-purple transition-all appearance-none cursor-pointer"
             >
               {subjectsList.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -110,45 +122,37 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
         </div>
         
         <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Difficulty</label>
-            <select 
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value)}
-              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-            >
-              <option value="Easy">Easy</option>
-              <option value="Medium">Medium</option>
-              <option value="Hard">Hard</option>
-            </select>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Paper Difficulty</label>
+            <div className="flex gap-2">
+                {['Easy', 'Medium', 'Hard'].map((d) => (
+                    <button 
+                        key={d}
+                        onClick={() => setDifficulty(d)}
+                        className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${difficulty === d ? 'bg-brand-purple text-white shadow-lg shadow-brand-purple/20' : 'bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-600 hover:text-slate-600'}`}
+                    >
+                        {d}
+                    </button>
+                ))}
+            </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Paper Sections</label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-              <input type="checkbox" checked={config.includeMCQ} onChange={e => setConfig({...config, includeMCQ: e.target.checked})} className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" />
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">MCQs (Objective)</span>
-            </label>
-            <label className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-              <input type="checkbox" checked={config.includeShort} onChange={e => setConfig({...config, includeShort: e.target.checked})} className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" />
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Short Answers</span>
-            </label>
-            <label className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-              <input type="checkbox" checked={config.includeLong} onChange={e => setConfig({...config, includeLong: e.target.checked})} className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" />
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Long Answers</span>
-            </label>
-            <label className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-              <input type="checkbox" checked={config.includeViva} onChange={e => setConfig({...config, includeViva: e.target.checked})} className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" />
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Viva / Oral</span>
-            </label>
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Included Format</label>
+          <div className="grid grid-cols-1 gap-3">
+            <div className="flex items-center gap-4 p-4 border border-brand-purple/20 bg-brand-50/20 dark:bg-brand-900/10 rounded-2xl transition-colors">
+              <div className="w-10 h-10 bg-brand-purple text-white rounded-full flex items-center justify-center text-lg">✓</div>
+              <div>
+                 <span className="text-sm font-black text-slate-800 dark:text-white block">Objective MCQs</span>
+                 <span className="text-[10px] text-slate-500 font-bold uppercase">MANDATORY FOR MOCK TESTS</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {config.includeMCQ && (
-          <div className="animate-fade-in">
-            <div className="flex justify-between mb-1">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Number of MCQs</label>
-              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{mcqCount} Questions</span>
+        <div className="animate-fade-in bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[28px] border border-slate-100 dark:border-slate-700/50">
+            <div className="flex justify-between items-center mb-4">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Question Count</label>
+              <span className="text-sm font-black text-brand-purple">{mcqCount} MCQs</span>
             </div>
             <input 
               type="range" 
@@ -157,37 +161,30 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
               step="10" 
               value={mcqCount} 
               onChange={(e) => setMcqCount(parseInt(e.target.value))}
-              className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand-purple mb-2"
             />
-            <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+            <div className="flex justify-between text-[10px] text-slate-400 font-black uppercase">
               <span>10</span>
-              <span>Standard (50)</span>
-              <span>Full (180)</span>
+              <span>80</span>
+              <span>180</span>
             </div>
-            {mcqCount > 50 && (
-              <p className="text-xs text-amber-500 mt-1">Generating {mcqCount} questions may take a minute. Please wait while we fetch them in batches.</p>
-            )}
-          </div>
-        )}
+        </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Topic Hints / Instructions</label>
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Custom Topics (Hints)</label>
           <textarea 
             value={seedData}
             onChange={(e) => setSeedData(e.target.value)}
-            placeholder={"E.g., Optics, Modern History, Organic Chemistry..."}
-            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none h-24 text-sm resize-none"
+            placeholder={"E.g., High-weightage topics like Mechanics, Trigonometry..."}
+            className="w-full p-5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-brand-purple outline-none h-28 text-sm resize-none"
           />
-          <p className="text-xs text-slate-400 mt-1">
-             AI will prioritize these topics during generation.
-          </p>
         </div>
 
         <Button 
           onClick={handleGenerate} 
-          className="w-full py-4 font-bold text-lg shadow-lg shadow-indigo-200 dark:shadow-none"
+          className="w-full py-5 font-black text-xl !rounded-full shadow-2xl shadow-brand-purple/20 !border-0 mt-4"
         >
-          {config.includeMCQ && mcqCount > 50 ? 'Generate Large Paper' : 'Generate Paper'}
+          GENERATE PAPER
         </Button>
       </div>
     </div>
