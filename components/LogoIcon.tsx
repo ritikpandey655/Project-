@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface LogoIconProps {
@@ -6,31 +7,34 @@ interface LogoIconProps {
 }
 
 export const LogoIcon: React.FC<LogoIconProps> = ({ size = "md", className = "" }) => {
-  const dimensions = size === "sm" ? "w-12 h-12" : size === "md" ? "w-28 h-28" : "w-36 h-36";
-  const fontSize = size === "sm" ? "text-xl" : size === "md" ? "text-4xl" : "text-5xl";
+  const dimensions = size === "sm" ? "w-10 h-10" : size === "md" ? "w-24 h-24" : "w-32 h-32";
+  const fontSize = size === "sm" ? "text-lg" : size === "md" ? "text-3xl" : "text-4xl";
   const ballSize = size === "sm" ? "w-1.5 h-1.5" : size === "md" ? "w-3 h-3" : "w-4 h-4";
   
   return (
     <div className={`relative ${dimensions} flex items-center justify-center ${className}`}>
-      {/* Outer Orbit Ring with 2 Balls */}
-      <div className="absolute inset-0 border border-orange-500/30 rounded-full animate-spin-slow">
-        {/* Ball 1 (Top) */}
-        <div className={`absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 ${ballSize} bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-[0_0_20px_rgba(251,146,60,1)]`}></div>
-        {/* Ball 2 (Bottom - 180 degrees opposite) */}
-        <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 ${ballSize} bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-[0_0_20px_rgba(251,146,60,1)]`}></div>
+      {/* Outer Crystalline Ring (Slow) */}
+      <div className="absolute inset-[-10%] border-[0.5px] border-brand-500/10 rounded-full animate-[spin_20s_linear_infinite]"></div>
+
+      {/* Orbit Ring (Fast) */}
+      <div className="absolute inset-0 border-[1.5px] border-brand-500/20 rounded-full animate-[spin_8s_linear_infinite]">
+        <div className={`absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 ${ballSize} bg-brand-400 rounded-full shadow-[0_0_15px_var(--brand-primary)] animate-pulse`}></div>
       </div>
       
-      {/* Secondary Inner Orbit (Anti-clockwise) */}
-      <div className="absolute inset-4 border border-indigo-500/20 rounded-full animate-[spin_12s_linear_infinite_reverse]">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-1.5 h-1.5 bg-indigo-400 rounded-full"></div>
+      {/* Counter-Orbit Ring */}
+      <div className="absolute inset-2 border border-pink-500/10 rounded-full animate-[spin_12s_linear_infinite_reverse]">
+        <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 ${size === 'sm' ? 'w-1 h-1' : 'w-2 h-2'} bg-pink-400 rounded-full`}></div>
       </div>
 
-      {/* Center Glow Layer */}
-      <div className="absolute inset-4 bg-orange-600/15 rounded-full blur-3xl animate-pulse-glow"></div>
+      {/* Center Deep Glow */}
+      <div className="absolute inset-4 bg-brand-600/10 rounded-full blur-2xl animate-pulse-glow"></div>
 
-      {/* Central Core Block */}
-      <div className="relative z-10 w-3/4 h-3/4 bg-gradient-to-br from-orange-500 via-red-600 to-indigo-800 rounded-[22%] shadow-[0_15px_40px_rgba(0,0,0,0.4)] flex items-center justify-center border-2 border-white/20 transform rotate-12 animate-float">
-        <span className={`${fontSize} font-black text-white font-display -rotate-12 tracking-tighter drop-shadow-lg select-none`}>PV</span>
+      {/* The Main "Glass" Core */}
+      <div className="relative z-10 w-4/5 h-4/5 bg-gradient-to-br from-brand-500 via-brand-600 to-pink-500 rounded-[28%] shadow-[0_25px_60px_-15px_rgba(79,70,229,0.4)] flex items-center justify-center border border-white/20 transform rotate-[10deg] hover:rotate-0 transition-all duration-500 animate-float backdrop-blur-sm">
+        {/* Shine overlay */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent rounded-[inherit]"></div>
+        
+        <span className={`${fontSize} font-black text-white font-display -rotate-[10deg] tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] select-none`}>PV</span>
       </div>
     </div>
   );

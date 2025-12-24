@@ -17,7 +17,7 @@ import {
   updateUserSession,
   INITIAL_STATS
 } from '../services/storageService';
-import { generateExamQuestions, generateCurrentAffairs, generateSingleQuestion, generateNews, generateStudyNotes } from '../services/geminiService';
+import { generateExamQuestions } from '../services/geminiService';
 import { Dashboard } from './Dashboard';
 import { QuestionCard } from './QuestionCard';
 import { UploadForm } from './UploadForm';
@@ -28,20 +28,15 @@ import { ProfileScreen } from './ProfileScreen';
 import { PaperGenerator } from './PaperGenerator';
 import { PaperView } from './PaperView';
 import { PracticeConfigModal } from './PracticeConfigModal';
-import { PaymentModal } from './PaymentModal';
 import { Sidebar } from './Sidebar';
 import { AdminDashboard } from './AdminDashboard';
-import { OfflinePapersList } from './OfflinePapersList';
 import { SmartAnalytics } from './SmartAnalytics';
 import { Leaderboard } from './Leaderboard';
-import { CurrentAffairsFeed } from './CurrentAffairsFeed';
-import { PYQLibrary } from './PYQLibrary';
 import { BackgroundAnimation } from './BackgroundAnimation';
 import { MobileBottomNav } from './MobileBottomNav';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { LandingPage } from './LandingPage'; 
-import { VerifyEmailScreen } from './VerifyEmailScreen';
-import { auth, db } from '../src/firebaseConfig';
+import { auth } from '../src/firebaseConfig';
 import { LogoIcon } from './LogoIcon';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
@@ -79,34 +74,26 @@ const App: React.FC = () => {
   const [practiceConfig, setPracticeConfig] = useState<PracticeConfig>({ mode: 'finite', subject: 'Mixed', count: 10 });
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
-  // PWA Installation State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [canInstall, setCanInstall] = useState(false);
 
   const currentSessionId = useRef<string>(Date.now().toString() + Math.random().toString());
 
   useEffect(() => {
-    // Listen for PWA install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setCanInstall(true);
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
   const handleInstallClick = useCallback(async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setCanInstall(false);
-    }
+    if (outcome === 'accepted') setCanInstall(false);
     setDeferredPrompt(null);
   }, [deferredPrompt]);
 
@@ -119,6 +106,11 @@ const App: React.FC = () => {
       root.style.setProperty(`--primary-${key}`, palette[key]);
     });
   }, []);
+
+  // Sync theme variables on state change
+  useEffect(() => {
+    applyTheme(state.theme);
+  }, [state.theme, applyTheme]);
 
   const navigateTo = useCallback((newView: ViewState) => {
     setState(prev => ({ ...prev, view: newView }));
@@ -133,9 +125,7 @@ const App: React.FC = () => {
         getStats(userId),
         getExamConfig()
       ]);
-
       const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState || 'dashboard';
-
       setState(prev => ({
         ...prev,
         user: profile,
@@ -148,7 +138,6 @@ const App: React.FC = () => {
         examConfig: config,
         view: (lastView === 'landing' || lastView === 'login' || lastView === 'signup') ? 'dashboard' : lastView
       }));
-
       if (prefs.theme) applyTheme(prefs.theme);
       updateUserActivity(userId);
       updateUserSession(userId, currentSessionId.current);
@@ -158,12 +147,10 @@ const App: React.FC = () => {
     }
   }, [applyTheme, navigateTo]);
 
-  // Handle Logout properly
   const handleLogout = useCallback(async () => {
-    setIsSidebarOpen(false); // Ensure sidebar closes first
+    setIsSidebarOpen(false);
     try {
       await auth.signOut();
-      // View update is handled by onAuthStateChanged
     } catch (e) {
       console.error("Logout Error:", e);
     }
@@ -184,7 +171,6 @@ const App: React.FC = () => {
         setIsAppInitializing(false);
       }
     });
-
     const fallbackTimer = setTimeout(() => setIsAppInitializing(false), 8000);
     return () => {
       unsubscribe();
@@ -220,11 +206,7 @@ const App: React.FC = () => {
       if (currentQIndex >= practiceQueue.length - 3) {
         setIsFetchingMore(true);
         try {
-          const moreQs = await generateExamQuestions(
-            state.selectedExam!,
-            practiceConfig.subject,
-            10
-          );
+          const moreQs = await generateExamQuestions(state.selectedExam!, practiceConfig.subject, 10);
           setPracticeQueue(prev => [...prev, ...moreQs]);
         } catch (e) {
           console.error("Failed to fetch more questions:", e);
@@ -233,13 +215,12 @@ const App: React.FC = () => {
       }
       setCurrentQIndex(prev => prev + 1);
     } else {
-      if (currentQIndex < practiceQueue.length - 1) {
-        setCurrentQIndex(prev => prev + 1);
-      } else {
-        navigateTo('dashboard');
-      }
+      if (currentQIndex < practiceQueue.length - 1) setCurrentQIndex(prev => prev + 1);
+      else navigateTo('dashboard');
     }
   }, [practiceConfig.mode, practiceConfig.subject, currentQIndex, practiceQueue.length, state.selectedExam, navigateTo]);
+
+  const hideHeader = state.view === 'landing' || state.view === 'login' || state.view === 'signup' || state.view === 'privacy';
 
   return (
     <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans transition-colors duration-300`}>
@@ -248,32 +229,32 @@ const App: React.FC = () => {
       {isAppInitializing ? (
         <LoginScreen isInitializing={true} onLogin={() => {}} onNavigateToSignup={() => {}} onForgotPassword={() => {}} />
       ) : (
-        <main className="relative z-10 min-h-screen w-full">
-          {state.view !== 'landing' && state.view !== 'login' && state.view !== 'signup' && state.view !== 'privacy' && (
-            <div className="flex justify-between items-center p-4 pt-safe sm:p-6 sticky top-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md z-40 border-b border-white/10">
-                <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateTo('dashboard')}>
+        <main className="relative z-10 min-h-screen w-full flex flex-col">
+          {!hideHeader && (
+            <div className="flex justify-between items-center px-4 py-3 pt-safe sm:px-6 sticky top-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl z-40 border-b border-white/10 shadow-sm">
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('dashboard')}>
                   <LogoIcon size="sm" />
                   <div>
-                    <h1 className="font-display font-bold text-lg text-slate-800 dark:text-white leading-none">PYQverse</h1>
-                    <span className="text-[9px] font-bold text-orange-500 tracking-widest uppercase">Universe</span>
+                    <h1 className="font-display font-black text-base text-slate-800 dark:text-white leading-none tracking-tight">PYQverse</h1>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setIsSidebarOpen(true)} className="p-2.5 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 active:scale-95 transition-all">
+                
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setIsSidebarOpen(true)} className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 active:scale-95 transition-all">
                     <svg className="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                   </button>
                 </div>
             </div>
           )}
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+          <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
             {state.view === 'landing' && <LandingPage onLogin={() => navigateTo('login')} onSignup={() => navigateTo('signup')} />}
             {state.view === 'login' && <LoginScreen onLogin={(user) => loadUserData(user.id)} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} onNavigateToPrivacy={() => navigateTo('privacy')} />}
             {state.view === 'signup' && <SignupScreen onSignup={() => {}} onBackToLogin={() => navigateTo('login')} />}
             {state.view === 'forgotPassword' && <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />}
-            {state.view === 'dashboard' && <Dashboard stats={state.stats} user={state.user} onStartPractice={() => setShowPracticeConfig(true)} onUpload={() => navigateTo('upload')} onGeneratePaper={() => navigateTo('paperGenerator')} onOpenBookmarks={() => navigateTo('bookmarks')} onOpenAnalytics={() => navigateTo('analytics')} onOpenLeaderboard={() => navigateTo('leaderboard')} onOpenPYQLibrary={() => navigateTo('pyqLibrary')} selectedExam={state.selectedExam} darkMode={state.darkMode} language={state.language} onToggleTimer={() => {}} onToggleDarkMode={() => {}} onStartCurrentAffairs={() => {}} onReadCurrentAffairs={() => {}} onReadNotes={() => {}} onEnableNotifications={() => {}} showTimer={true} onInstall={handleInstallClick} canInstall={canInstall} />}
+            {state.view === 'dashboard' && <Dashboard stats={state.stats} user={state.user} onStartPractice={() => setShowPracticeConfig(true)} onUpload={() => navigateTo('upload')} onGeneratePaper={() => navigateTo('paperGenerator')} onOpenBookmarks={() => navigateTo('bookmarks')} onOpenAnalytics={() => navigateTo('analytics')} onOpenLeaderboard={() => navigateTo('leaderboard')} selectedExam={state.selectedExam} darkMode={state.darkMode} language={state.language} onToggleTimer={() => {}} onToggleDarkMode={() => {}} onStartCurrentAffairs={() => {}} onReadCurrentAffairs={() => {}} onReadNotes={() => {}} onEnableNotifications={() => {}} showTimer={true} onInstall={handleInstallClick} canInstall={canInstall} />}
             {state.view === 'practice' && practiceQueue[currentQIndex] && (
                 <QuestionCard 
                     question={practiceQueue[currentQIndex]} 
@@ -291,7 +272,6 @@ const App: React.FC = () => {
             {state.view === 'paperView' && state.generatedPaper && state.user && <PaperView paper={state.generatedPaper} userId={state.user.id} onClose={() => navigateTo('dashboard')} language={state.language} />}
             {state.view === 'leaderboard' && state.user && <Leaderboard user={state.user} onBack={() => navigateTo('dashboard')} />}
             {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={[]} onBack={() => navigateTo('dashboard')} />}
-            {state.view === 'pyqLibrary' && state.selectedExam && <PYQLibrary examType={state.selectedExam} onBack={() => navigateTo('dashboard')} language={state.language} />}
             {state.view === 'privacy' && <PrivacyPolicy onBack={() => navigateTo('dashboard')} />}
             {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} onExamChange={() => {}} onInstall={handleInstallClick} canInstall={canInstall} />}
             {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} />}

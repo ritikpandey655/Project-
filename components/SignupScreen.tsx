@@ -6,26 +6,25 @@ import { auth, db } from '../src/firebaseConfig';
 import { doc, setDoc } from "firebase/firestore";
 import { getExamConfig } from '../services/storageService';
 import { EXAM_SUBJECTS } from '../constants';
+import { LogoIcon } from './LogoIcon';
 
 interface SignupScreenProps {
   onSignup: (user: User, selectedExam: ExamType) => void;
   onBackToLogin: () => void;
+  onNavigateToPrivacy?: () => void;
 }
 
-export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLogin }) => {
+export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLogin, onNavigateToPrivacy }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedExam, setSelectedExam] = useState<string>('UPSC');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   const [error, setError] = useState('');
   const [availableExams, setAvailableExams] = useState<string[]>(Object.keys(EXAM_SUBJECTS));
   
-  // State for immediate feedback UI
   const [isVerificationSent, setIsVerificationSent] = useState(false);
 
   useEffect(() => {
@@ -50,20 +49,13 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
     setError('');
 
     try {
-      // 1. Create Auth User
       const userCredential = await auth.createUserWithEmailAndPassword(email, password);
       const firebaseUser = userCredential.user;
 
       if (firebaseUser) {
           setLoadingText('Setting up Profile...');
-          
-          // 2. Update Profile Display Name
-          // Note: In Compat API (v8 style), currentUser is available on auth instance
-          // But userCredential.user is a User object which might have updateProfile method in compat
-          // In Compat, `user.updateProfile` is correct.
           await firebaseUser.updateProfile({ displayName: name });
 
-          // 3. Create Firestore User Doc
           const lowerEmail = email.toLowerCase().trim();
           const isAdmin = lowerEmail === 'support@pyqverse.in' || lowerEmail === 'admin@pyqverse.com';
 
@@ -75,21 +67,15 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
             isAdmin: isAdmin 
           };
           
-          // Use set with merge to be safe
           try {
             await setDoc(doc(db, "users", firebaseUser.uid), newUser, { merge: true });
-            // 4. Save Preference (Exam)
             await setDoc(doc(db, "users", firebaseUser.uid, "data", "prefs"), { selectedExam }, { merge: true });
           } catch (dbError) {
-            console.warn("Firestore profile creation failed (likely permission issue until verified), proceeding with auth flow...", dbError);
+            console.warn("Firestore profile creation failed", dbError);
           }
 
           setLoadingText('Sending Verification Link...');
-
-          // 5. Send Verification Email
           await firebaseUser.sendEmailVerification();
-          
-          // 6. Show Success Screen Immediately
           setIsVerificationSent(true);
       }
 
@@ -99,8 +85,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
         setError('Account already exists with this email. Please Log In.');
       } else if (err.code === 'auth/weak-password') {
         setError('Password should be at least 6 characters.');
-      } else if (err.code === 'auth/password-does-not-meet-requirements') {
-        setError('Password is too simple. Use 6+ chars, a number (0-9), and a symbol (@, #, etc).');
       } else {
         setError(err.message || 'Registration failed');
       }
@@ -109,31 +93,19 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
     }
   };
 
-  // Immediate "Check Inbox" Screen
   if (isVerificationSent) {
     return (
-      <div className="min-h-screen w-full bg-slate-900 flex flex-col items-center justify-center p-4">
-         <div className="bg-white/10 backdrop-blur-md p-8 rounded-3xl max-w-md w-full text-center border border-white/10 shadow-2xl animate-pop-in">
-            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/30">
-               <svg className="w-10 h-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-               </svg>
+      <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center p-4">
+         <div className="bg-slate-900/40 backdrop-blur-3xl p-10 rounded-[40px] max-w-md w-full text-center border border-white/5 shadow-2xl animate-pop-in">
+            <div className="mb-8 flex justify-center">
+               <LogoIcon size="md" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2 font-display">Check Your Inbox!</h2>
-            <p className="text-slate-300 text-sm mb-6 leading-relaxed">
-               We have sent a verification link to:<br/>
-               <span className="text-white font-bold text-lg">{email}</span>
+            <h2 className="text-3xl font-black text-white mb-3 font-display tracking-tight">Check Your Inbox!</h2>
+            <p className="text-slate-400 text-sm mb-8 leading-relaxed font-medium">
+               A verification link is on its way to:<br/>
+               <span className="text-indigo-400 font-black text-lg">{email}</span>
             </p>
-            <div className="bg-slate-800/60 p-4 rounded-xl mb-6 border border-white/5">
-                <div className="flex items-center justify-center gap-2 text-orange-400 mb-1">
-                   <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-                   <span className="text-xs font-bold uppercase tracking-wider">Verification Pending</span>
-                </div>
-                <p className="text-slate-400 text-xs">
-                   The app will automatically update once you verify.
-                </p>
-            </div>
-            <Button onClick={onBackToLogin} className="w-full bg-white/20 hover:bg-white/30 border-0">
+            <Button onClick={onBackToLogin} className="w-full !py-4 !bg-white/10 !text-white !rounded-2xl border-0 font-black hover:bg-white/20">
                Back to Login
             </Button>
          </div>
@@ -142,137 +114,112 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-slate-900 via-[#1c120e] to-black flex flex-col items-center justify-center p-4 relative overflow-hidden overflow-y-auto">
+    <div className="min-h-screen w-full bg-gradient-to-b from-slate-950 via-[#0a0814] to-black flex flex-col items-center justify-center p-4 relative overflow-y-auto">
       
-      {/* Background Particles */}
+      {/* Background Orbs */}
       <div className="absolute inset-0 pointer-events-none">
-         <div className="absolute top-[15%] right-[10%] w-[400px] h-[400px] bg-orange-600/20 rounded-full blur-[100px] animate-pulse"></div>
-         <div className="absolute bottom-[10%] left-[10%] w-[300px] h-[300px] bg-red-600/10 rounded-full blur-[80px] animate-pulse" style={{animationDelay: '2s'}}></div>
+         <div className="absolute top-[15%] right-[10%] w-[400px] h-[400px] bg-indigo-600/5 rounded-full blur-[100px]"></div>
+         <div className="absolute bottom-[10%] left-[10%] w-[300px] h-[300px] bg-purple-600/5 rounded-full blur-[80px]"></div>
       </div>
 
-      <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl relative z-10 animate-fade-in flex flex-col my-8">
+      <div className="w-full max-w-md bg-slate-900/40 backdrop-blur-3xl border border-white/5 rounded-[40px] p-10 shadow-2xl relative z-10 animate-fade-in flex flex-col my-8">
         
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 shadow-lg shadow-orange-500/30 mb-4 animate-bounce-slight">
-             <span className="text-white font-bold font-display text-xl">PV</span>
+        <div className="text-center mb-10">
+          <div className="flex justify-center mb-6">
+            <LogoIcon size="md" />
           </div>
-          <h2 className="text-2xl font-display font-bold text-white mb-1">Create Account</h2>
-          <p className="text-slate-400 text-sm">Start your preparation journey with PYQverse</p>
+          <h2 className="text-3xl font-display font-black text-white mb-1 tracking-tight">Create Account</h2>
+          <p className="text-slate-400 text-sm font-medium">Join the largest exam universe.</p>
         </div>
 
         {error && (
-            <div className="p-3 mb-6 bg-red-500/10 border border-red-500/20 rounded-xl text-red-200 text-sm text-center font-medium animate-shake">
+            <div className="p-4 mb-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-200 text-xs font-bold text-center animate-shake">
                 {error}
-                {error.includes('already exists') && (
-                   <button onClick={onBackToLogin} className="block w-full mt-2 text-white bg-red-500/20 py-1 rounded hover:bg-red-500/40 font-bold underline">
-                      Log In Instead
-                   </button>
-                )}
             </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Full Name */}
           <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-400 uppercase ml-1">Full Name</label>
+            <label className="block text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Full Name</label>
             <input 
                 type="text" 
                 required 
                 value={name} 
                 onChange={(e) => setName(e.target.value)} 
-                className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600 tracking-wide"
-                placeholder="e.g. Rahul Kumar" 
+                className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 placeholder-slate-700 transition-all font-bold"
+                placeholder="Rahul Kumar" 
             />
           </div>
 
-          {/* Email */}
           <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-400 uppercase ml-1">Email Address</label>
+            <label className="block text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Email Address</label>
             <input 
                 type="email" 
                 required 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
-                className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600 tracking-wide"
+                className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 placeholder-slate-700 transition-all font-bold"
                 placeholder="name@example.com" 
             />
           </div>
 
-          {/* Passwords Grid */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-400 uppercase ml-1">Password</label>
-              <div className="relative">
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  required 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600"
-                  placeholder="••••••" 
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors">
-                  {showPassword ? (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                    )}
-                </button>
-              </div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Password</label>
+              <input 
+                type="password" 
+                required 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 placeholder-slate-700 transition-all font-bold"
+                placeholder="••••••" 
+              />
             </div>
             <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-400 uppercase ml-1">Confirm</label>
-              <div className="relative">
-                <input 
-                  type={showConfirmPassword ? "text" : "password"} 
-                  required 
-                  value={confirmPassword} 
-                  onChange={(e) => setConfirmPassword(e.target.value)} 
-                  className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium placeholder-slate-600"
-                  placeholder="••••••" 
-                />
-              </div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Confirm</label>
+              <input 
+                type="password" 
+                required 
+                value={confirmPassword} 
+                onChange={(e) => setConfirmPassword(e.target.value)} 
+                className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 placeholder-slate-700 transition-all font-bold"
+                placeholder="••••••" 
+              />
             </div>
           </div>
 
-          {/* Exam Selection */}
           <div className="space-y-1">
-            <label className="block text-xs font-bold text-slate-400 uppercase ml-1">Target Exam</label>
-            <div className="relative">
-                <select 
-                    value={selectedExam} 
-                    onChange={(e) => setSelectedExam(e.target.value)} 
-                    className="w-full p-3.5 rounded-xl border border-white/10 bg-black/40 text-white outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium appearance-none cursor-pointer"
-                >
-                    {availableExams.map((exam) => (<option key={exam} value={exam} className="text-slate-900 bg-white">{exam}</option>))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </div>
-            </div>
+            <label className="block text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Target Exam</label>
+            <select 
+                value={selectedExam} 
+                onChange={(e) => setSelectedExam(e.target.value)} 
+                className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 transition-all font-bold appearance-none cursor-pointer"
+            >
+                {availableExams.map((exam) => (<option key={exam} value={exam} className="text-slate-900">{exam}</option>))}
+            </select>
           </div>
 
           <Button 
             type="submit" 
             isLoading={isLoading}
-            className="w-full py-4 mt-2 text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white shadow-lg shadow-orange-900/50 border-0 rounded-xl transition-transform active:scale-[0.98]"
+            className="w-full py-5 mt-4 !rounded-2xl !bg-indigo-600 !text-white !font-black !text-lg !shadow-2xl !shadow-indigo-600/30 !border-0 transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            {isLoading ? loadingText || 'Processing...' : 'Sign Up'}
+            {isLoading ? loadingText || 'Creating...' : 'Launch Universe'}
           </Button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-white/5 text-center">
-          <p className="text-sm text-slate-400">Already have an account? <button onClick={onBackToLogin} className="text-white font-bold hover:text-orange-400 transition-colors ml-1">Log In</button></p>
+        <div className="mt-10 pt-6 border-t border-white/5 text-center">
+          <p className="text-sm text-slate-500 font-bold">Already have an account? <button onClick={onBackToLogin} className="text-indigo-400 hover:text-white transition-colors ml-1">Log In</button></p>
         </div>
       </div>
-      
-      {/* Professional Footer */}
-      <div className="relative z-10 text-center space-y-1 opacity-50 pb-4">
-         <p className="text-[10px] text-slate-600">
-            © 2025 PYQverse. All rights reserved.
-         </p>
+
+      {/* FOOTER LINKS - Restored as requested */}
+      <div className="max-w-md w-full px-4 mt-4 flex flex-col items-center gap-4 opacity-40 z-10 pb-8">
+         <div className="flex items-center gap-6">
+            <button onClick={onNavigateToPrivacy} className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Privacy Policy</button>
+            <a href="mailto:support@pyqverse.in" className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Contact Support</a>
+         </div>
+         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">© 2025 PYQverse AI</p>
       </div>
     </div>
   );
