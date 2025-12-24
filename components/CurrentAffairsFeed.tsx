@@ -33,13 +33,13 @@ export const CurrentAffairsFeed: React.FC<CurrentAffairsFeedProps> = ({
   const handleApplyFilter = async () => {
     if (!onFilterChange) return;
     setIsRefreshing(true);
-    // Removed setTimeout to allow immediate execution
     try {
       if (mode === 'news') {
         await onFilterChange({ month: selectedMonth, year: selectedYear, category: selectedCategory });
       } else {
         await onFilterChange({ subject: selectedSubject === 'Mixed' ? undefined : selectedSubject });
       }
+      await new Promise(r => setTimeout(r, 1000));
     } finally {
       setIsRefreshing(false);
     }
@@ -61,168 +61,112 @@ export const CurrentAffairsFeed: React.FC<CurrentAffairsFeedProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 animate-fade-in pb-20">
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={onBack} className="text-sm text-slate-500 hover:text-indigo-600 flex items-center gap-1">
-          <span>←</span> Back
+      
+      {isRefreshing && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+           <div className="relative w-32 h-32 mb-8">
+              <div className="absolute inset-0 border-4 border-brand-500/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-t-brand-500 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center text-5xl animate-bounce">📡</div>
+           </div>
+           <div className="space-y-4 max-w-sm">
+              <h3 className="text-3xl font-display font-black text-white leading-tight">Syncing Universe...</h3>
+              <p className="text-slate-400 text-sm font-medium tracking-wide">
+                 Fetching latest {mode === 'news' ? 'affairs' : 'revision notes'} from the global patterns.
+              </p>
+           </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-10">
+        <button onClick={onBack} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-brand-purple transition-colors">
+          ← Back
         </button>
-        {mode === 'news' && (
-          <div className="flex items-center gap-2">
-             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-             <span className="text-xs font-bold uppercase text-red-500 tracking-wider">Live Updates</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+           <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+           <span className="text-[10px] font-black uppercase text-brand-500 tracking-widest">LIVE SYNC</span>
+        </div>
       </div>
 
-      <div className="text-center mb-6">
-        <h2 className="text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">
-          {mode === 'news' ? 'Daily Briefing' : 'Short Tricks & Formulas'}
+      <div className="mb-10">
+        <h2 className="text-4xl font-display font-black text-slate-900 dark:text-white tracking-tighter leading-none mb-3">
+          {mode === 'news' ? 'Daily Briefing' : 'Short Tricks'}
         </h2>
-        <p className="text-slate-500 dark:text-slate-400">
-          {mode === 'news' ? 'Curated Current Affairs for Exam Prep' : 'Key formulas and quick revision notes'}
-        </p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Curated content powered by AI patterns for {examType}.</p>
       </div>
 
-      {/* Filter Section */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 mb-8 animate-slide-up">
-         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="bg-white dark:bg-slate-800 rounded-[32px] p-6 shadow-sm border border-slate-100 dark:border-slate-700/50 mb-8 animate-slide-up">
+         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
              {mode === 'news' ? (
                <>
                  <div className="col-span-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Year</label>
-                    <select 
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-sm outline-none focus:border-indigo-500"
-                    >
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Year</label>
+                    <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))} className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold">
                        <option value={2025}>2025</option>
                        <option value={2024}>2024</option>
-                       <option value={2023}>2023</option>
                     </select>
                  </div>
                  <div className="col-span-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Month</label>
-                    <select 
-                       value={selectedMonth}
-                       onChange={(e) => setSelectedMonth(e.target.value)}
-                       className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-sm outline-none focus:border-indigo-500"
-                    >
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Month</label>
+                    <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold">
                        {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                  </div>
                  <div className="col-span-2 md:col-span-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Category</label>
-                    <select 
-                       value={selectedCategory}
-                       onChange={(e) => setSelectedCategory(e.target.value)}
-                       className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-sm outline-none focus:border-indigo-500"
-                    >
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Topic</label>
+                    <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold">
                        {NEWS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                  </div>
                </>
              ) : (
-               // Notes / Formulas Mode Filters
-               <div className="col-span-3 md:col-span-3">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Subject</label>
-                  <select 
-                     value={selectedSubject}
-                     onChange={(e) => setSelectedSubject(e.target.value)}
-                     className="w-full p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-sm outline-none focus:border-indigo-500"
-                  >
+               <div className="col-span-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Subject</label>
+                  <select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-sm font-bold">
                      <option value="Mixed">All Subjects</option>
                      {examType && EXAM_SUBJECTS[examType]?.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                </div>
              )}
-             
-             <div className="col-span-2 md:col-span-1 flex items-end">
-                <Button onClick={handleApplyFilter} isLoading={isRefreshing} size="sm" className="w-full">
-                   {isRefreshing ? 'Fetching...' : (mode === 'news' ? 'Fetch News' : 'Get Formulas')}
-                </Button>
-             </div>
+             <Button onClick={handleApplyFilter} isLoading={isRefreshing} className="!rounded-2xl py-4 shadow-lg">FETCH</Button>
          </div>
       </div>
 
-      {/* Loading State: Sand Timer */}
-      {isRefreshing ? (
-        <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
-           <div className="relative w-16 h-16 mb-4">
-              {/* Sand Timer SVG Animation */}
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-indigo-500 animate-spin-slow">
-                 <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center text-2xl animate-bounce">⏳</div>
-           </div>
-           <h3 className="text-lg font-bold text-slate-800 dark:text-white">Curating Content...</h3>
-           <p className="text-slate-500 text-sm">Wait a moment</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {news.length === 0 ? (
-             <div className="text-center py-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
-                <span className="text-4xl opacity-50 block mb-2">📂</span>
-                <p className="text-slate-500 dark:text-slate-400">No content found.</p>
-             </div>
-          ) : (
-            <>
-                {news.map((item, index) => {
-                const headline = (language === 'hi' && item.headlineHindi) ? item.headlineHindi : item.headline;
-                const summary = (language === 'hi' && item.summaryHindi) ? item.summaryHindi : item.summary;
-
-                return (
-                    <div key={item.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-slide-up" style={{ animationDelay: `${index * 50}ms` }}>
-                    <div className="p-6">
-                        <div className="flex justify-between items-start mb-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${mode === 'news' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'}`}>
+      <div className="space-y-6">
+        {news.length === 0 ? (
+            <div className="text-center py-20 bg-slate-50 dark:bg-slate-900/50 rounded-[40px] border-2 border-dashed border-slate-200 dark:border-slate-800">
+               <span className="text-5xl block mb-4">📂</span>
+               <p className="text-slate-500 dark:text-slate-400 font-bold">No updates found for this selection.</p>
+            </div>
+        ) : (
+          <>
+              {news.map((item, index) => (
+                  <div key={item.id} className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden animate-slide-up" style={{ animationDelay: `${index * 50}ms` }}>
+                  <div className="p-8">
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400">
                             {item.category}
                         </span>
-                        {mode === 'news' && (
-                            <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <span className="text-xs font-bold">{item.date || `${selectedMonth} ${selectedYear}`}</span>
-                            </div>
-                        )}
-                        </div>
-                        
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 leading-snug">
-                        {headline}
-                        </h3>
-                        
-                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm sm:text-base whitespace-pre-wrap">
-                        {summary}
-                        </p>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.date}</span>
+                      </div>
+                      <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-4 leading-tight">{item.headline}</h3>
+                      <p className="text-slate-600 dark:text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">{item.summary}</p>
+                  </div>
+                  </div>
+              ))}
+              <div className="flex justify-center pt-8 pb-12">
+                  <Button onClick={handleLoadMore} isLoading={isLoadingMore} variant="secondary" className="!rounded-2xl px-10 border-slate-200">
+                      {isLoadingMore ? 'LOADING...' : 'LOAD MORE'}
+                  </Button>
+              </div>
+          </>
+        )}
+      </div>
 
-                        {item.tags.length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            {item.tags.map(tag => (
-                            <span key={tag} className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
-                                #{tag}
-                            </span>
-                            ))}
-                        </div>
-                        )}
-                    </div>
-                    </div>
-                );
-                })}
-                
-                {/* Load More Button */}
-                <div className="flex justify-center pt-4 pb-8">
-                    <Button onClick={handleLoadMore} isLoading={isLoadingMore} variant="secondary" className="shadow-sm">
-                        {isLoadingMore ? 'Loading...' : 'Load More'}
-                    </Button>
-                </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {!isRefreshing && mode === 'news' && news.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 flex justify-center z-20">
-           <Button onClick={onTakeQuiz} size="lg" className="shadow-xl shadow-indigo-500/30">
-              Take Quiz on {selectedMonth} News
+      {news.length > 0 && mode === 'news' && (
+        <div className="fixed bottom-8 left-0 right-0 px-4 z-20">
+           <Button onClick={onTakeQuiz} size="lg" className="w-full max-w-sm mx-auto flex shadow-2xl !rounded-full py-5 font-black text-xl">
+              PRACTICE THIS MONTH →
            </Button>
         </div>
       )}

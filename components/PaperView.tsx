@@ -50,6 +50,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
   const [score, setScore] = useState(0);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   
   const [localLang, setLocalLang] = useState(language);
 
@@ -98,7 +99,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
         if (Array.isArray(q.options)) {
           const userAns = answers[q.id];
           if (userAns && userAns === q.options[q.correctIndex]) {
-            calculatedScore += (q.marks || section.marksPerQuestion || 1);
+            calculatedScore += (q.marks || section.marksPerQuestion || 4);
           }
         }
       });
@@ -128,7 +129,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
       };
 
       section.questions.forEach(q => {
-        const marks = q.marks || section.marksPerQuestion || 1;
+        const marks = q.marks || section.marksPerQuestion || 4;
         sectionStats[section.id].totalMarks += marks;
 
         const topic = (q.tags && q.tags.length > 0) ? q.tags[0] : (q.subject || 'General');
@@ -158,10 +159,10 @@ export const PaperView: React.FC<PaperViewProps> = ({
     const percentage = paper.totalMarks > 0 ? Math.round((score / paper.totalMarks) * 100) : 0;
     const timeUsed = (paper.durationMinutes * 60) - timeLeft;
 
-    let badge = { label: 'Needs Improvement', color: 'text-red-500 bg-red-50' };
-    if (percentage > 90) badge = { label: 'Outstanding 🏆', color: 'text-yellow-600 bg-yellow-50' };
-    else if (percentage > 75) badge = { label: 'Excellent 🌟', color: 'text-green-600 bg-green-50' };
-    else if (percentage > 50) badge = { label: 'Good 👍', color: 'text-blue-600 bg-blue-50' };
+    let badge = { label: 'Keep Pushing!', color: 'text-red-500 bg-red-50' };
+    if (percentage > 90) badge = { label: 'Universe Conqueror 🏆', color: 'text-yellow-600 bg-yellow-50' };
+    else if (percentage > 75) badge = { label: 'Elite Performer 🌟', color: 'text-green-600 bg-green-50' };
+    else if (percentage > 50) badge = { label: 'Good Progress 👍', color: 'text-blue-600 bg-blue-50' };
 
     if (userId) {
        const result: ExamResult = {
@@ -208,78 +209,92 @@ export const PaperView: React.FC<PaperViewProps> = ({
   if (isSubmitted && resultStats) {
     return (
       <div className="max-w-4xl mx-auto p-4 sm:p-6 animate-fade-in pb-20">
-        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-700">
-          <div className="bg-indigo-600 p-8 text-center text-white relative overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-[40px] shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-700">
+          <div className="bg-brand-600 p-10 text-center text-white relative overflow-hidden">
              <div className="relative z-10">
-               <h2 className="text-3xl font-bold font-display mb-2">{resultStats.badge.label}</h2>
-               <p className="text-indigo-100">You scored {score} out of {paper.totalMarks}</p>
+               <h2 className="text-4xl font-black font-display mb-2 tracking-tighter">{resultStats.badge.label}</h2>
+               <p className="text-brand-100 font-bold opacity-80 uppercase tracking-widest text-xs">Final Score: {score} / {paper.totalMarks}</p>
              </div>
              <div className="absolute top-[-50%] left-[-20%] w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
           </div>
 
-          <div className="p-6">
-             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl text-center">
-                   <p className="text-xs text-slate-500 uppercase font-bold">Accuracy</p>
-                   <p className="text-2xl font-bold text-slate-800 dark:text-white">{resultStats.accuracy}%</p>
+          <div className="p-8">
+             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[24px] text-center border border-slate-100 dark:border-white/5">
+                   <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Accuracy</p>
+                   <p className="text-3xl font-black text-slate-800 dark:text-white">{resultStats.accuracy}%</p>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl text-center">
-                   <p className="text-xs text-slate-500 uppercase font-bold">Attempted</p>
-                   <p className="text-2xl font-bold text-slate-800 dark:text-white">{resultStats.attemptedCount}/{resultStats.totalQuestions}</p>
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[24px] text-center border border-slate-100 dark:border-white/5">
+                   <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Solved</p>
+                   <p className="text-3xl font-black text-slate-800 dark:text-white">{resultStats.attemptedCount}</p>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl text-center">
-                   <p className="text-xs text-slate-500 uppercase font-bold">Time Taken</p>
-                   <p className="text-2xl font-bold text-slate-800 dark:text-white">{Math.floor(resultStats.timeUsed/60)}m {resultStats.timeUsed%60}s</p>
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[24px] text-center border border-slate-100 dark:border-white/5">
+                   <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Time</p>
+                   <p className="text-xl font-black text-slate-800 dark:text-white mt-1">{Math.floor(resultStats.timeUsed/60)}m {resultStats.timeUsed%60}s</p>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl text-center">
-                   <p className="text-xs text-slate-500 uppercase font-bold">Correct</p>
-                   <p className="text-2xl font-bold text-green-600">{resultStats.correctCount}</p>
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[24px] text-center border border-slate-100 dark:border-white/5">
+                   <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Correct</p>
+                   <p className="text-3xl font-black text-green-500">{resultStats.correctCount}</p>
                 </div>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                <div className="h-64 border border-slate-100 dark:border-slate-700 rounded-2xl p-4">
-                   <h3 className="text-center text-sm font-bold text-slate-500 mb-2">Topic Strength</h3>
-                   <ResponsiveContainer width="100%" height="100%" debounce={300}>
-                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                        <PolarGrid stroke="#e2e8f0" />
-                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 10 }} />
-                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                        <Radar name="Accuracy" dataKey="A" stroke="#4f46e5" fill="#6366f1" fillOpacity={0.4} />
-                        <Tooltip />
-                      </RadarChart>
-                   </ResponsiveContainer>
+             {/* Question Review Button */}
+             {!showReview ? (
+                <div className="flex flex-col gap-4">
+                    <Button onClick={() => setShowReview(true)} variant="secondary" className="w-full py-4 text-brand-600 font-black tracking-wide bg-brand-50 border-brand-100 !rounded-2xl">
+                        🔍 REVIEW DETAILED SOLUTIONS
+                    </Button>
+                    <Button onClick={onClose} className="w-full py-4 shadow-xl !rounded-2xl">RETURN TO DASHBOARD</Button>
                 </div>
-
-                <div className="h-64 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 flex flex-col items-center">
-                   <h3 className="text-center text-sm font-bold text-slate-500 mb-2">Answer Distribution</h3>
-                   <ResponsiveContainer width="100%" height="100%" debounce={300}>
-                      <PieChart>
-                        <Pie
-                          data={[
-                            { name: 'Correct', value: resultStats.correctCount },
-                            { name: 'Incorrect', value: resultStats.incorrectCount },
-                            { name: 'Skipped', value: resultStats.skippedCount }
-                          ]}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          <Cell fill="#10B981" />
-                          <Cell fill="#EF4444" />
-                          <Cell fill="#94A3B8" />
-                        </Pie>
-                        <Tooltip />
-                        <Legend verticalAlign="bottom" height={36}/>
-                      </PieChart>
-                   </ResponsiveContainer>
+             ) : (
+                <div className="space-y-8 animate-fade-in">
+                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
+                      <h3 className="text-xl font-black text-slate-800 dark:text-white">Detailed Solutions</h3>
+                      <button onClick={() => setShowReview(false)} className="text-xs font-bold text-slate-400 uppercase hover:text-brand-600">Close Review</button>
+                   </div>
+                   
+                   {paper.sections.map(section => (
+                      <div key={section.id} className="space-y-6">
+                         {section.questions.map((q, idx) => {
+                            const userAns = answers[q.id];
+                            const isCorrect = userAns === q.options[q.correctIndex];
+                            return (
+                               <div key={q.id} className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-100 dark:border-white/5">
+                                  <div className="flex gap-4 mb-4">
+                                     <span className="font-black text-slate-300 dark:text-slate-600 text-lg">{idx + 1}.</span>
+                                     <p className="font-bold text-slate-800 dark:text-white leading-relaxed">{q.text}</p>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                                     {q.options.map((opt, i) => (
+                                        <div key={i} className={`p-3 rounded-xl text-sm font-medium border-2 flex items-center gap-3 ${
+                                            i === q.correctIndex ? 'bg-green-50 border-green-500 text-green-800 dark:bg-green-900/20 dark:text-green-300' :
+                                            userAns === opt ? 'bg-red-50 border-red-500 text-red-800 dark:bg-red-900/20 dark:text-red-300' :
+                                            'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500 opacity-60'
+                                        }`}>
+                                           <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${i === q.correctIndex ? 'bg-green-500 text-white' : userAns === opt ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                                              {String.fromCharCode(65+i)}
+                                           </div>
+                                           <span>{opt}</span>
+                                        </div>
+                                     ))}
+                                  </div>
+                                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                                     <p className="text-[10px] font-black text-brand-600 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <span className="text-base">💡</span> AI Explanation
+                                     </p>
+                                     <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                                        {q.explanation}
+                                     </p>
+                                  </div>
+                               </div>
+                            )
+                         })}
+                      </div>
+                   ))}
+                   
+                   <Button onClick={onClose} className="w-full py-4 !rounded-2xl">DONE REVIEWING</Button>
                 </div>
-             </div>
-             
-             <Button onClick={onClose} className="w-full py-3 shadow-lg">Return to Dashboard</Button>
+             )}
           </div>
         </div>
       </div>
@@ -326,7 +341,6 @@ export const PaperView: React.FC<PaperViewProps> = ({
                             ? q.textHindi 
                             : (q.text || "Question text unavailable.");
                         
-                        // Force MCQ renderer if options exist
                         const isMCQ = Array.isArray(q.options) && q.options.length > 0;
 
                         return (

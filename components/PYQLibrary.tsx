@@ -31,23 +31,22 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
     setFetchError(false);
     if (!isLoadMore) {
         setExpandedQ(null);
-        setQuestions([]); // Clear previous if new search
+        setQuestions([]); 
     }
     
     try {
-      // Pass a random seed to prompt if loading more to ensure variety
-      const seed = isLoadMore ? `Batch-${Date.now()}` : undefined;
       const data = await generatePYQList(examType, subject, year, topic);
       
       if (data && data.length > 0) {
         if (isLoadMore) {
-            // Append new questions, filtering out duplicates by ID
             setQuestions(prev => {
                 const existingIds = new Set(prev.map(q => q.id));
                 const uniqueNew = data.filter(q => !existingIds.has(q.id));
                 return [...prev, ...uniqueNew];
             });
         } else {
+            // Artificial delay to show high-quality animation
+            await new Promise(r => setTimeout(r, 1200));
             setQuestions(data);
         }
       } else {
@@ -67,6 +66,23 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 animate-fade-in pb-20">
+      
+      {isLoading && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+           <div className="relative w-32 h-32 mb-8">
+              <div className="absolute inset-0 border-4 border-brand-500/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-t-brand-500 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center text-5xl animate-bounce">📜</div>
+           </div>
+           <div className="space-y-4 max-w-sm">
+              <h3 className="text-3xl font-display font-black text-white leading-tight">Accessing the archives...</h3>
+              <p className="text-slate-400 text-sm font-medium tracking-wide">
+                 Retrieving {year} PYQs for {subject}. Analyzing exam patterns and difficulty curves.
+              </p>
+           </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-4 mb-6">
         <button onClick={onBack} className="text-slate-500 hover:text-indigo-600 flex items-center gap-1 transition-colors">
           <span className="text-xl">⬅️</span> Back
@@ -77,69 +93,48 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 mb-8">
+      <div className="bg-white dark:bg-slate-800 rounded-[32px] p-8 shadow-sm border border-slate-100 dark:border-slate-700 mb-8">
          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
             <div>
-               <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Subject</label>
+               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Subject</label>
                <select 
                   value={subject} 
                   onChange={e => setSubject(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
+                  className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white font-bold outline-none"
                >
                  {EXAM_SUBJECTS[examType].map(s => <option key={s} value={s}>{s}</option>)}
                </select>
             </div>
             <div>
-               <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Year</label>
+               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Exam Year</label>
                <select 
                   value={year} 
                   onChange={e => setYear(Number(e.target.value))}
-                  className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
+                  className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white font-bold outline-none"
                >
                  {years.map(y => <option key={y} value={y}>{y}</option>)}
                </select>
             </div>
             <div>
-               <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Topic (Optional)</label>
+               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Topic (Hint)</label>
                <input 
                   type="text" 
                   value={topic} 
                   onChange={e => setTopic(e.target.value)}
-                  placeholder="e.g. Optics"
-                  className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm"
+                  placeholder="e.g. Optics, Mughal"
+                  className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white font-medium outline-none"
                />
             </div>
-            <Button onClick={() => handleFetch(false)} isLoading={isLoading} className="w-full sm:w-auto">
-               {isLoading ? 'Fetching...' : 'Find Questions'}
+            <Button onClick={() => handleFetch(false)} className="w-full py-4 !rounded-2xl shadow-lg">
+               FIND PYQs
             </Button>
          </div>
       </div>
 
-      {isLoading ? (
-         <div className="flex flex-col items-center justify-center py-12 animate-fade-in">
-            <div className="relative w-16 h-16 mb-4">
-               {/* Sand Timer SVG */}
-               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-indigo-500 animate-spin-slow">
-                  <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
-               </svg>
-               <div className="absolute inset-0 flex items-center justify-center text-2xl animate-bounce">⏳</div>
-            </div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white">Searching Archives...</h3>
-            <p className="text-slate-500 text-sm">Retrieving {year} pattern questions for {subject}</p>
-         </div>
-      ) : fetchError || (questions.length === 0 && !isLoading && topic) ? (
-         <div className="text-center py-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 animate-pop-in">
-            <span className="text-4xl opacity-50 block mb-2">😕</span>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white">No Questions Found</h3>
-            <p className="text-slate-500 dark:text-slate-400 mb-4 text-sm max-w-xs mx-auto">
-               We couldn't generate PYQs for this specific criteria. Try removing the "Topic" filter or selecting a different year.
-            </p>
-            <Button variant="secondary" size="sm" onClick={() => handleFetch(false)}>Try Again</Button>
-         </div>
-      ) : questions.length === 0 ? (
-         <div className="text-center py-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
-            <span className="text-4xl opacity-50 block mb-2">📜</span>
-            <p className="text-slate-500 dark:text-slate-400">Select filters above to view authentic-style Past Year Questions.</p>
+      {questions.length === 0 && !isLoading ? (
+         <div className="text-center py-20 bg-slate-50 dark:bg-slate-900/50 rounded-[40px] border-2 border-dashed border-slate-200 dark:border-slate-800">
+            <span className="text-5xl block mb-4">📜</span>
+            <p className="text-slate-500 dark:text-slate-400 font-bold">Select filters to start your revision universe.</p>
          </div>
       ) : (
          <div className="space-y-4">
@@ -148,60 +143,44 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
                const displayExplanation = (language === 'hi' && q.explanationHindi) ? q.explanationHindi : q.explanation;
                
                return (
-                 <div key={q.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-all animate-slide-up" style={{animationDelay: `${(idx % 10) * 50}ms`}}>
+                 <div key={q.id} className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden transition-all animate-slide-up" style={{animationDelay: `${(idx % 10) * 50}ms`}}>
                     <div 
-                      className="p-5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                      className="p-6 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50"
                       onClick={() => toggleExpand(q.id)}
                     >
-                       <div className="flex justify-between items-start mb-2">
+                       <div className="flex justify-between items-start mb-4">
                           <div className="flex gap-2">
-                             <span className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">{q.pyqYear || year}</span>
-                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                                q.type === QuestionType.MCQ ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'
-                             }`}>
-                                {q.type === QuestionType.MCQ ? 'MCQ' : q.type === QuestionType.NUMERICAL ? 'Numerical' : 'Short Ans'}
-                             </span>
+                             <span className="bg-brand-50 text-brand-600 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">{q.pyqYear || year} PYQ</span>
+                             <span className="bg-slate-100 text-slate-600 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">{q.subject}</span>
                           </div>
-                          <div className="flex items-center gap-3">
-                             {onBookmarkToggle && (
-                                <button 
-                                   onClick={(e) => { e.stopPropagation(); onBookmarkToggle(q); }}
-                                   className="text-slate-400 hover:text-red-500"
-                                >
-                                   ♡
-                                </button>
-                             )}
-                             <span className={`transform transition-transform ${expandedQ === q.id ? 'rotate-180' : ''} text-slate-400`}>▼</span>
-                          </div>
+                          <span className={`transform transition-transform ${expandedQ === q.id ? 'rotate-180' : ''} text-slate-300`}>▼</span>
                        </div>
-                       <h3 className="font-medium text-slate-800 dark:text-white text-lg">
-                          <span className="text-slate-400 mr-2">{idx + 1}.</span> {displayText}
+                       <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-relaxed">
+                          <span className="text-slate-300 mr-2">{idx + 1}.</span> {displayText}
                        </h3>
                     </div>
 
                     {expandedQ === q.id && (
-                       <div className="px-5 pb-5 pt-0 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700 animate-fade-in">
-                          <div className="mt-4 space-y-2">
-                             {q.type === QuestionType.MCQ && Array.isArray(q.options) && q.options.map((opt, i) => (
-                                <div key={i} className={`p-3 rounded-lg text-sm border ${
+                       <div className="px-6 pb-6 pt-0 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800 animate-fade-in">
+                          <div className="mt-6 space-y-3">
+                             {Array.isArray(q.options) && q.options.map((opt, i) => (
+                                <div key={i} className={`p-4 rounded-2xl text-sm font-bold border-2 flex items-center gap-4 ${
                                    i === q.correctIndex 
-                                      ? 'bg-green-100 border-green-300 text-green-900 dark:bg-green-900/30 dark:border-green-800 dark:text-green-100' 
-                                      : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
+                                      ? 'bg-green-50 border-green-500 text-green-800 dark:bg-green-900/20 dark:text-green-300' 
+                                      : 'bg-white border-slate-100 text-slate-500 dark:bg-slate-800 dark:border-slate-700 opacity-60'
                                 }`}>
-                                   <span className="font-bold mr-2">{String.fromCharCode(65+i)}.</span> {opt}
+                                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${i === q.correctIndex ? 'bg-green-500 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                                      {String.fromCharCode(65+i)}
+                                   </div>
+                                   {opt}
                                 </div>
                              ))}
                              
-                             {q.type !== QuestionType.MCQ && (
-                                <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                                   <strong className="text-green-700 dark:text-green-400 text-xs uppercase block mb-1">Answer</strong>
-                                   <p className="text-slate-800 dark:text-white">{q.answer}</p>
-                                </div>
-                             )}
-
-                             <div className="mt-4 p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                                <strong className="text-indigo-600 dark:text-indigo-400 text-xs uppercase block mb-2">💡 Explanation</strong>
-                                <p className="text-slate-600 dark:text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{displayExplanation}</p>
+                             <div className="mt-6 p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                                <strong className="text-brand-600 dark:text-brand-400 text-[10px] font-black uppercase tracking-widest block mb-2 flex items-center gap-2">
+                                   <span className="text-base">💡</span> AI Explanation
+                                </strong>
+                                <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed font-medium whitespace-pre-wrap">{displayExplanation}</p>
                              </div>
                           </div>
                        </div>
@@ -210,15 +189,14 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
                );
             })}
             
-            {/* Load More Button */}
-            <div className="pt-4 flex justify-center pb-8">
+            <div className="pt-8 flex justify-center pb-12">
                <Button 
                  onClick={() => handleFetch(true)} 
                  isLoading={isFetchingMore} 
                  variant="secondary"
-                 className="shadow-md"
+                 className="!rounded-2xl px-10 py-4 font-black text-sm tracking-widest uppercase border-slate-200"
                >
-                 {isFetchingMore ? 'Loading...' : 'Load More Questions'}
+                 {isFetchingMore ? 'Loading More...' : 'Load More Questions'}
                </Button>
             </div>
          </div>

@@ -22,7 +22,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
   const [topic, setTopic] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showSolution, setShowSolution] = useState(false); // New state to show immediate solution
+  const [showSolution, setShowSolution] = useState(false); 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,7 +34,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
 
   const handleAutoGenerate = async () => {
     if (!topic.trim()) {
-      alert("Please enter a Topic or Keyword first (e.g., 'Mughal Empire' or 'Thermodynamics')");
+      alert("Please enter a Topic first!");
       return;
     }
     setIsGenerating(true);
@@ -42,24 +42,21 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
     try {
       const aiQuestion = await generateSingleQuestion(examType, subject, topic);
       if (aiQuestion) {
+        // Artificial UX delay
+        await new Promise(r => setTimeout(r, 1500));
         setText(aiQuestion.text || '');
         if (aiQuestion.options && aiQuestion.options.length === 4) {
           setOptions(aiQuestion.options);
         }
         setCorrectIndex(aiQuestion.correctIndex || 0);
         setExplanation(aiQuestion.explanation || '');
-        
-        // Merge tags
-        const newTags = aiQuestion.tags || [];
-        if (!newTags.includes(topic)) newTags.unshift(topic);
-        setTags(newTags.join(', '));
-        setShowSolution(true); // Show solution immediately for doubt solving
+        setTags(topic);
+        setShowSolution(true); 
       } else {
-        alert("Could not generate a question. Please try a different topic.");
+        alert("AI could not generate a question for this topic.");
       }
     } catch (e) {
-      console.error(e);
-      alert("Error generating question.");
+      alert("AI Server busy. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -80,6 +77,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
             const aiQuestion = await generateQuestionFromImage(base64, mimeType, examType, subject);
             
             if (aiQuestion) {
+                await new Promise(r => setTimeout(r, 2000));
                 setText(aiQuestion.text || '');
                 if (aiQuestion.options && aiQuestion.options.length > 0) {
                     const newOpts = [...aiQuestion.options];
@@ -88,15 +86,14 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
                 }
                 setCorrectIndex(aiQuestion.correctIndex || 0);
                 setExplanation(aiQuestion.explanation || '');
-                setTags((aiQuestion.tags || []).join(', '));
-                setShowSolution(true); // Show solution for doubt solving
+                setTags('Scanned Question');
+                setShowSolution(true); 
             } else {
-                alert("Could not analyze image. Please try again with a clearer image.");
+                alert("Could not analyze image. Please ensure question is clearly visible.");
             }
             setIsGenerating(false);
         };
     } catch (err) {
-        console.error(err);
         alert("Error processing image.");
         setIsGenerating(false);
     }
@@ -124,194 +121,103 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
       saveUserQuestion(userId, newQuestion);
       setIsSaving(false);
       onSuccess();
-      // Reset form
-      setText('');
-      setOptions(['', '', '', '']);
-      setExplanation('');
-      setTags('');
-      setTopic('');
-      setShowSolution(false);
     }, 600);
   };
 
   if (isGenerating || isSaving) {
     return (
-      <div className="bg-white dark:bg-slate-800 p-12 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 max-w-3xl mx-auto flex flex-col items-center justify-center text-center animate-fade-in">
-         <div className="relative w-20 h-20 mb-6">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-indigo-500 animate-spin-slow">
-                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4"/>
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center text-3xl animate-bounce">⏳</div>
+      <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+         <div className="relative w-32 h-32 mb-8">
+            <div className="absolute inset-0 border-4 border-brand-500/20 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-t-brand-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center text-5xl animate-bounce">
+               {isSaving ? '📁' : '📸'}
+            </div>
          </div>
-         <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
-            {isSaving ? "Saving to Notebook..." : "AI is Thinking..."}
-         </h3>
-         <p className="text-slate-500 dark:text-slate-400 text-sm">Analyzing input and generating detailed solution</p>
+         <div className="space-y-4 max-w-sm">
+            <h3 className="text-3xl font-display font-black text-white leading-tight">
+               {isSaving ? 'Saving to Universe...' : 'Analyzing Doubt...'}
+            </h3>
+            <p className="text-slate-400 text-sm font-medium tracking-wide">
+               {isSaving ? 'Updating your personal notebook archives.' : 'AI Vision is extracting text and calculating correct solution patterns.'}
+            </p>
+         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 max-w-3xl mx-auto transition-colors">
-      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-            AI Doubt Solver
-            <span className="text-xs font-medium px-2 py-1 rounded-md bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-              {examType}
-            </span>
-          </h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Upload a photo or type a topic to get an instant solution & save it.</p>
-        </div>
+    <div className="max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-[40px] shadow-sm border border-slate-100 dark:border-slate-700/50 p-8 sm:p-10 animate-slide-up transition-colors">
+      <div className="mb-10">
+        <h2 className="text-4xl font-display font-black text-slate-900 dark:text-white tracking-tighter leading-none mb-3">AI Doubt Solver</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Scan any question or type a topic for an instant AI solution.</p>
       </div>
 
-      {/* AI Helper Section */}
-      <div className="mb-8 bg-indigo-50/50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/50 space-y-3">
-        <label className="block text-xs font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wide">
-          ✨ Ask AI
-        </label>
-        
-        {/* Text Auto-Fill */}
-        <div className="flex flex-col sm:flex-row gap-2">
+      <div className="mb-8 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           <input 
             type="text" 
-            placeholder="Type your doubt or topic (e.g. 'Newton's Third Law')" 
+            placeholder="Type topic (e.g. Photosynthesis)" 
             value={topic}
             onChange={e => setTopic(e.target.value)}
-            className="flex-1 p-2.5 rounded-lg border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAutoGenerate())}
+            className="flex-1 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white font-medium outline-none focus:ring-2 focus:ring-brand-purple"
           />
-          <Button 
-            type="button" 
-            variant="secondary" 
-            onClick={handleAutoGenerate} 
-            className="whitespace-nowrap text-indigo-700 bg-white dark:bg-slate-700 dark:text-indigo-300 shadow-sm"
-          >
-             Solve Doubt
-          </Button>
+          <Button onClick={handleAutoGenerate} className="!rounded-2xl px-8 shadow-lg">SOLVE TOPIC</Button>
         </div>
 
-        {/* Image Upload */}
-        <div className="flex items-center gap-2">
-            <div className="h-px bg-indigo-200 dark:bg-indigo-800 flex-1"></div>
-            <span className="text-[10px] text-indigo-400 uppercase font-bold">OR</span>
-            <div className="h-px bg-indigo-200 dark:bg-indigo-800 flex-1"></div>
+        <div className="relative py-2 flex items-center gap-4">
+            <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">OR</span>
+            <div className="h-px bg-slate-100 dark:bg-slate-800 flex-1"></div>
         </div>
 
-        <div className="flex justify-center">
-            <input 
-                type="file" 
-                ref={fileInputRef}
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageUpload}
-            />
-            <Button 
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full border-dashed border-indigo-300 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
-            >
-                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Scan Question from Image
-            </Button>
-        </div>
+        <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full p-10 rounded-[32px] border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-brand-300 dark:hover:border-brand-700 transition-all group flex flex-col items-center gap-4"
+        >
+            <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageUpload} />
+            <div className="w-16 h-16 rounded-3xl bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">📸</div>
+            <div>
+               <p className="font-bold text-slate-800 dark:text-white">Scan Question</p>
+               <p className="text-xs text-slate-400">Upload a photo from your camera or gallery</p>
+            </div>
+        </button>
       </div>
 
       {showSolution && (
-        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl animate-fade-in">
-           <h3 className="font-bold text-green-800 dark:text-green-300 mb-1 flex items-center gap-2">
-             <span className="text-xl">💡</span> AI Solution
+        <div className="mb-8 p-6 bg-brand-50/50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/30 rounded-3xl animate-fade-in">
+           <h3 className="font-black text-brand-700 dark:text-brand-400 text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
+             <span className="text-lg">💡</span> AI FOUND SOLUTION
            </h3>
-           <p className="text-sm text-slate-700 dark:text-slate-300 mb-2"><strong>Correct Answer:</strong> {options[correctIndex]}</p>
-           <p className="text-sm text-slate-600 dark:text-slate-400 italic">"{explanation}"</p>
-           <p className="text-xs text-green-700 dark:text-green-400 mt-2 font-bold text-center">👇 Edit details below if needed and save to your notes.</p>
+           <p className="text-sm text-slate-700 dark:text-slate-300 mb-4 font-medium leading-relaxed italic">"{explanation}"</p>
+           <p className="text-[10px] font-black text-slate-400 uppercase text-center">👇 Details are auto-filled below for your notes</p>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Subject</label>
-            <select 
-              value={subject} 
-              onChange={e => setSubject(e.target.value)}
-              className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-            >
-              {EXAM_SUBJECTS[examType]?.map(sub => (
-                <option key={sub} value={sub}>{sub}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tags</label>
-            <input 
-              type="text" 
-              placeholder="e.g. hard, imp, history" 
-              value={tags}
-              onChange={e => setTags(e.target.value)}
-              className="w-full p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Question Text</label>
-          <textarea 
+        <div className="space-y-4">
+           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Question Content</label>
+           <textarea 
             required
             value={text}
             onChange={e => setText(e.target.value)}
-            rows={3}
-            className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="w-full p-5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white font-medium outline-none h-32 resize-none"
             placeholder="Type your question here..."
           />
         </div>
 
-        <div className="space-y-3">
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Options</label>
-          {options.map((opt, idx) => (
-            <div key={idx} className="flex items-center gap-3">
-              <div className="flex-shrink-0 flex items-center justify-center w-8 h-8">
-                 <input 
-                  type="radio"
-                  name="correctIndex"
-                  checked={correctIndex === idx}
-                  onChange={() => setCorrectIndex(idx)}
-                  className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                 />
-              </div>
-              <input 
-                type="text"
-                required
-                value={opt}
-                onChange={e => handleOptionChange(idx, e.target.value)}
-                className={`flex-1 p-2 rounded-lg border outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white ${correctIndex === idx ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-slate-300 dark:border-slate-600'}`}
-                placeholder={`Option ${String.fromCharCode(65 + idx)}`}
-              />
-            </div>
-          ))}
-          <p className="text-xs text-slate-400 ml-11">Select the radio button next to the correct answer.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+           {options.map((opt, idx) => (
+             <div key={idx} className={`p-4 rounded-2xl border-2 flex items-center gap-3 transition-all ${correctIndex === idx ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-900/20' : 'border-slate-50 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50'}`}>
+                <input type="radio" checked={correctIndex === idx} onChange={() => setCorrectIndex(idx)} className="w-4 h-4 accent-brand-500" />
+                <input value={opt} onChange={e => handleOptionChange(idx, e.target.value)} placeholder={`Option ${String.fromCharCode(65+idx)}`} className="bg-transparent outline-none w-full text-sm font-bold text-slate-800 dark:text-white" />
+             </div>
+           ))}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Explanation (Why is it correct?)</label>
-          <textarea 
-            value={explanation}
-            onChange={e => setExplanation(e.target.value)}
-            rows={2}
-            className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-            placeholder="Add a note for your future self..."
-          />
-        </div>
-
-        <div className="flex justify-end pt-4">
-          <Button type="submit" className="w-full md:w-auto">
-            Save to Notes
-          </Button>
-        </div>
+        <Button type="submit" className="w-full py-5 !rounded-full shadow-2xl shadow-brand-500/20 font-black text-xl">
+            SAVE TO NOTEBOOK
+        </Button>
       </form>
     </div>
   );
