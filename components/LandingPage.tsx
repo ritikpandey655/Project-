@@ -18,7 +18,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center gap-3">
-              {/* PV Animated Logo Restored */}
               <LogoIcon size="sm" className="scale-90" />
               <span className="font-display font-black text-2xl tracking-tighter text-slate-900 dark:text-white">PYQverse</span>
             </div>

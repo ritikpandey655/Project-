@@ -6,6 +6,9 @@
     <meta name="theme-color" content="#ffffff" />
     <title>PYQverse - AI Exam Preparation</title>
     
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
     <!-- SEO & Metadata -->
     <meta name="description" content="Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered Previous Year Questions and Mock Tests." />
     
@@ -70,7 +73,7 @@
 
     <style>
       :root {
-        /* Default Theme: PYQverse Prime */
+        /* Default Theme: PYQverse Prime - Essential for Tailwind Config to work initially */
         --brand-primary: #5B2EFF;
         --primary-50: #efebff;
         --primary-100: #dcd0ff;
@@ -185,6 +188,17 @@
 </head>
 <body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
     <div id="root"></div>
+    
+    <script>
+      // Register Service Worker for PWA
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW registered!', reg))
+            .catch(err => console.log('SW registration failed', err));
+        });
+      }
+    </script>
     
     <script type="module">
       window.onerror = function(message, source, lineno, colno, error) {
