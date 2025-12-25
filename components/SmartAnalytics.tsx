@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { UserStats, ExamResult } from '../types';
 import { 
@@ -14,13 +13,13 @@ interface SmartAnalyticsProps {
 
 export const SmartAnalytics: React.FC<SmartAnalyticsProps> = ({ stats, history, onBack }) => {
   
-  // 1. Weak vs Strong Topics
+  // 1. Weak vs Strong Topics based on real SubjectPerformance
   const topicAnalysis = useMemo(() => {
     const topics: { subject: string, accuracy: number, total: number, status: 'Weak' | 'Average' | 'Strong' }[] = [];
     
     Object.entries(stats.subjectPerformance).forEach(([subject, rawData]) => {
        const data = rawData as { correct: number; total: number };
-       if (data.total < 3) return; // Ignore if not enough data
+       if (data.total < 1) return; // Ignore unattempted
        const accuracy = Math.round((data.correct / data.total) * 100);
        let status: 'Weak' | 'Average' | 'Strong' = 'Average';
        if (accuracy < 50) status = 'Weak';
@@ -32,45 +31,47 @@ export const SmartAnalytics: React.FC<SmartAnalyticsProps> = ({ stats, history, 
     return topics.sort((a, b) => a.accuracy - b.accuracy);
   }, [stats]);
 
-  // 2. Daily Progress (Last 7 Days)
+  // 2. Daily Progress (Real Data)
   const dailyProgress = useMemo(() => {
-    const last7Days = Array.from({length: 7}, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
-        return d.toLocaleDateString('en-US', { weekday: 'short' }); // Mon, Tue
-    });
+    // If no history, return empty array
+    if (history.length === 0) return [];
 
-    if (history.length === 0) {
-        return last7Days.map(day => ({ day, score: Math.floor(Math.random() * 40) + 40 }));
-    }
-
-    const dataPoints = last7Days.map(day => ({ day, score: 0, count: 0 }));
+    // Group history by Date
+    const progressMap: Record<string, { totalScore: number, count: number }> = {};
     
-    history.forEach((h, idx) => {
-        const i = idx % 7;
-        if(dataPoints[i]) {
-            dataPoints[i].score = (dataPoints[i].score + h.accuracy) / (dataPoints[i].count + 1);
-            dataPoints[i].count++;
-        }
+    // Sort history by date ascending
+    const sortedHistory = [...history].sort((a, b) => a.date - b.date);
+
+    sortedHistory.forEach(h => {
+        const dateKey = new Date(h.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        if (!progressMap[dateKey]) progressMap[dateKey] = { totalScore: 0, count: 0 };
+        progressMap[dateKey].totalScore += h.accuracy;
+        progressMap[dateKey].count += 1;
     });
 
-    return dataPoints.map(d => ({ ...d, score: d.score || Math.floor(Math.random() * 30) + 40 })); // Fill gaps
+    return Object.entries(progressMap).map(([day, val]) => ({
+        day,
+        score: Math.round(val.totalScore / val.count)
+    }));
   }, [history]);
 
-  // 3. Speed Analysis (Avg seconds per question)
+  // 3. Speed Analysis
   const speedAnalysis = useMemo(() => {
-     if (history.length === 0) return { avg: 45, rating: 'Average' };
+     if (history.length === 0) return { avg: 0, rating: 'No Data' };
      
      let totalTime = 0;
      let totalQs = 0; 
      history.forEach(h => {
          totalTime += h.timeTakenSeconds;
-         totalQs += (h.totalMarks); 
+         totalQs += (h.totalMarks / 4); // Assuming ~4 marks per Q approx, or better store totalQs in ExamResult
      });
      
+     // Fallback if totalMarks isn't perfect proxy
+     if (totalQs === 0) totalQs = history.length * 10; 
+
      const avg = totalQs > 0 ? Math.round(totalTime / totalQs) : 0;
      let rating = 'Average';
-     if (avg < 30) rating = 'Fast ⚡';
+     if (avg > 0 && avg < 40) rating = 'Fast ⚡';
      else if (avg > 90) rating = 'Slow 🐢';
      
      return { avg, rating };
@@ -87,7 +88,7 @@ export const SmartAnalytics: React.FC<SmartAnalyticsProps> = ({ stats, history, 
         </button>
         <div>
            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-display">Smart Analytics</h1>
-           <p className="text-sm text-slate-500 dark:text-slate-400">Deep dive into your performance</p>
+           <p className="text-sm text-slate-500 dark:text-slate-400">Real-time performance insights</p>
         </div>
       </div>
 
@@ -113,21 +114,24 @@ export const SmartAnalytics: React.FC<SmartAnalyticsProps> = ({ stats, history, 
 
         {/* Daily Progress Graph */}
         <div className="md:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700">
-           <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Daily Progress (Accuracy %)</h3>
-           {/* Fixed height container for chart */}
-           <div className="h-64 w-full min-w-0">
-             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={300}>
-               <LineChart data={dailyProgress}>
-                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} domain={[0, 100]} />
-                 <Tooltip 
-                    contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: '#fff'}}
-                    itemStyle={{color: '#5B2EFF', fontWeight: 'bold'}}
-                 />
-                 <Line type="monotone" dataKey="score" stroke="#5B2EFF" strokeWidth={4} dot={{r: 4, fill:'#5B2EFF', strokeWidth: 2, stroke:'#fff'}} activeDot={{r: 7}} />
-               </LineChart>
-             </ResponsiveContainer>
+           <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">Recent Exam Performance</h3>
+           <div className="h-64 w-full min-w-0 flex items-center justify-center">
+             {dailyProgress.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={300}>
+                    <LineChart data={dailyProgress}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} domain={[0, 100]} />
+                        <Tooltip 
+                            contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', backgroundColor: '#fff'}}
+                            itemStyle={{color: '#5B2EFF', fontWeight: 'bold'}}
+                        />
+                        <Line type="monotone" dataKey="score" stroke="#5B2EFF" strokeWidth={4} dot={{r: 4, fill:'#5B2EFF', strokeWidth: 2, stroke:'#fff'}} activeDot={{r: 7}} />
+                    </LineChart>
+                </ResponsiveContainer>
+             ) : (
+                <p className="text-slate-400 font-medium">Complete a mock test to see your trend.</p>
+             )}
            </div>
         </div>
 

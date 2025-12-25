@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { AppState, ExamType, Question, User, ViewState } from '../types';
+import { AppState, ExamType, Question, User, ViewState, ExamResult } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
 import { 
   getUserPref, 
@@ -12,6 +12,7 @@ import {
   getExamConfig,
   updateUserActivity,
   updateUserSession,
+  getExamHistory,
   INITIAL_STATS
 } from '../services/storageService';
 import { generateExamQuestions } from '../services/geminiService';
@@ -36,6 +37,7 @@ import { TermsOfService } from './TermsOfService';
 import { LandingPage } from './LandingPage'; 
 import { SafariInstallPrompt } from './SafariInstallPrompt';
 import { InstallModal } from './InstallModal';
+import { BookmarksList } from './BookmarksList';
 import { auth } from '../src/firebaseConfig';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { LogoIcon } from './LogoIcon';
@@ -57,7 +59,7 @@ const App: React.FC = () => {
     user: null,
     showTimer: true,
     generatedPaper: null,
-    darkMode: false, // Default to Light Mode as per request
+    darkMode: false, 
     language: 'en',
     theme: 'PYQverse Prime', 
     qotd: null,
@@ -77,6 +79,7 @@ const App: React.FC = () => {
   const [initialDoubtQuery, setInitialDoubtQuery] = useState<string | null>(null);
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionWrong, setSessionWrong] = useState(0);
+  const [examHistory, setExamHistory] = useState<ExamResult[]>([]);
   
   // Install Logic
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -92,7 +95,7 @@ const App: React.FC = () => {
       setIsStandalone(!!isStd);
     };
     checkStandalone();
-    window.addEventListener('resize', checkStandalone); // Re-check on resize just in case
+    window.addEventListener('resize', checkStandalone); 
     
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
@@ -114,7 +117,6 @@ const App: React.FC = () => {
           setDeferredPrompt(null);
       }
     } else {
-      // If no prompt available (Chrome didn't fire it or already dismissed), show manual instructions
       setShowInstallModal(true);
     }
   }, [deferredPrompt]);
@@ -139,13 +141,17 @@ const App: React.FC = () => {
 
   const loadUserData = useCallback(async (userId: string) => {
     try {
-      const [profile, prefs, statsData, config] = await Promise.all([
+      const [profile, prefs, statsData, config, history] = await Promise.all([
         getUser(userId),
         getUserPref(userId),
         getStats(userId),
-        getExamConfig()
+        getExamConfig(),
+        getExamHistory(userId)
       ]);
       const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState || 'dashboard';
+      
+      setExamHistory(history);
+
       setState(prev => ({
         ...prev,
         user: profile,
@@ -273,7 +279,8 @@ const App: React.FC = () => {
           {state.view === 'paperGenerator' && state.selectedExam && <PaperGenerator examType={state.selectedExam} onGenerate={(p) => { setState(s => ({ ...s, generatedPaper: p })); navigateTo('paperView'); }} onBack={() => navigateTo('dashboard')} onExamChange={() => {}} />}
           {state.view === 'paperView' && state.generatedPaper && state.user && <PaperView paper={state.generatedPaper} userId={state.user.id} onClose={() => navigateTo('dashboard')} language={state.language} />}
           {state.view === 'leaderboard' && state.user && <Leaderboard user={state.user} onBack={() => navigateTo('dashboard')} />}
-          {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={[]} onBack={() => navigateTo('dashboard')} />}
+          {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={examHistory} onBack={() => navigateTo('dashboard')} />}
+          {state.view === 'bookmarks' && state.user && <BookmarksList userId={state.user.id} onBack={() => navigateTo('dashboard')} />}
           {state.view === 'privacy' && <PrivacyPolicy onBack={() => {
              const last = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
              navigateTo(last && last !== 'privacy' ? last : 'dashboard');
