@@ -27,19 +27,40 @@
             },
             colors: {
               brand: {
-                primary: '#5B2EFF',
-                50: '#efebff',
-                100: '#dcd0ff',
-                200: '#bfa6ff',
-                300: '#9e75ff',
-                400: '#7d4bff',
-                500: '#5B2EFF',
-                600: '#491ecb',
-                700: '#38159b',
-                800: '#291070',
-                900: '#1d0b4d',
-                purple: '#5B2EFF',
+                primary: 'var(--brand-primary)',
+                50: 'var(--primary-50)',
+                100: 'var(--primary-100)',
+                200: 'var(--primary-200)',
+                300: 'var(--primary-300)',
+                400: 'var(--primary-400)',
+                500: 'var(--primary-500)',
+                600: 'var(--primary-600)',
+                700: 'var(--primary-700)',
+                800: 'var(--primary-800)',
+                900: 'var(--primary-900)',
+                purple: 'var(--primary-500)',
                 yellow: '#FACC15'
+              }
+            },
+            animation: {
+              'blob': 'blob 7s infinite',
+              'float': 'float 6s ease-in-out infinite',
+              'pulse-glow': 'pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+              blob: {
+                '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                '100%': { transform: 'translate(0px, 0px) scale(1)' },
+              },
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-20px)' },
+              },
+              'pulse-glow': {
+                '0%, 100%': { opacity: '1' },
+                '50%': { opacity: '.5' },
               }
             }
           }
@@ -49,7 +70,18 @@
 
     <style>
       :root {
+        /* Default Theme: PYQverse Prime */
         --brand-primary: #5B2EFF;
+        --primary-50: #efebff;
+        --primary-100: #dcd0ff;
+        --primary-200: #bfa6ff;
+        --primary-300: #9e75ff;
+        --primary-400: #7d4bff;
+        --primary-500: #5B2EFF;
+        --primary-600: #491ecb;
+        --primary-700: #38159b;
+        --primary-800: #291070;
+        --primary-900: #1d0b4d;
       }
       body {
         margin: 0;

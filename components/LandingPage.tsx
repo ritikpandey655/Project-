@@ -11,13 +11,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
   const [query, setQuery] = useState('');
 
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-slate-950 overflow-x-hidden text-slate-900 dark:text-white transition-colors">
+    <div className="min-h-screen w-full bg-white dark:bg-slate-950 overflow-x-hidden text-slate-900 dark:text-white transition-colors flex flex-col">
       
       {/* Modern Clean Navbar */}
       <nav className="fixed w-full z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-white/5">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center gap-3">
+              {/* PV Animated Logo Restored */}
               <LogoIcon size="sm" className="scale-90" />
               <span className="font-display font-black text-2xl tracking-tighter text-slate-900 dark:text-white">PYQverse</span>
             </div>
@@ -30,7 +31,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
               </button>
               <button 
                 onClick={() => onSignup()} 
-                className="hidden sm:inline-flex bg-[#5B2EFF] hover:bg-[#4a25cf] text-white px-6 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-brand-500/20 transition-all"
+                className="hidden sm:inline-flex bg-brand-500 hover:bg-brand-600 text-white px-6 py-2.5 rounded-full font-bold text-sm shadow-lg shadow-brand-500/20 transition-all"
               >
                 Get Started Free
               </button>
@@ -40,10 +41,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
       </nav>
 
       {/* Hero Section */}
-      <div className="relative pt-40 pb-20 sm:pt-48 sm:pb-32 flex flex-col items-center text-center px-4">
+      <div className="relative pt-40 pb-20 sm:pt-48 sm:pb-32 flex flex-col items-center text-center px-4 flex-1">
         
         {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 text-brand-600 dark:text-blue-300 text-[11px] font-black uppercase tracking-widest mb-8 animate-slide-up">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800/30 text-brand-600 dark:text-brand-300 text-[11px] font-black uppercase tracking-widest mb-8 animate-slide-up">
            <span className="text-yellow-400">✨</span> NEXT-GEN AI EXAM PLATFORM
         </div>
 
@@ -79,6 +80,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
         {/* Bottom Glow Effect (Matching screenshot) */}
         <div className="absolute bottom-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-t from-red-500/10 via-pink-500/10 to-transparent blur-[100px] rounded-full pointer-events-none -z-10"></div>
       </div>
+
+      {/* Official Footer */}
+      <footer className="w-full bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-12 px-6">
+         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-2">
+               <LogoIcon size="sm" className="scale-75" />
+               <span className="text-sm font-bold text-slate-900 dark:text-white">© 2025 PYQverse AI</span>
+            </div>
+            <div className="flex flex-wrap justify-center gap-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+               <a href="/privacy" className="hover:text-brand-500 transition-colors">Privacy Policy</a>
+               <a href="#" className="hover:text-brand-500 transition-colors">Terms of Service</a>
+               <a href="mailto:support@pyqverse.in" className="hover:text-brand-500 transition-colors">Contact Support</a>
+            </div>
+         </div>
+      </footer>
 
     </div>
   );

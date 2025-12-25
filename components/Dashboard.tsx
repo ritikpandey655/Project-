@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { UserStats, ExamType, User, Question } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -104,18 +103,18 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
 
       {/* PWA Install Banner - Specific for Android/Chrome */}
       {canInstall && onInstall && (
-        <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20 flex flex-col sm:flex-row items-center justify-between gap-6 animate-pop-in border border-indigo-400/30 relative overflow-hidden group">
+        <div className="bg-brand-600 rounded-3xl p-6 text-white shadow-xl shadow-brand-500/20 flex flex-col sm:flex-row items-center justify-between gap-6 animate-pop-in border border-brand-400/30 relative overflow-hidden group">
            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full duration-1000 transition-transform"></div>
            <div className="flex items-center gap-4 relative z-10">
               <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl shadow-inner">📲</div>
               <div>
                 <h3 className="font-display font-black text-xl leading-none mb-1">Install PYQverse</h3>
-                <p className="text-indigo-100 text-xs font-medium opacity-80">Access preparation 2x faster from home screen.</p>
+                <p className="text-brand-100 text-xs font-medium opacity-80">Access preparation 2x faster from home screen.</p>
               </div>
            </div>
            <button 
              onClick={onInstall}
-             className="w-full sm:w-auto bg-white text-indigo-600 px-6 py-3 rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-all relative z-10"
+             className="w-full sm:w-auto bg-white text-brand-600 px-6 py-3 rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-all relative z-10"
            >
              INSTALL NOW
            </button>
@@ -212,12 +211,17 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
          </div>
       </div>
 
-      <div className="pt-12 pb-8 border-t border-slate-200 dark:border-white/5 flex flex-col items-center opacity-60">
+      <div className="pt-12 pb-24 border-t border-slate-200 dark:border-white/5 flex flex-col items-center">
           <p className="text-xs font-bold text-slate-400 tracking-widest mb-4">© 2025 PYQVERSE AI</p>
-          <div className="flex gap-8">
+          <div className="flex gap-8 mb-6">
              <button onClick={onOpenAnalytics} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500">Analytics</button>
              <button onClick={onOpenLeaderboard} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500">Leaderboard</button>
              <button onClick={onOpenBookmarks} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500">Bookmarks</button>
+          </div>
+          <div className="flex gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+             <a href="/privacy" className="hover:text-brand-500 transition-colors">Privacy Policy</a>
+             <span>•</span>
+             <a href="mailto:support@pyqverse.in" className="hover:text-brand-500 transition-colors">Support</a>
           </div>
       </div>
 
