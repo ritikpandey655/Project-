@@ -1,6 +1,21 @@
 import React from 'react';
 
-export const BackgroundAnimation = () => {
+interface BackgroundAnimationProps {
+  darkMode?: boolean;
+}
+
+export const BackgroundAnimation: React.FC<BackgroundAnimationProps> = ({ darkMode = false }) => {
+  if (!darkMode) {
+    // Light Mode (Lisa / Clean Style)
+    return (
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none select-none bg-white">
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]"></div>
+        <div className="absolute bottom-0 left-0 w-full h-[30%] bg-[radial-gradient(ellipse_60%_60%_at_50%_120%,rgba(236,72,153,0.1),rgba(255,255,255,0))]"></div>
+      </div>
+    );
+  }
+
+  // Dark Mode (Universe Style)
   return (
     <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none select-none bg-slate-950">
       {/* Sci-Fi Universe Orbs */}

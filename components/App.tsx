@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
@@ -55,9 +56,9 @@ const App: React.FC = () => {
     user: null,
     showTimer: true,
     generatedPaper: null,
-    darkMode: true, // Default to Dark Mode for Universe Vibe
+    darkMode: false, // Default to Light Mode as per request
     language: 'en',
-    theme: 'PYQverse Prime', // Default to Prime Theme
+    theme: 'PYQverse Prime', 
     qotd: null,
     newsFeed: [],
     examConfig: EXAM_SUBJECTS as unknown as Record<string, string[]> 
@@ -102,13 +103,20 @@ const App: React.FC = () => {
   const applyTheme = useCallback((themeName: string) => {
     const palette = THEME_PALETTES[themeName] || THEME_PALETTES['PYQverse Prime'];
     const root = document.documentElement;
+    
+    // Explicitly set the brand color
     root.style.setProperty('--brand-primary', palette[500]);
+    
+    // Set all shade variables
     Object.keys(palette).forEach(key => {
       root.style.setProperty(`--primary-${key}`, (palette as any)[key]);
     });
   }, []);
 
-  useEffect(() => { applyTheme(state.theme); }, [state.theme, applyTheme]);
+  // Ensure theme is applied whenever state.theme changes
+  useEffect(() => { 
+    applyTheme(state.theme); 
+  }, [state.theme, applyTheme]);
 
   const navigateTo = useCallback((newView: ViewState) => {
     setState(prev => ({ ...prev, view: newView }));
@@ -130,13 +138,15 @@ const App: React.FC = () => {
         selectedExam: prefs.selectedExam,
         stats: statsData,
         showTimer: prefs.showTimer,
-        darkMode: prefs.darkMode ?? true, // Prefer saved pref, default to true
+        darkMode: prefs.darkMode ?? false, // Default to False/Light if undefined
         language: prefs.language,
         theme: prefs.theme || 'PYQverse Prime',
         examConfig: config,
         view: initialDoubtQuery ? 'upload' : (['landing', 'login', 'signup'].includes(lastView) ? 'dashboard' : lastView)
       }));
+      
       if (prefs.theme) applyTheme(prefs.theme);
+      
       updateUserActivity(userId);
       updateUserSession(userId, currentSessionId.current);
     } catch (e) {
@@ -212,22 +222,23 @@ const App: React.FC = () => {
   const isEntryView = ['landing', 'login', 'signup', 'forgotPassword', 'privacy'].includes(state.view);
 
   return (
-    <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans transition-colors duration-300 bg-white dark:bg-slate-950`}>
-      <BackgroundAnimation />
+    <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans transition-colors duration-300 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100`}>
+      <BackgroundAnimation darkMode={state.darkMode} />
       
       {isLoading && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+        <div className="fixed inset-0 z-[100] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-fade-in">
            <div className="mb-8">
-              <LogoIcon size="md" className="animate-spin-slow" />
+              {/* SAND WATCH ANIMATION AS REQUESTED */}
+              <div className="hourglass"></div>
            </div>
-           <h3 className="text-2xl font-display font-black text-white tracking-widest uppercase mb-2">Generating Universe</h3>
-           <p className="text-brand-300 font-mono text-xs animate-pulse">Aligning constellations...</p>
+           <h3 className="text-2xl font-display font-black text-slate-800 dark:text-white tracking-widest uppercase mb-2">Generating Universe</h3>
+           <p className="text-brand-500 dark:text-brand-300 font-mono text-xs animate-pulse">Aligning constellations...</p>
         </div>
       )}
 
       <main className="relative z-10 min-h-screen w-full flex flex-col">
         {!isEntryView && state.view !== 'practice' && (
-          <div className="flex justify-between items-center px-4 py-3 pt-safe sm:px-6 sticky top-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-40 border-b border-slate-100 dark:border-white/5">
+          <div className="flex justify-between items-center px-4 py-3 pt-safe sm:px-6 sticky top-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-40 border-b border-slate-100 dark:border-white/5 transition-colors">
               <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('dashboard')}>
                   <LogoIcon size="sm" />
                   <h1 className="font-display font-black text-xl text-brand-600 dark:text-white tracking-tighter">PYQverse</h1>
