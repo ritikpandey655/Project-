@@ -56,7 +56,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   onOpenLeaderboard,
   onOpenPYQLibrary,
   onInstall,
-  canInstall,
+  canInstall, // This now reflects !isStandalone
   isOnline = true,
   language = 'en',
   selectedExam,
@@ -103,7 +103,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
         </div>
       )}
 
-      {/* PWA Install Banner - Specific for Android/Chrome */}
+      {/* PWA Install Banner - Always show if not installed (canInstall = !isStandalone) */}
       {canInstall && onInstall && (
         <div className="bg-brand-600 rounded-3xl p-6 text-white shadow-xl shadow-brand-500/20 flex flex-col sm:flex-row items-center justify-between gap-6 animate-pop-in border border-brand-400/30 relative overflow-hidden group">
            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full duration-1000 transition-transform"></div>
@@ -118,7 +118,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
              onClick={onInstall}
              className="w-full sm:w-auto bg-white text-brand-600 px-6 py-3 rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-all relative z-10"
            >
-             INSTALL NOW
+             INSTALL APP
            </button>
         </div>
       )}
