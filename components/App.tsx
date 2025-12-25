@@ -282,12 +282,12 @@ const App: React.FC = () => {
           {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={examHistory} onBack={() => navigateTo('dashboard')} />}
           {state.view === 'bookmarks' && state.user && <BookmarksList userId={state.user.id} onBack={() => navigateTo('dashboard')} />}
           {state.view === 'privacy' && <PrivacyPolicy onBack={() => {
-             const last = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
-             navigateTo(last && last !== 'privacy' ? last : 'dashboard');
+             if (state.user) navigateTo('dashboard');
+             else navigateTo('landing');
           }} />}
           {state.view === 'terms' && <TermsOfService onBack={() => {
-             const last = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
-             navigateTo(last && last !== 'terms' ? last : 'dashboard');
+             if (state.user) navigateTo('dashboard');
+             else navigateTo('landing');
           }} />}
           {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} onExamChange={() => {}} onInstall={handleInstallClick} canInstall={!isStandalone} />}
           {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} />}
