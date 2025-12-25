@@ -12,9 +12,15 @@ interface SignupScreenProps {
   onSignup: (user: User, selectedExam: ExamType) => void;
   onBackToLogin: () => void;
   onNavigateToPrivacy?: () => void;
+  onNavigateToTerms?: () => void;
 }
 
-export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLogin, onNavigateToPrivacy }) => {
+export const SignupScreen: React.FC<SignupScreenProps> = ({ 
+  onSignup, 
+  onBackToLogin, 
+  onNavigateToPrivacy, 
+  onNavigateToTerms 
+}) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -104,6 +110,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({ onSignup, onBackToLo
          <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">© 2025 PYQverse AI</p>
          <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-500">
             <button onClick={onNavigateToPrivacy} className="hover:text-brand-400 transition-colors">Privacy Policy</button>
+            <button onClick={onNavigateToTerms} className="hover:text-brand-400 transition-colors">Terms of Service</button>
             <span>•</span>
             <a href="mailto:support@pyqverse.in" className="hover:text-brand-400 transition-colors">Contact Support</a>
          </div>

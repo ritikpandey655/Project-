@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { UserStats, ExamType, User, Question } from '../types';
+import { UserStats, ExamType, User, Question, ViewState } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from './Button';
 import { TRANSLATIONS, TECHNICAL_EXAMS } from '../constants';
@@ -34,6 +34,7 @@ interface DashboardProps {
   onOpenPYQLibrary?: () => void;
   isOnline?: boolean;
   selectedExam: ExamType | null;
+  onNavigate?: (view: ViewState) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = React.memo(({ 
@@ -58,7 +59,8 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   canInstall,
   isOnline = true,
   language = 'en',
-  selectedExam
+  selectedExam,
+  onNavigate
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
 
@@ -219,7 +221,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
              <button onClick={onOpenBookmarks} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500">Bookmarks</button>
           </div>
           <div className="flex gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-             <a href="/privacy" className="hover:text-brand-500 transition-colors">Privacy Policy</a>
+             <button onClick={() => onNavigate?.('privacy')} className="hover:text-brand-500 transition-colors uppercase">Privacy Policy</button>
              <span>•</span>
              <a href="mailto:support@pyqverse.in" className="hover:text-brand-500 transition-colors">Support</a>
           </div>

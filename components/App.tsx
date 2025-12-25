@@ -32,6 +32,7 @@ import { Leaderboard } from './Leaderboard';
 import { BackgroundAnimation } from './BackgroundAnimation';
 import { MobileBottomNav } from './MobileBottomNav';
 import { PrivacyPolicy } from './PrivacyPolicy';
+import { TermsOfService } from './TermsOfService';
 import { LandingPage } from './LandingPage'; 
 import { SafariInstallPrompt } from './SafariInstallPrompt';
 import { auth } from '../src/firebaseConfig';
@@ -218,7 +219,7 @@ const App: React.FC = () => {
     }
   }, [practiceConfig.mode, practiceConfig.subject, currentQIndex, practiceQueue.length, state.selectedExam, navigateTo]);
 
-  const isEntryView = ['landing', 'login', 'signup', 'forgotPassword', 'privacy'].includes(state.view);
+  const isEntryView = ['landing', 'login', 'signup', 'forgotPassword', 'privacy', 'terms'].includes(state.view);
 
   return (
     <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans transition-colors duration-300 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100`}>
@@ -249,11 +250,11 @@ const App: React.FC = () => {
         )}
 
         <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-          {state.view === 'landing' && <LandingPage onLogin={() => navigateTo('login')} onSignup={(q) => { if(q) setInitialDoubtQuery(q); navigateTo('signup'); }} />}
-          {state.view === 'login' && <LoginScreen onLogin={(user) => loadUserData(user.id)} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} onNavigateToPrivacy={() => navigateTo('privacy')} />}
-          {state.view === 'signup' && <SignupScreen onSignup={() => {}} onBackToLogin={() => navigateTo('login')} />}
+          {state.view === 'landing' && <LandingPage onLogin={() => navigateTo('login')} onSignup={(q) => { if(q) setInitialDoubtQuery(q); navigateTo('signup'); }} onNavigate={navigateTo} />}
+          {state.view === 'login' && <LoginScreen onLogin={(user) => loadUserData(user.id)} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} onNavigateToPrivacy={() => navigateTo('privacy')} onNavigateToTerms={() => navigateTo('terms')} />}
+          {state.view === 'signup' && <SignupScreen onSignup={() => {}} onBackToLogin={() => navigateTo('login')} onNavigateToPrivacy={() => navigateTo('privacy')} onNavigateToTerms={() => navigateTo('terms')} />}
           {state.view === 'forgotPassword' && <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />}
-          {state.view === 'dashboard' && <Dashboard stats={state.stats} user={state.user} onStartPractice={() => setShowPracticeConfig(true)} onUpload={() => navigateTo('upload')} onGeneratePaper={() => navigateTo('paperGenerator')} onOpenBookmarks={() => navigateTo('bookmarks')} onOpenAnalytics={() => navigateTo('analytics')} onOpenLeaderboard={() => navigateTo('leaderboard')} selectedExam={state.selectedExam} darkMode={state.darkMode} language={state.language} onToggleTimer={() => {}} onToggleDarkMode={() => {}} onStartCurrentAffairs={() => {}} onReadCurrentAffairs={() => {}} onReadNotes={() => {}} onEnableNotifications={() => {}} showTimer={true} onInstall={handleInstallClick} canInstall={canInstall} />}
+          {state.view === 'dashboard' && <Dashboard stats={state.stats} user={state.user} onStartPractice={() => setShowPracticeConfig(true)} onUpload={() => navigateTo('upload')} onGeneratePaper={() => navigateTo('paperGenerator')} onOpenBookmarks={() => navigateTo('bookmarks')} onOpenAnalytics={() => navigateTo('analytics')} onOpenLeaderboard={() => navigateTo('leaderboard')} selectedExam={state.selectedExam} darkMode={state.darkMode} language={state.language} onToggleTimer={() => {}} onToggleDarkMode={() => {}} onStartCurrentAffairs={() => {}} onReadCurrentAffairs={() => {}} onReadNotes={() => {}} onEnableNotifications={() => {}} showTimer={true} onInstall={handleInstallClick} canInstall={canInstall} onNavigate={navigateTo} />}
           {state.view === 'practice' && practiceQueue[currentQIndex] && (
               <QuestionCard question={practiceQueue[currentQIndex]} onAnswer={handleAnswer} onNext={handleNextQuestion} onBack={() => navigateTo('dashboard')} isLast={currentQIndex === practiceQueue.length - 1 && practiceConfig.mode !== 'endless'} isLoadingNext={isFetchingMore} language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} onBookmarkToggle={(q) => state.user && toggleBookmark(state.user.id, q)} sessionStats={{ currentIndex: currentQIndex, total: practiceConfig.mode === 'endless' ? 100 : practiceConfig.count, correct: sessionCorrect, wrong: sessionWrong }} />
           )}
@@ -262,7 +263,14 @@ const App: React.FC = () => {
           {state.view === 'paperView' && state.generatedPaper && state.user && <PaperView paper={state.generatedPaper} userId={state.user.id} onClose={() => navigateTo('dashboard')} language={state.language} />}
           {state.view === 'leaderboard' && state.user && <Leaderboard user={state.user} onBack={() => navigateTo('dashboard')} />}
           {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={[]} onBack={() => navigateTo('dashboard')} />}
-          {state.view === 'privacy' && <PrivacyPolicy onBack={() => navigateTo('dashboard')} />}
+          {state.view === 'privacy' && <PrivacyPolicy onBack={() => {
+             const last = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
+             navigateTo(last && last !== 'privacy' ? last : 'dashboard');
+          }} />}
+          {state.view === 'terms' && <TermsOfService onBack={() => {
+             const last = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
+             navigateTo(last && last !== 'terms' ? last : 'dashboard');
+          }} />}
           {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} onExamChange={() => {}} onInstall={handleInstallClick} canInstall={canInstall} />}
           {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} />}
         </div>

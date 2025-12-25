@@ -5,9 +5,10 @@ import { LogoIcon } from './LogoIcon';
 interface LandingPageProps {
   onLogin: () => void;
   onSignup: (initialQuery?: string) => void;
+  onNavigate: (view: any) => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onNavigate }) => {
   const [query, setQuery] = useState('');
 
   return (
@@ -88,8 +89,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
                <span className="text-sm font-bold text-slate-900 dark:text-white">© 2025 PYQverse AI</span>
             </div>
             <div className="flex flex-wrap justify-center gap-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-               <a href="/privacy" className="hover:text-brand-500 transition-colors">Privacy Policy</a>
-               <a href="#" className="hover:text-brand-500 transition-colors">Terms of Service</a>
+               <button onClick={() => onNavigate('privacy')} className="hover:text-brand-500 transition-colors">Privacy Policy</button>
+               <button onClick={() => onNavigate('terms')} className="hover:text-brand-500 transition-colors">Terms of Service</button>
                <a href="mailto:support@pyqverse.in" className="hover:text-brand-500 transition-colors">Contact Support</a>
             </div>
          </div>

@@ -173,7 +173,7 @@ export interface LeaderboardEntry {
   isCurrentUser: boolean;
 }
 
-export type ViewState = 'landing' | 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile' | 'paperGenerator' | 'paperView' | 'bookmarks' | 'admin' | 'downloads' | 'analytics' | 'leaderboard' | 'news' | 'pyqLibrary' | 'privacy';
+export type ViewState = 'landing' | 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile' | 'paperGenerator' | 'paperView' | 'bookmarks' | 'admin' | 'downloads' | 'analytics' | 'leaderboard' | 'news' | 'pyqLibrary' | 'privacy' | 'terms';
 
 export interface AppState {
   view: ViewState;
