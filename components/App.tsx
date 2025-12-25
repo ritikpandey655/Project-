@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
@@ -10,8 +9,6 @@ import {
   saveUser,
   getUser,
   toggleBookmark,
-  getStoredQOTD,
-  saveQOTD,
   getExamConfig,
   updateUserActivity,
   updateUserSession,
@@ -36,7 +33,9 @@ import { BackgroundAnimation } from './BackgroundAnimation';
 import { MobileBottomNav } from './MobileBottomNav';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { LandingPage } from './LandingPage'; 
+import { SafariInstallPrompt } from './SafariInstallPrompt';
 import { auth } from '../src/firebaseConfig';
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { LogoIcon } from './LogoIcon';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
@@ -56,9 +55,9 @@ const App: React.FC = () => {
     user: null,
     showTimer: true,
     generatedPaper: null,
-    darkMode: false,
+    darkMode: true, // Default to Dark Mode for Universe Vibe
     language: 'en',
-    theme: 'PYQverse Prime',
+    theme: 'PYQverse Prime', // Default to Prime Theme
     qotd: null,
     newsFeed: [],
     examConfig: EXAM_SUBJECTS as unknown as Record<string, string[]> 
@@ -73,21 +72,15 @@ const App: React.FC = () => {
   const [showPracticeConfig, setShowPracticeConfig] = useState(false);
   const [practiceConfig, setPracticeConfig] = useState<PracticeConfig>({ mode: 'finite', subject: 'Mixed', count: 10 });
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  
-  // To handle doubts from landing page
   const [initialDoubtQuery, setInitialDoubtQuery] = useState<string | null>(null);
-
-  // Real-time session analytics state
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionWrong, setSessionWrong] = useState(0);
-
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [canInstall, setCanInstall] = useState(false);
-
   const currentSessionId = useRef<string>(Date.now().toString() + Math.random().toString());
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
+    const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setCanInstall(true);
@@ -100,8 +93,10 @@ const App: React.FC = () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') setCanInstall(false);
-    setDeferredPrompt(null);
+    if (outcome === 'accepted') {
+        setCanInstall(false);
+        setDeferredPrompt(null);
+    }
   }, [deferredPrompt]);
 
   const applyTheme = useCallback((themeName: string) => {
@@ -109,14 +104,11 @@ const App: React.FC = () => {
     const root = document.documentElement;
     root.style.setProperty('--brand-primary', palette[500]);
     Object.keys(palette).forEach(key => {
-      // @ts-ignore
-      root.style.setProperty(`--primary-${key}`, palette[key]);
+      root.style.setProperty(`--primary-${key}`, (palette as any)[key]);
     });
   }, []);
 
-  useEffect(() => {
-    applyTheme(state.theme);
-  }, [state.theme, applyTheme]);
+  useEffect(() => { applyTheme(state.theme); }, [state.theme, applyTheme]);
 
   const navigateTo = useCallback((newView: ViewState) => {
     setState(prev => ({ ...prev, view: newView }));
@@ -138,17 +130,16 @@ const App: React.FC = () => {
         selectedExam: prefs.selectedExam,
         stats: statsData,
         showTimer: prefs.showTimer,
-        darkMode: prefs.darkMode,
+        darkMode: prefs.darkMode ?? true, // Prefer saved pref, default to true
         language: prefs.language,
-        theme: prefs.theme,
+        theme: prefs.theme || 'PYQverse Prime',
         examConfig: config,
-        view: initialDoubtQuery ? 'upload' : ((lastView === 'landing' || lastView === 'login' || lastView === 'signup') ? 'dashboard' : lastView)
+        view: initialDoubtQuery ? 'upload' : (['landing', 'login', 'signup'].includes(lastView) ? 'dashboard' : lastView)
       }));
       if (prefs.theme) applyTheme(prefs.theme);
       updateUserActivity(userId);
       updateUserSession(userId, currentSessionId.current);
     } catch (e) {
-      console.error("User Data Load Error:", e);
       navigateTo('dashboard');
     }
   }, [applyTheme, navigateTo, initialDoubtQuery]);
@@ -156,32 +147,22 @@ const App: React.FC = () => {
   const handleLogout = useCallback(async () => {
     setIsSidebarOpen(false);
     try {
-      await auth.signOut();
+      await signOut(auth);
     } catch (e) {
-      console.error("Logout Error:", e);
+      console.error(e);
     }
   }, []);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        if (!firebaseUser.emailVerified && firebaseUser.email !== 'support@pyqverse.in') {
-          setState(prev => ({ ...prev, user: { id: firebaseUser.uid, name: firebaseUser.displayName || 'User', email: firebaseUser.email || '' }, view: 'landing' }));
-          setIsAppInitializing(false);
-        } else {
-          await loadUserData(firebaseUser.uid);
-          setIsAppInitializing(false);
-        }
+        await loadUserData(firebaseUser.uid);
       } else {
         setState(prev => ({ ...prev, user: null, view: 'landing' }));
-        setIsAppInitializing(false);
       }
+      setIsAppInitializing(false);
     });
-    const fallbackTimer = setTimeout(() => setIsAppInitializing(false), 8000);
-    return () => {
-      unsubscribe();
-      clearTimeout(fallbackTimer);
-    };
+    return () => unsubscribe();
   }, [loadUserData]);
 
   const handleStartPractice = useCallback(async (conf?: PracticeConfig) => {
@@ -192,21 +173,14 @@ const App: React.FC = () => {
     setSessionCorrect(0);
     setSessionWrong(0);
     try {
-      const qs = await generateExamQuestions(
-        state.selectedExam,
-        configToUse.subject,
-        configToUse.count,
-        'Medium',
-        configToUse.topic ? [configToUse.topic] : []
-      );
-      // UX delay for sand timer visibility
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const qs = await generateExamQuestions(state.selectedExam, configToUse.subject, configToUse.count, 'Medium', configToUse.topic ? [configToUse.topic] : []);
       setPracticeQueue(qs);
       setCurrentQIndex(0);
       navigateTo('practice');
     } catch (e) {
-      console.error("Failed to start practice:", e);
-      alert("Failed to connect to AI universe. Please try again.");
+      alert("AI Connection busy. Using fallback questions.");
+      setPracticeQueue([]); 
+      navigateTo('practice');
     } finally {
       setIsLoading(false);
     }
@@ -215,22 +189,17 @@ const App: React.FC = () => {
   const handleAnswer = useCallback((isCorrect: boolean) => {
       if (isCorrect) setSessionCorrect(prev => prev + 1);
       else setSessionWrong(prev => prev + 1);
-      
-      if (state.user && state.selectedExam) {
-          updateStats(state.user.id, isCorrect, practiceQueue[currentQIndex].subject || 'General', state.selectedExam);
-      }
+      if (state.user && state.selectedExam) updateStats(state.user.id, isCorrect, practiceQueue[currentQIndex]?.subject || 'General', state.selectedExam);
   }, [state.user, state.selectedExam, practiceQueue, currentQIndex]);
 
   const handleNextQuestion = useCallback(async () => {
     if (practiceConfig.mode === 'endless') {
-      if (currentQIndex >= practiceQueue.length - 3) {
+      if (currentQIndex >= practiceQueue.length - 2) {
         setIsFetchingMore(true);
         try {
-          const moreQs = await generateExamQuestions(state.selectedExam!, practiceConfig.subject, 10);
+          const moreQs = await generateExamQuestions(state.selectedExam!, practiceConfig.subject, 5);
           setPracticeQueue(prev => [...prev, ...moreQs]);
-        } catch (e) {
-          console.error("Failed to fetch more questions:", e);
-        }
+        } catch (e) {}
         setIsFetchingMore(false);
       }
       setCurrentQIndex(prev => prev + 1);
@@ -240,133 +209,61 @@ const App: React.FC = () => {
     }
   }, [practiceConfig.mode, practiceConfig.subject, currentQIndex, practiceQueue.length, state.selectedExam, navigateTo]);
 
-  const hideHeader = state.view === 'landing' || state.view === 'login' || state.view === 'signup' || state.view === 'privacy' || state.view === 'practice';
+  const isEntryView = ['landing', 'login', 'signup', 'forgotPassword', 'privacy'].includes(state.view);
 
   return (
-    <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans transition-colors duration-300`}>
+    <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans transition-colors duration-300 bg-white dark:bg-slate-950`}>
       <BackgroundAnimation />
       
-      {/* Global AI Loading Screen (Sand Timer) */}
       {isLoading && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
-           <div className="mb-10">
-              <div className="sand-timer mx-auto">
-                 <div className="sand-top"></div>
-                 <div className="sand-bottom"></div>
-                 <div className="sand-stream"></div>
-              </div>
+        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+           <div className="mb-8">
+              <LogoIcon size="md" className="animate-spin-slow" />
            </div>
-           <div className="space-y-4 max-w-sm">
-              <h3 className="text-3xl font-display font-black text-white leading-tight">Starting Revision...</h3>
-              <p className="text-slate-400 text-sm font-medium tracking-wide">
-                 AI is generating your personalized {practiceConfig.subject} session for {state.selectedExam}. 
-                 Analyzing thousands of patterns to find your next challenge.
-              </p>
-           </div>
+           <h3 className="text-2xl font-display font-black text-white tracking-widest uppercase mb-2">Generating Universe</h3>
+           <p className="text-brand-300 font-mono text-xs animate-pulse">Aligning constellations...</p>
         </div>
       )}
 
-      {isAppInitializing ? (
-        <LoginScreen isInitializing={true} onLogin={() => {}} onNavigateToSignup={() => {}} onForgotPassword={() => {}} />
-      ) : (
-        <main className="relative z-10 min-h-screen w-full flex flex-col">
-          {!hideHeader && (
-            <div className="flex justify-between items-center px-4 py-3 pt-safe sm:px-6 sticky top-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl z-40 border-b border-white/10 shadow-sm">
-                <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('dashboard')}>
+      <main className="relative z-10 min-h-screen w-full flex flex-col">
+        {!isEntryView && state.view !== 'practice' && (
+          <div className="flex justify-between items-center px-4 py-3 pt-safe sm:px-6 sticky top-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-40 border-b border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('dashboard')}>
                   <LogoIcon size="sm" />
-                  <div>
-                    <h1 className="font-display font-black text-base text-slate-800 dark:text-white leading-none tracking-tight">PYQverse</h1>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setIsSidebarOpen(true)} className="p-2 rounded-full bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 active:scale-95 transition-all">
-                    <svg className="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  </button>
-                </div>
-            </div>
-          )}
-
-          <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-            {state.view === 'landing' && <LandingPage onLogin={() => navigateTo('login')} onSignup={(q) => { if(q) setInitialDoubtQuery(q); navigateTo('signup'); }} />}
-            {state.view === 'login' && <LoginScreen onLogin={(user) => loadUserData(user.id)} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} onNavigateToPrivacy={() => navigateTo('privacy')} />}
-            {state.view === 'signup' && <SignupScreen onSignup={() => {}} onBackToLogin={() => navigateTo('login')} />}
-            {state.view === 'forgotPassword' && <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />}
-            {state.view === 'dashboard' && <Dashboard stats={state.stats} user={state.user} onStartPractice={() => setShowPracticeConfig(true)} onUpload={() => navigateTo('upload')} onGeneratePaper={() => navigateTo('paperGenerator')} onOpenBookmarks={() => navigateTo('bookmarks')} onOpenAnalytics={() => navigateTo('analytics')} onOpenLeaderboard={() => navigateTo('leaderboard')} selectedExam={state.selectedExam} darkMode={state.darkMode} language={state.language} onToggleTimer={() => {}} onToggleDarkMode={() => {}} onStartCurrentAffairs={() => {}} onReadCurrentAffairs={() => {}} onReadNotes={() => {}} onEnableNotifications={() => {}} showTimer={true} onInstall={handleInstallClick} canInstall={canInstall} />}
-            {state.view === 'practice' && practiceQueue[currentQIndex] && (
-                <QuestionCard 
-                    question={practiceQueue[currentQIndex]} 
-                    onAnswer={handleAnswer}
-                    onNext={handleNextQuestion} 
-                    onBack={() => navigateTo('dashboard')}
-                    isLast={currentQIndex === practiceQueue.length - 1 && practiceConfig.mode !== 'endless'} 
-                    isLoadingNext={isFetchingMore}
-                    language={state.language}
-                    onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))}
-                    onBookmarkToggle={(q) => state.user && toggleBookmark(state.user.id, q)}
-                    sessionStats={{
-                        currentIndex: currentQIndex,
-                        total: practiceConfig.mode === 'endless' ? 100 : practiceConfig.count,
-                        correct: sessionCorrect,
-                        wrong: sessionWrong
-                    }}
-                />
-            )}
-            {state.view === 'upload' && state.user && state.selectedExam && (
-              <UploadForm 
-                userId={state.user.id} 
-                examType={state.selectedExam} 
-                initialQuery={initialDoubtQuery || undefined}
-                onSuccess={() => { setInitialDoubtQuery(null); navigateTo('dashboard'); }} 
-              />
-            )}
-            {state.view === 'paperGenerator' && state.selectedExam && <PaperGenerator examType={state.selectedExam} onGenerate={(p) => { setState(s => ({ ...s, generatedPaper: p })); navigateTo('paperView'); }} onBack={() => navigateTo('dashboard')} onExamChange={() => {}} />}
-            {state.view === 'paperView' && state.generatedPaper && state.user && <PaperView paper={state.generatedPaper} userId={state.user.id} onClose={() => navigateTo('dashboard')} language={state.language} />}
-            {state.view === 'leaderboard' && state.user && <Leaderboard user={state.user} onBack={() => navigateTo('dashboard')} />}
-            {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={[]} onBack={() => navigateTo('dashboard')} />}
-            {state.view === 'privacy' && <PrivacyPolicy onBack={() => navigateTo('dashboard')} />}
-            {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} onExamChange={() => {}} onInstall={handleInstallClick} canInstall={canInstall} />}
-            {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} />}
+                  <h1 className="font-display font-black text-xl text-brand-600 dark:text-white tracking-tighter">PYQverse</h1>
+              </div>
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:scale-95 transition-all">
+                  <svg className="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
+              </button>
           </div>
+        )}
 
-          {showPracticeConfig && state.selectedExam && (
-            <PracticeConfigModal 
-                examType={state.selectedExam} 
-                onClose={() => setShowPracticeConfig(false)} 
-                onStart={(conf) => { setPracticeConfig(conf); handleStartPractice(conf); }} 
-                onExamChange={(e) => setState(s => ({ ...s, selectedExam: e }))}
-                isPro={state.user?.isPro}
-                isAdmin={state.user?.isAdmin}
-            />
+        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          {state.view === 'landing' && <LandingPage onLogin={() => navigateTo('login')} onSignup={(q) => { if(q) setInitialDoubtQuery(q); navigateTo('signup'); }} />}
+          {state.view === 'login' && <LoginScreen onLogin={(user) => loadUserData(user.id)} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} onNavigateToPrivacy={() => navigateTo('privacy')} />}
+          {state.view === 'signup' && <SignupScreen onSignup={() => {}} onBackToLogin={() => navigateTo('login')} />}
+          {state.view === 'forgotPassword' && <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />}
+          {state.view === 'dashboard' && <Dashboard stats={state.stats} user={state.user} onStartPractice={() => setShowPracticeConfig(true)} onUpload={() => navigateTo('upload')} onGeneratePaper={() => navigateTo('paperGenerator')} onOpenBookmarks={() => navigateTo('bookmarks')} onOpenAnalytics={() => navigateTo('analytics')} onOpenLeaderboard={() => navigateTo('leaderboard')} selectedExam={state.selectedExam} darkMode={state.darkMode} language={state.language} onToggleTimer={() => {}} onToggleDarkMode={() => {}} onStartCurrentAffairs={() => {}} onReadCurrentAffairs={() => {}} onReadNotes={() => {}} onEnableNotifications={() => {}} showTimer={true} onInstall={handleInstallClick} canInstall={canInstall} />}
+          {state.view === 'practice' && practiceQueue[currentQIndex] && (
+              <QuestionCard question={practiceQueue[currentQIndex]} onAnswer={handleAnswer} onNext={handleNextQuestion} onBack={() => navigateTo('dashboard')} isLast={currentQIndex === practiceQueue.length - 1 && practiceConfig.mode !== 'endless'} isLoadingNext={isFetchingMore} language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} onBookmarkToggle={(q) => state.user && toggleBookmark(state.user.id, q)} sessionStats={{ currentIndex: currentQIndex, total: practiceConfig.mode === 'endless' ? 100 : practiceConfig.count, correct: sessionCorrect, wrong: sessionWrong }} />
           )}
+          {state.view === 'upload' && state.user && state.selectedExam && <UploadForm userId={state.user.id} examType={state.selectedExam} initialQuery={initialDoubtQuery || undefined} onSuccess={() => { setInitialDoubtQuery(null); navigateTo('dashboard'); }} />}
+          {state.view === 'paperGenerator' && state.selectedExam && <PaperGenerator examType={state.selectedExam} onGenerate={(p) => { setState(s => ({ ...s, generatedPaper: p })); navigateTo('paperView'); }} onBack={() => navigateTo('dashboard')} onExamChange={() => {}} />}
+          {state.view === 'paperView' && state.generatedPaper && state.user && <PaperView paper={state.generatedPaper} userId={state.user.id} onClose={() => navigateTo('dashboard')} language={state.language} />}
+          {state.view === 'leaderboard' && state.user && <Leaderboard user={state.user} onBack={() => navigateTo('dashboard')} />}
+          {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={[]} onBack={() => navigateTo('dashboard')} />}
+          {state.view === 'privacy' && <PrivacyPolicy onBack={() => navigateTo('dashboard')} />}
+          {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} onExamChange={() => {}} onInstall={handleInstallClick} canInstall={canInstall} />}
+          {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} />}
+        </div>
 
-          <Sidebar 
-            isOpen={isSidebarOpen} 
-            onClose={() => setIsSidebarOpen(false)} 
-            user={state.user} 
-            stats={state.stats} 
-            darkMode={state.darkMode} 
-            onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))} 
-            showTimer={state.showTimer} 
-            onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))} 
-            language={state.language} 
-            onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} 
-            currentTheme={state.theme} 
-            onThemeChange={(t) => { setState(s => ({ ...s, theme: t })); applyTheme(t); }} 
-            onNavigate={navigateTo} 
-            onLogout={handleLogout} 
-            onEnableNotifications={() => {}} 
-            onInstall={handleInstallClick}
-            canInstall={canInstall}
-          />
-          
-          {state.view !== 'landing' && state.view !== 'login' && state.view !== 'signup' && state.view !== 'practice' && state.view !== 'paperView' && (
-            <MobileBottomNav currentView={state.view} onNavigate={navigateTo} onAction={() => setShowPracticeConfig(true)} />
-          )}
-        </main>
-      )}
+        {showPracticeConfig && state.selectedExam && <PracticeConfigModal examType={state.selectedExam} onClose={() => setShowPracticeConfig(false)} onStart={(conf) => { setPracticeConfig(conf); handleStartPractice(conf); }} onExamChange={(e) => setState(s => ({ ...s, selectedExam: e }))} isPro={state.user?.isPro} isAdmin={state.user?.isAdmin} />}
+        
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={state.user} stats={state.stats} darkMode={state.darkMode} onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))} showTimer={state.showTimer} onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))} language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} currentTheme={state.theme} onThemeChange={(t) => { setState(s => ({ ...s, theme: t })); applyTheme(t); }} onNavigate={navigateTo} onLogout={handleLogout} onEnableNotifications={() => {}} onInstall={handleInstallClick} canInstall={canInstall} />
+        
+        {!isEntryView && state.view !== 'practice' && state.view !== 'paperView' && <MobileBottomNav currentView={state.view} onNavigate={navigateTo} onAction={() => setShowPracticeConfig(true)} />}
+        <SafariInstallPrompt />
+      </main>
     </div>
   );
 };

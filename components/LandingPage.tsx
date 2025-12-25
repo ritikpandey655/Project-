@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from './Button';
 import { LogoIcon } from './LogoIcon';
@@ -13,30 +12,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
 
   const handleSolve = () => {
     if (!query.trim()) return;
-    // Direct user to signup but pass the query
     onSignup(query);
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#f8f9ff] dark:bg-[#0c0a1a] overflow-x-hidden">
+    <div className="min-h-screen w-full bg-slate-950 overflow-x-hidden text-white selection:bg-brand-500/30">
       
-      {/* Premium Navbar */}
-      <nav className="fixed w-full z-50 bg-white/50 dark:bg-slate-950/50 backdrop-blur-2xl border-b border-white/10">
+      {/* Sci-Fi Navbar */}
+      <nav className="fixed w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex items-center gap-3">
+          <div className="flex justify-between items-center h-16 sm:h-20">
+            <div className="flex items-center gap-2">
               <LogoIcon size="sm" />
-              <span className="font-display font-black text-2xl text-slate-800 dark:text-white tracking-tighter">PYQverse</span>
+              <span className="font-display font-black text-2xl text-white tracking-tighter">PYQverse</span>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button 
                 onClick={onLogin}
-                className="text-slate-600 dark:text-slate-300 font-black text-sm hover:text-brand-purple transition-colors px-4 py-2"
+                className="text-slate-300 font-bold text-sm hover:text-white transition-colors px-4 py-2"
               >
                 Log In
               </button>
-              <Button onClick={() => onSignup()} size="md" className="hidden sm:inline-flex !bg-indigo-600 !rounded-full shadow-2xl shadow-indigo-500/20">
-                Get Started Free
+              <Button onClick={() => onSignup()} className="hidden sm:inline-flex shadow-[0_0_20px_rgba(79,70,229,0.4)] !bg-brand-600 hover:!bg-brand-500 border border-white/10">
+                Start Free
               </Button>
             </div>
           </div>
@@ -44,73 +42,76 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup }) =
       </nav>
 
       {/* Hero Section */}
-      <div className="relative pt-40 pb-20 sm:pt-52 sm:pb-32 overflow-hidden">
-        {/* Animated Background Gradients */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[700px] bg-indigo-500/10 dark:bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
-        
+      <div className="relative pt-32 pb-16 sm:pt-48 sm:pb-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-white/5 border border-indigo-100 dark:border-white/10 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-widest mb-8 animate-slide-up">
-            ✨ Next-Gen AI Exam Platform
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-900/20 border border-brand-500/30 text-brand-400 text-[10px] font-black uppercase tracking-widest mb-6 animate-slide-up shadow-[0_0_10px_rgba(79,70,229,0.2)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse"></span>
+            India's Smartest Exam Universe
           </div>
 
-          <h1 className="text-6xl sm:text-8xl font-display font-black text-slate-900 dark:text-white mb-8 leading-[0.9] tracking-tighter animate-slide-up">
-            Prepare Exams. <br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600">
-               Instantly. AI Only.
-            </span>
+          <h1 className="text-5xl sm:text-7xl lg:text-9xl font-display font-black text-white mb-8 leading-[1] tracking-tighter animate-slide-up drop-shadow-2xl">
+            Master Exams<br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-purple-400">With AI.</span>
           </h1>
           
-          <div className="flex justify-center items-center gap-4 text-slate-400 dark:text-slate-500 font-bold text-lg sm:text-2xl mb-12 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-             <span>Idea</span>
-             <span className="text-indigo-500/40">→</span>
-             <span className="text-slate-800 dark:text-slate-200">Practice</span>
-             <span className="text-indigo-500/40">→</span>
-             <span>Success</span>
-          </div>
+          <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 font-medium leading-relaxed animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            Personalized practice, instant visual doubt solving, and full-length mock tests for UPSC, NEET, JEE, and all Indian state board exams.
+          </p>
           
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <Button onClick={() => onSignup()} size="lg" className="!bg-slate-900 dark:!bg-white !text-white dark:!text-slate-900 !px-10 !py-5 !rounded-full !text-xl font-black shadow-2xl transition-transform transform hover:scale-105 active:scale-95">
-              Launch Universe Free
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <Button onClick={() => onSignup()} size="lg" className="w-full sm:w-auto px-10 py-5 text-xl font-black rounded-full shadow-[0_0_30px_rgba(79,70,229,0.4)] !bg-brand-600 hover:!scale-105 transition-transform">
+              Get Started Free
             </Button>
-            <p className="text-slate-500 font-medium max-w-xs text-sm text-left hidden md:block">
-              Built for UPSC, NEET, JEE & UP Board with the world's most accurate AI patterns.
-            </p>
+            <button onClick={onLogin} className="w-full sm:w-auto px-8 py-5 text-white font-bold hover:bg-white/5 rounded-full border border-white/10 transition-all backdrop-blur-sm">
+              Login to Universe
+            </button>
           </div>
 
-          {/* Screenshot-like prompt bar for Landing Page */}
-          <div className="mt-24 max-w-3xl mx-auto p-4 bg-white/40 dark:bg-white/5 backdrop-blur-3xl rounded-[32px] border border-white dark:border-white/10 shadow-2xl animate-pop-in" style={{ animationDelay: '0.4s' }}>
-             <div className="w-full bg-white dark:bg-slate-900 rounded-[24px] p-2 sm:p-4 text-left shadow-inner flex items-center justify-between border border-slate-100 dark:border-white/5">
-                <input 
-                  type="text" 
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSolve()}
-                  className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-slate-800 dark:text-white font-medium placeholder-slate-400"
-                  placeholder="Ask PYQverse to solve any question..." 
-                />
-                <button 
-                  onClick={handleSolve}
-                  className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 active:scale-90 transition-transform flex-shrink-0"
-                >
-                   ↑
-                </button>
-             </div>
+          {/* Glowing Prompt Bar */}
+          <div className="mt-20 max-w-2xl mx-auto p-1.5 bg-slate-900/80 backdrop-blur-xl rounded-full shadow-[0_0_40px_rgba(0,0,0,0.5)] border border-white/10 flex items-center gap-2 group animate-pop-in hover:border-brand-500/50 transition-colors" style={{ animationDelay: '0.4s' }}>
+             <div className="w-12 h-12 rounded-full bg-brand-500/20 flex items-center justify-center text-xl flex-shrink-0 ml-1 text-brand-400">🧠</div>
+             <input 
+               type="text" 
+               value={query}
+               onChange={(e) => setQuery(e.target.value)}
+               onKeyDown={(e) => e.key === 'Enter' && handleSolve()}
+               className="flex-1 bg-transparent border-none outline-none px-2 py-3 text-white font-bold placeholder-slate-500"
+               placeholder="Type any topic... e.g. 'Newton's Laws'" 
+             />
+             <button 
+               onClick={handleSolve}
+               className="px-8 py-3 rounded-full bg-white text-brand-900 font-black text-sm shadow-lg hover:bg-slate-200 transition-all flex-shrink-0"
+             >
+                SOLVE
+             </button>
           </div>
         </div>
       </div>
 
-      {/* Social Proof */}
-      <div className="py-20 border-t border-slate-200 dark:border-white/5">
-         <div className="max-w-5xl mx-auto px-4 flex flex-wrap justify-center gap-8 sm:gap-16 grayscale opacity-40">
-            {['UPSC', 'SSC', 'NEET', 'JEE', 'UP BOARD', 'RAILWAYS'].map(ex => (
-              <span key={ex} className="font-display font-black text-2xl tracking-tighter dark:text-white">{ex}</span>
-            ))}
+      {/* Feature Highlights (Dark) */}
+      <div className="py-20 border-t border-white/5 bg-slate-900/30">
+         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-8 bg-white/5 rounded-[32px] border border-white/5 hover:bg-white/10 transition-colors backdrop-blur-sm">
+               <div className="text-4xl mb-6">🤖</div>
+               <h3 className="text-xl font-black text-white mb-2">Adaptive AI Practice</h3>
+               <p className="text-slate-400 text-sm font-medium leading-relaxed">Questions that evolve with your learning level for maximum efficiency.</p>
+            </div>
+            <div className="p-8 bg-white/5 rounded-[32px] border border-white/5 hover:bg-white/10 transition-colors backdrop-blur-sm">
+               <div className="text-4xl mb-6">📸</div>
+               <h3 className="text-xl font-black text-white mb-2">Visual Doubt Solver</h3>
+               <p className="text-slate-400 text-sm font-medium leading-relaxed">Scan handwritten notes or textbook pages for instant step-by-step solutions.</p>
+            </div>
+            <div className="p-8 bg-white/5 rounded-[32px] border border-white/5 hover:bg-white/10 transition-colors backdrop-blur-sm">
+               <div className="text-4xl mb-6">📈</div>
+               <h3 className="text-xl font-black text-white mb-2">Smart Analytics</h3>
+               <p className="text-slate-400 text-sm font-medium leading-relaxed">Deep insights into your strong and weak topics with AI recommendations.</p>
+            </div>
          </div>
       </div>
 
-      <div className="py-10 text-center text-[10px] text-slate-400 uppercase tracking-widest">
-         © 2025 PYQverse AI • All Exams Ka Universe
+      <div className="py-10 text-center text-[10px] text-slate-600 uppercase tracking-widest font-bold">
+         © 2025 PYQverse • Accelerating India's Learners
       </div>
     </div>
   );

@@ -1,41 +1,20 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#f97316" />
+    <meta name="theme-color" content="#5B2EFF" />
+    <title>PYQverse - AI Exam Preparation</title>
     
-    <!-- Primary SEO -->
-    <title>PYQverse</title>
-    <meta name="description" content="Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered Previous Year Questions, Mock Tests, and Smart Analytics. Best app for Indian Exam Preparation." />
-    <meta name="keywords" content="PYQverse, UPSC PYQ, SSC CGL Previous Year Questions, JEE Mains Mock Test, NEET Prep, AI Exam Preparation, Exam Pilot, Free Mock Test App, Sarkari Exam Prep" />
-    <meta name="author" content="PYQverse" />
-    <meta name="robots" content="index, follow" />
+    <!-- SEO & Metadata -->
+    <meta name="description" content="Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered Previous Year Questions and Mock Tests." />
     
-    <!-- Canonical Tag to Fix Indexing/Redirect Issues -->
-    <link rel="canonical" href="https://pyqverse.in/" />
-    
-    <!-- Google Search Console Verification -->
-    <meta name="google-site-verification" content="L3rCDAWQpbGNAOIsteCbHlWU7dcmONSbw3fPI8IWRts" />
-
-    <!-- Schema Markup -->
-    <script type="application/ld+json">
-    [
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "PYQverse",
-        "url": "https://pyqverse.in/"
-      }
-    ]
-    </script>
-
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -48,159 +27,78 @@
             },
             colors: {
               brand: {
-                primary: 'var(--brand-primary)',
-                50: 'var(--primary-50)',
-                100: 'var(--primary-100)',
-                200: 'var(--primary-200)',
-                300: 'var(--primary-300)',
-                400: 'var(--primary-400)',
-                500: 'var(--primary-500)',
-                600: 'var(--primary-600)',
-                700: 'var(--primary-700)',
-                800: 'var(--primary-800)',
-                900: 'var(--primary-900)',
-                purple: 'var(--brand-primary)',
-                blue: '#3B82F6',
-                green: '#10B981',
-                yellow: '#FACC15',
-                dark: '#111827',
-                light: '#F3F4F6',
-              }
-            },
-            animation: {
-              'fade-in': 'fadeIn 0.4s ease-out',
-              'slide-up': 'slideUp 0.5s ease-out',
-              'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-              'float': 'float 6s ease-in-out infinite',
-              'spin-slow': 'spin 8s linear infinite',
-              'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
-            },
-            keyframes: {
-              fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
-              slideUp: { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
-              popIn: { '0%': { opacity: '0', transform: 'scale(0.95)' }, '100%': { opacity: '1', transform: 'scale(1)' } },
-              float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-15px)' } },
-              pulseGlow: { 
-                '0%, 100%': { opacity: '0.4', transform: 'scale(1)' }, 
-                '50%': { opacity: '0.7', transform: 'scale(1.05)' } 
+                primary: '#5B2EFF',
+                50: '#efebff',
+                100: '#dcd0ff',
+                200: '#bfa6ff',
+                300: '#9e75ff',
+                400: '#7d4bff',
+                500: '#5B2EFF',
+                600: '#491ecb',
+                700: '#38159b',
+                800: '#291070',
+                900: '#1d0b4d',
+                purple: '#5B2EFF',
+                yellow: '#FACC15'
               }
             }
           }
         }
       }
     </script>
+
     <style>
-      .pt-safe { padding-top: env(safe-area-inset-top); }
-      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-      .no-scrollbar::-webkit-scrollbar { display: none; }
-      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      
-      /* Default Primary Color Variables */
       :root {
         --brand-primary: #5B2EFF;
-        --primary-50: #efebff;
-        --primary-100: #dcd0ff;
-        --primary-200: #bfa6ff;
-        --primary-300: #9e75ff;
-        --primary-400: #7d4bff;
-        --primary-500: #5B2EFF;
-        --primary-600: #491ecb;
-        --primary-700: #38159b;
-        --primary-800: #291070;
-        --primary-900: #1d0b4d;
       }
-
-      /* High-Quality Sand Timer CSS */
-      .sand-timer {
-        position: relative;
-        width: 40px;
-        height: 70px;
-        animation: sandFlip 3s cubic-bezier(0.8, 0, 0.2, 1) infinite;
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+        background-color: #020617; /* Dark background default */
       }
-      .sand-timer:before {
-        content: "";
-        position: absolute;
-        inset: -2px;
-        border: 2px solid rgba(255,255,255,0.1);
-        border-radius: 4px;
+      #root {
+        min-height: 100vh;
       }
-      .sand-top {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 50%;
-        background: var(--brand-primary);
-        clip-path: polygon(0 0, 100% 0, 50% 100%);
-        animation: sandDrain 3s linear infinite;
-        transform-origin: bottom;
-      }
-      .sand-bottom {
-        position: absolute;
-        bottom: 0; left: 0; width: 100%; height: 50%;
-        background: var(--brand-primary);
-        clip-path: polygon(50% 0, 0 100%, 100% 100%);
-        transform: scaleY(0);
-        animation: sandFill 3s linear infinite;
-        transform-origin: bottom;
-      }
-      .sand-stream {
-        position: absolute;
-        top: 50%; left: 50%; width: 2px; height: 50%;
-        background: var(--brand-primary);
-        transform: translateX(-50%);
-        animation: streamVisible 3s linear infinite;
-      }
-      @keyframes sandFlip { 
-        0%, 85% { transform: rotate(0); } 
-        100% { transform: rotate(180deg); } 
-      }
-      @keyframes sandDrain { 
-        0% { transform: scaleY(1); } 
-        85%, 100% { transform: scaleY(0); } 
-      }
-      @keyframes sandFill { 
-        0% { transform: scaleY(0); } 
-        85%, 100% { transform: scaleY(1); } 
-      }
-      @keyframes streamVisible { 
-        0%, 5% { opacity: 1; } 
-        85%, 100% { opacity: 0; } 
-      }
+      .pt-safe { padding-top: env(safe-area-inset-top); }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     </style>
-<script type="importmap">
+
+    <script type="importmap">
 {
   "imports": {
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "cors": "https://aistudiocdn.com/cors@^2.8.5",
-    "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "vite-plugin-pwa": "https://aistudiocdn.com/vite-plugin-pwa@^1.2.0",
-    "axios": "https://aistudiocdn.com/axios@^1.13.2",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "express": "https://aistudiocdn.com/express@^5.2.1",
-    "path": "https://aistudiocdn.com/path@^0.12.7",
-    "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
-    "helmet": "https://aistudiocdn.com/helmet@^8.1.0",
-    "dotenv/": "https://esm.sh/dotenv@^17.2.3/"
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "recharts": "https://esm.sh/recharts@2.15.0",
+    "@google/genai": "https://esm.sh/@google/genai@1.3.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js",
+    "firebase/analytics": "https://www.gstatic.com/firebasejs/11.1.0/firebase-analytics.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "path": "https://esm.sh/path@^0.12.7",
+    "dotenv/": "https://esm.sh/dotenv@^17.2.3/",
+    "express": "https://esm.sh/express@^5.2.1",
+    "cors": "https://esm.sh/cors@^2.8.5",
+    "helmet": "https://esm.sh/helmet@^8.1.0",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
+    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0"
   }
 }
 </script>
 </head>
-  <body class="bg-[#F3F4F6] dark:bg-[#111827] text-slate-900 dark:text-slate-100 h-full w-full overflow-y-auto overflow-x-hidden select-none transition-colors duration-200">
-    <div id="root" class="h-full w-full"></div>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').then(registration => {
-            console.log('SW registered: ', registration);
-          }).catch(registrationError => {
-            console.log('SW registration failed: ', registrationError);
-          });
-        });
-      }
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div id="root"></div>
+    
+    <script type="module">
+      window.onerror = function(message, source, lineno, colno, error) {
+        console.error("Critical Runtime Error: ", message, " at ", source, ":", lineno);
+      };
+      import "./index.tsx";
     </script>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+</body>
 </html>

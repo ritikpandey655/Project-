@@ -1,7 +1,6 @@
-
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
-import "firebase/compat/analytics";
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAnalytics, isSupported } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -15,23 +14,18 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 
-// Auth & Analytics (Compat)
-const auth = firebase.auth();
-const googleProvider = new firebase.auth.GoogleAuthProvider();
-
-let analytics: any = null;
-if (typeof window !== 'undefined') {
-  try {
-     analytics = firebase.analytics();
-  } catch(e) {
-     console.log("Firebase Analytics failed:", e);
-  }
-}
-
-// Firestore (Modular - required for storageService compatibility)
+// Initialize Services
+const auth = getAuth(app);
 const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
+
+// Initialize Analytics conditionally
+let analytics = null;
+isSupported().then(yes => {
+  if (yes) analytics = getAnalytics(app);
+});
 
 export { app, auth, db, analytics, googleProvider };
 export default app;

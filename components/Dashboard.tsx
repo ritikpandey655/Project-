@@ -91,7 +91,6 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
     })).sort((a, b) => b.score - a.score).slice(0, 5);
   }, [displayedStats]);
 
-  // Use dynamic theme primary color for charts
   const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--brand-primary').trim() || '#5B2EFF';
 
   return (
@@ -100,6 +99,26 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
       {!isOnline && (
         <div className="bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-lg flex items-center justify-between animate-fade-in">
           <span className="uppercase tracking-tighter">📡 Offline Mode</span>
+        </div>
+      )}
+
+      {/* PWA Install Banner - Specific for Android/Chrome */}
+      {canInstall && onInstall && (
+        <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20 flex flex-col sm:flex-row items-center justify-between gap-6 animate-pop-in border border-indigo-400/30 relative overflow-hidden group">
+           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full duration-1000 transition-transform"></div>
+           <div className="flex items-center gap-4 relative z-10">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl shadow-inner">📲</div>
+              <div>
+                <h3 className="font-display font-black text-xl leading-none mb-1">Install PYQverse</h3>
+                <p className="text-indigo-100 text-xs font-medium opacity-80">Access preparation 2x faster from home screen.</p>
+              </div>
+           </div>
+           <button 
+             onClick={onInstall}
+             className="w-full sm:w-auto bg-white text-indigo-600 px-6 py-3 rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-all relative z-10"
+           >
+             INSTALL NOW
+           </button>
         </div>
       )}
 
@@ -131,7 +150,6 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
 
       {/* Feature Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-         {/* Practice Card */}
          <div 
            onClick={onStartPractice}
            className="group bg-gradient-to-br from-brand-600 to-brand-800 p-8 rounded-[32px] text-white shadow-2xl shadow-brand-500/20 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-all"
@@ -149,7 +167,6 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
             </div>
          </div>
 
-         {/* Right Sub-Grid */}
          <div className="grid grid-cols-1 gap-4">
             <div 
               onClick={onUpload}
@@ -175,7 +192,6 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
          </div>
       </div>
 
-      {/* Analytics Section */}
       <div className="bg-white dark:bg-slate-800/40 backdrop-blur-md rounded-[40px] p-8 border border-slate-100 dark:border-white/10 shadow-sm">
          <div className="flex justify-between items-center mb-8">
             <h3 className="font-display font-black text-2xl text-slate-800 dark:text-white">Performance Analytics</h3>
@@ -196,7 +212,6 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
          </div>
       </div>
 
-      {/* Footer Support Section */}
       <div className="pt-12 pb-8 border-t border-slate-200 dark:border-white/5 flex flex-col items-center opacity-60">
           <p className="text-xs font-bold text-slate-400 tracking-widest mb-4">© 2025 PYQVERSE AI</p>
           <div className="flex gap-8">

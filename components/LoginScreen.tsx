@@ -1,9 +1,7 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { Button } from './Button';
 import { LogoIcon } from './LogoIcon';
@@ -11,6 +9,7 @@ import { LogoIcon } from './LogoIcon';
 interface LoginScreenProps {
   onLogin: (user: User) => void;
   onNavigateToSignup: () => void;
+  onForgotPassword: () => void;
   onNavigateToPrivacy?: () => void;
   isOnline?: boolean;
   isInitializing?: boolean;
@@ -19,23 +18,15 @@ interface LoginScreenProps {
 export const LoginScreen: React.FC<LoginScreenProps> = ({ 
   onLogin, 
   onNavigateToSignup, 
+  onForgotPassword,
   onNavigateToPrivacy,
   isOnline = true, 
   isInitializing = false 
 }) => {
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [logoClicks, setLogoClicks] = useState(0);
-
-  useEffect(() => {
-    if (logoClicks >= 5) {
-       setLogoClicks(0);
-       alert("Admin Mode activated.");
-    }
-  }, [logoClicks]);
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
@@ -44,21 +35,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       const userEmail = firebaseUser.email || "";
       const rawName = firebaseUser.displayName || "User"; 
       const emailToCheck = userEmail.toLowerCase();
-      
       const isAdmin = emailToCheck === 'support@pyqverse.in' || emailToCheck === 'admin@pyqverse.com';
 
       const safeData = {
         id: firebaseUser.uid,
         name: rawName,
         email: userEmail,
-        mobile: firebaseUser.phoneNumber || null,
-        photoURL: firebaseUser.photoURL || null,
         isAdmin: !!isAdmin 
       };
 
-      if (userSnap.exists()) {
-        return userSnap.data() as User;
-      } else {
+      if (userSnap.exists()) return userSnap.data() as User;
+      else {
         await setDoc(userRef, safeData);
         return safeData as User;
       }
@@ -73,7 +60,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setIsLoading(true);
     setError('');
     try {
-      const result = await auth.signInWithEmailAndPassword(email, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
       if (result.user) {
         const user = await syncUserToDB(result.user);
         onLogin(user);
@@ -90,7 +77,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setIsLoading(true);
     setError('');
     try {
-      const result = await auth.signInWithPopup(googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
       if (result.user) {
          const user = await syncUserToDB(result.user);
          onLogin(user);
@@ -102,105 +89,56 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   };
 
-  if (isInitializing) {
-    return (
-      <div className="fixed inset-0 z-[100] bg-[#0c0a1a] flex flex-col items-center justify-center overflow-hidden">
-         <div className="absolute inset-0">
-            <div className="absolute top-[-20%] left-[-20%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]"></div>
-            <div className="absolute bottom-[-20%] right-[-20%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px]"></div>
-         </div>
-         
-         <div className="mb-8">
-            <div className="sand-timer mx-auto">
-               <div className="sand-top"></div>
-               <div className="sand-bottom"></div>
-               <div className="sand-stream"></div>
-            </div>
-         </div>
-
-         <div className="relative z-10 text-center animate-fade-in">
-            <h1 className="text-4xl font-display font-bold text-white tracking-tight">PYQverse</h1>
-            <p className="text-indigo-400 text-xs font-bold uppercase tracking-[0.3em] mt-3">All Exams Ka Universe</p>
-         </div>
-         <div className="absolute bottom-12 text-slate-500 text-[10px] font-mono z-10 flex flex-col items-center gap-2">
-            <div className="w-6 h-6 border-2 border-slate-700 border-t-indigo-500 rounded-full animate-spin"></div>
-            <span>Initializing Universe...</span>
-         </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-slate-950 via-[#0a0814] to-black flex flex-col items-center justify-center p-4 relative overflow-y-auto">
-      
-      {/* Background Orbs */}
-      <div className="absolute inset-0 pointer-events-none">
-         <div className="absolute top-[10%] left-[5%] w-[400px] h-[400px] bg-indigo-600/5 rounded-full blur-[100px]"></div>
-         <div className="absolute bottom-[10%] right-[5%] w-[300px] h-[300px] bg-pink-600/5 rounded-full blur-[80px]"></div>
-      </div>
+    <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-slate-900/50 backdrop-blur-xl rounded-[40px] shadow-2xl p-8 border border-white/5 flex flex-col items-center animate-fade-in relative overflow-hidden">
+        
+        {/* Glow Effects */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-500 to-transparent opacity-50"></div>
+        <div className="absolute bottom-[-20%] right-[-20%] w-40 h-40 bg-brand-500/20 rounded-full blur-3xl"></div>
 
-      <div className="max-w-md w-full bg-slate-900/40 backdrop-blur-3xl rounded-[40px] shadow-2xl p-10 border border-white/5 flex flex-col items-center z-10 my-8 animate-pop-in">
+        <div className="mb-6 relative z-10"><LogoIcon size="md" /></div>
         
-        <div className="cursor-pointer active:scale-95 transition-transform mb-8" onClick={() => setLogoClicks(p => p+1)}>
-            <LogoIcon size="md" />
+        <div className="text-center mb-8 relative z-10">
+            <h1 className="text-3xl font-display font-black text-white mb-2 tracking-tight">Welcome Back</h1>
+            <p className="text-slate-400 text-sm">Enter the exam universe.</p>
         </div>
         
-        <div className="text-center mb-10">
-            <h1 className="text-3xl font-display font-black text-white tracking-tight mb-1">Welcome Back</h1>
-            <p className="text-slate-400 text-sm font-medium">Login to access your universe.</p>
-        </div>
-        
-        <div className="w-full bg-white/5 p-1.5 rounded-[20px] flex mb-8 border border-white/5">
-            <button onClick={() => { setLoginMethod('email'); setError(''); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-[14px] transition-all ${loginMethod === 'email' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-500'}`}>Email</button>
-            <button onClick={() => { setLoginMethod('phone'); setError(''); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-[14px] transition-all ${loginMethod === 'phone' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-500'}`}>Phone</button>
-        </div>
-
-        <div className="w-full space-y-6">
-            {error && <div className="p-4 bg-red-500/10 text-red-200 text-xs font-bold rounded-2xl text-center border border-red-500/20 animate-shake">{error}</div>}
+        <div className="w-full space-y-6 relative z-10">
+            {error && <div className="p-3 bg-red-900/30 text-red-300 text-xs font-bold rounded-xl text-center border border-red-500/30">{error}</div>}
             
-            {loginMethod === 'email' ? (
-                <form onSubmit={handleEmailLogin} className="space-y-4">
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Email Address</label>
-                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 placeholder-slate-700 transition-all" placeholder="name@example.com" required />
-                    </div>
-                    <div className="space-y-1">
-                        <div className="flex justify-between items-center px-2">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Password</label>
-                        </div>
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 placeholder-slate-700 transition-all" placeholder="••••••••" required />
-                    </div>
-                    <Button type="submit" isLoading={isLoading} className="w-full py-5 !rounded-2xl !bg-indigo-600 !text-white !font-black !text-lg !shadow-2xl !shadow-indigo-600/30 !border-0 transform hover:scale-[1.02] active:scale-[0.98]">Sign In</Button>
-                </form>
-            ) : (
-                <div className="p-8 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
-                   <p className="text-slate-400 text-sm">Phone OTP support is currently under maintenance.</p>
+            <form onSubmit={handleEmailLogin} className="space-y-4">
+                <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Email Coordinates</label>
+                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border border-white/10 bg-white/5 text-white outline-none focus:border-brand-500 focus:bg-white/10 transition-all font-bold" placeholder="name@example.com" required />
                 </div>
-            )}
-
-            <div className="flex items-center gap-4 py-2">
-               <div className="h-px bg-white/5 flex-1"></div>
-               <span className="text-[10px] font-black text-slate-600 uppercase">OR</span>
-               <div className="h-px bg-white/5 flex-1"></div>
-            </div>
-
-            <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl border border-white/5 hover:bg-white/10 text-white font-black bg-white/5 transition-all active:scale-[0.98]">
-                <img src="https://www.google.com/favicon.ico" alt="G" className="w-5 h-5" />
-                <span className="text-sm">Continue with Google</span>
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Password</label>
+                        <button 
+                            type="button" 
+                            onClick={onForgotPassword}
+                            className="text-[10px] font-bold text-brand-400 hover:underline"
+                        >
+                            Forgot?
+                        </button>
+                    </div>
+                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/10 bg-white/5 text-white outline-none focus:border-brand-500 focus:bg-white/10 transition-all font-bold" placeholder="••••••••" required />
+                </div>
+                <Button type="submit" isLoading={isLoading} className="w-full py-4 text-lg font-black shadow-lg shadow-brand-500/20 !rounded-2xl !bg-brand-600 hover:!bg-brand-500">Sign In</Button>
+            </form>
+            
+            <div className="flex items-center gap-4 py-2"><div className="h-px bg-white/5 flex-1"></div><span className="text-[10px] font-black text-slate-600 uppercase">Or Continue With</span><div className="h-px bg-white/5 flex-1"></div></div>
+            
+            <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl border border-white/10 hover:bg-white/5 text-white font-bold transition-all group">
+                <img src="https://www.google.com/favicon.ico" alt="G" className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span>Google</span>
             </button>
         </div>
-
-        <div className="mt-10 pt-6 border-t border-white/5 text-center w-full">
-            <p className="text-sm text-slate-500 font-bold">New to Universe? <button onClick={onNavigateToSignup} className="text-indigo-400 hover:text-white transition-colors ml-1">Create Account</button></p>
+        
+        <div className="mt-8 pt-6 border-t border-white/5 text-center w-full relative z-10">
+            <p className="text-sm text-slate-500 font-medium">New Explorer? <button onClick={onNavigateToSignup} className="text-brand-400 font-bold hover:text-brand-300 transition-colors">Create Account</button></p>
         </div>
-      </div>
-
-      <div className="max-w-md w-full px-4 mt-8 flex flex-col items-center gap-4 opacity-40 z-10">
-         <div className="flex items-center gap-6">
-            <button onClick={onNavigateToPrivacy} className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Privacy Policy</button>
-            <a href="mailto:support@pyqverse.in" className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Contact Support</a>
-         </div>
-         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">© 2025 PYQverse AI</p>
       </div>
     </div>
   );

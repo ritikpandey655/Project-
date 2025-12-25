@@ -1,3 +1,4 @@
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -21,8 +22,8 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: null, // We handle SW registration manually in index.html
-        filename: 'service-worker.js',
-        manifest: false, // DISABLE AUTO-GENERATION to strictly use public/manifest.json
+        filename: 'sw.js', // Match the filename used in the project root
+        manifest: false, // Strictly use public/manifest.json
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'widget-template.json', 'widget-data.json', 'robots.txt'],
         workbox: {
           maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
@@ -49,7 +50,7 @@ export default defineConfig(({ mode }) => {
       alias: { '@': path.resolve('.') },
     },
     build: {
-      outDir: 'dist', // Capacitor defaults to 'dist'
+      outDir: 'dist',
       chunkSizeWarningLimit: 1600,
     },
     define: {
