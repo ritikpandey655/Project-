@@ -1,37 +1,7 @@
 {
   "headers": [
     {
-      "source": "/manifest.json",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/manifest+json"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        }
-      ]
-    },
-    {
-      "source": "/sw.js",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/javascript"
-        },
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        }
-      ]
-    },
-    {
-      "source": "/icons/(.*)\\.png",
+      "source": "/icons/(.*)",
       "headers": [
         {
           "key": "Content-Type",
@@ -46,6 +16,10 @@
   ],
   "rewrites": [
     {
+      "source": "/icons/(.*)",
+      "destination": "/icons/$1"
+    },
+    {
       "source": "/manifest.json",
       "destination": "/manifest.json"
     },
@@ -54,23 +28,7 @@
       "destination": "/sw.js"
     },
     {
-      "source": "/icons/:path*",
-      "destination": "/icons/:path*"
-    },
-    {
-      "source": "/offline.html",
-      "destination": "/offline.html"
-    },
-    {
-      "source": "/robots.txt",
-      "destination": "/robots.txt"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/((?!icons/|.*\\..*).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
