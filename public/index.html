@@ -200,17 +200,7 @@
 <body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
     <div id="root"></div>
     
-    <script>
-      // Service Worker Registration
-      if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
-        .then(reg => console.log('SW registered & controlling!', reg))
-        .catch(err => console.log('SW registration failed', err));
-    });
-  }
-    </script>
+</script>
     
     <script type="module" src="./index.tsx"></script>
 </body>

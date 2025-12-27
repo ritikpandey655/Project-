@@ -69,3 +69,18 @@ root.render(
     </ErrorBoundary>
   </React.StrictMode>
 );
+// ================================
+// ✅ PWA Service Worker Registration
+// ================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then(reg => {
+        console.log('✅ Service Worker registered and controlling:', reg);
+      })
+      .catch(err => {
+        console.error('❌ Service Worker registration failed:', err);
+      });
+  });
+}
