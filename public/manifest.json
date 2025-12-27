@@ -1,131 +1,27 @@
 {
   "name": "PYQverse - AI Exam Prep",
   "short_name": "PYQverse",
-  "description": "Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep.",
-  "id": "/",
+  "description": "Free AI-powered previous year questions and smart exam preparation.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "minimal-ui"],
   "orientation": "portrait-primary",
   "theme_color": "#5B2EFF",
   "background_color": "#111827",
-  "categories": ["education", "productivity", "study"],
   "lang": "en",
-  "dir": "ltr",
-  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
-  "prefer_related_applications": false,
-  "related_applications": [],
-  "launch_handler": {
-    "client_mode": "auto"
-  },
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "file_handlers": [
-    {
-      "action": "/?view=upload",
-      "accept": {
-        "text/plain": [".txt"],
-        "application/json": [".json"]
-      },
-      "icons": [
-        {
-          "src": "/icon.svg",
-          "sizes": "any",
-          "type": "image/svg+xml"
-        }
-      ]
-    }
-  ],
-  "note_taking": {
-    "new_note_url": "/?view=upload"
-  },
-  "widgets": [
-    {
-      "name": "Quick Practice",
-      "short_name": "Practice",
-      "description": "Start a quick exam session",
-      "tag": "practice",
-      "template": "widget-template.json",
-      "ms_ac_template": "widgets/practice.json",
-      "data": "widgets/data.json",
-      "type": "application/json",
-      "screenshots": []
-    }
-  ],
-  "share_target": {
-    "action": "/",
-    "method": "GET",
-    "enctype": "application/x-www-form-urlencoded",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url"
-    }
-  },
-  "protocol_handlers": [
-    {
-      "protocol": "web+pyqverse",
-      "url": "/?action=%s"
-    }
-  ],
+
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon.svg",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon.svg",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Start Practice",
-      "short_name": "Practice",
-      "description": "Start a new practice session instantly",
-      "url": "/?view=practice",
-      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
-    },
-    {
-      "name": "Doubt Solver",
-      "short_name": "Doubts",
-      "description": "Upload a question to solve",
-      "url": "/?view=upload",
-      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/icon.svg",
-      "sizes": "1280x720",
       "type": "image/png",
-      "form_factor": "wide",
-      "label": "Dashboard Desktop"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "720x1280",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Mobile Dashboard"
+      "purpose": "any maskable"
     }
   ]
 }
