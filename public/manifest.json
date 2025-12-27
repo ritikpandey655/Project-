@@ -1,14 +1,18 @@
 {
-  "name": "PYQverse",
+  "name": "PYQverse - AI Exam Prep",
   "short_name": "PYQverse",
-  "description": "Master UPSC, SSC, JEE, NEET and more with AI-powered Previous Year Questions.",
-  "theme_color": "#f97316",
-  "background_color": "#111827",
-  "display": "standalone",
-  "orientation": "portrait",
-  "scope": "/",
+  "description": "Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep.",
+  "id": "/",
   "start_url": "/",
-  "id": "pyqverse-app",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "theme_color": "#5B2EFF",
+  "background_color": "#111827",
+  "categories": ["education", "productivity", "study"],
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
@@ -33,6 +37,38 @@
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Practice",
+      "short_name": "Practice",
+      "description": "Start a new practice session instantly",
+      "url": "/",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Doubt Solver",
+      "short_name": "Doubts",
+      "description": "Scan and solve questions",
+      "url": "/",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "form_factor": "wide",
+      "label": "Dashboard on Desktop"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "Mobile Practice Screen"
     }
   ]
 }
