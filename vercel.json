@@ -13,12 +13,12 @@
         },
         {
           "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+          "value": "public, max-age=3600"
         }
       ]
     },
     {
-      "source": "/service-worker.js",
+      "source": "/sw.js",
       "headers": [
         {
           "key": "Content-Type",
@@ -26,7 +26,37 @@
         },
         {
           "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+          "value": "public, max-age=3600"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
+      "source": "/icon.svg",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+         {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
         }
       ]
     }
@@ -37,12 +67,20 @@
       "destination": "/manifest.json"
     },
     {
-      "source": "/service-worker.js",
-      "destination": "/service-worker.js"
+      "source": "/sw.js",
+      "destination": "/sw.js"
     },
     {
       "source": "/icon.svg",
       "destination": "/icon.svg"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/robots.txt"
+    },
+    {
+      "source": "/offline.html",
+      "destination": "/offline.html"
     },
     {
       "source": "/api/(.*)",
