@@ -1,9 +1,10 @@
 
-const CACHE_NAME = 'exampilot-v1';
+const CACHE_NAME = 'pyqverse-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/icon.svg'
 ];
 
 self.addEventListener('install', (event) => {
@@ -33,6 +34,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Navigation requests (HTML)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -43,9 +45,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Other requests
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
+        // Cache valid responses
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -53,7 +57,9 @@ self.addEventListener('fetch', (event) => {
             });
         }
         return networkResponse;
-      }).catch(() => {});
+      }).catch(() => {
+         // Fallback logic could go here
+      });
 
       return cachedResponse || fetchPromise;
     })
@@ -66,8 +72,8 @@ self.addEventListener('message', (event) => {
      setTimeout(() => {
         self.registration.showNotification("Time to Study! 📚", {
           body: "Keep your streak alive. Do a quick 5-min session now.",
-          icon: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamPilot',
-          badge: 'https://api.dicebear.com/9.x/shapes/png?seed=ExamPilot'
+          icon: '/icon.svg',
+          badge: '/icon.svg'
         });
      }, event.data.delay);
   }
