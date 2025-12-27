@@ -35,7 +35,7 @@
       ]
     },
     {
-      "source": "/icon.svg",
+      "source": "/icons/(.*)",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
@@ -71,8 +71,8 @@
       "destination": "/sw.js"
     },
     {
-      "source": "/icon.svg",
-      "destination": "/icon.svg"
+      "source": "/icons/:path*",
+      "destination": "/icons/:path*"
     },
     {
       "source": "/robots.txt",
@@ -87,7 +87,7 @@
       "destination": "/api/index.js"
     },
     {
-      "source": "/((?!assets/|.*\\..*).*)",
+      "source": "/((?!assets/|icons/|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
