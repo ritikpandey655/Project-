@@ -22,10 +22,12 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: null, // We handle SW registration manually in index.html
-        filename: 'sw.js', // Match the filename used in the project root
+        filename: 'sw.js', // Output filename
         manifest: false, // Strictly use public/manifest.json
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'widget-template.json', 'widget-data.json', 'robots.txt'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'robots.txt', 'custom-sw.js'],
         workbox: {
+          // Import our custom logic script
+          importScripts: ['custom-sw.js'],
           maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,txt}'],
           navigateFallback: '/index.html',

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState, ExamResult } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
@@ -109,6 +110,33 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Handle Share Target & Protocol Links
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    
+    // Handle Share Target
+    const title = params.get('title');
+    const text = params.get('text');
+    const url = params.get('url');
+    if (title || text || url) {
+        const query = [title, text, url].filter(Boolean).join(' ');
+        setInitialDoubtQuery(query);
+        // We will switch view once user is loaded, or if public, we handle it
+    }
+
+    // Handle Deep Links (Shortcuts)
+    const viewParam = params.get('view') as ViewState;
+    if (viewParam && ['practice', 'upload', 'dashboard'].includes(viewParam)) {
+        setState(prev => ({ ...prev, view: viewParam }));
+        if (viewParam === 'practice') setShowPracticeConfig(true);
+    }
+    
+    // Clean URL
+    if (window.location.search) {
+        window.history.replaceState({}, '', '/');
+    }
+  }, []);
+
   const handleInstallClick = useCallback(async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -162,7 +190,8 @@ const App: React.FC = () => {
         language: prefs.language,
         theme: prefs.theme || 'PYQverse Prime',
         examConfig: config,
-        view: initialDoubtQuery ? 'upload' : (['landing', 'login', 'signup'].includes(lastView) ? 'dashboard' : lastView)
+        // Prioritize explicit navigation from initialDoubtQuery
+        view: initialDoubtQuery ? 'upload' : (['landing', 'login', 'signup'].includes(lastView) ? 'dashboard' : prev.view !== 'landing' ? prev.view : lastView)
       }));
       if (prefs.theme) applyTheme(prefs.theme);
       updateUserActivity(userId);
