@@ -4,6 +4,7 @@
   "description": "Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep.",
   "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "minimal-ui"],
   "orientation": "portrait-primary",
@@ -46,29 +47,22 @@
       "description": "Start a new practice session instantly",
       "url": "/",
       "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
-    },
-    {
-      "name": "Doubt Solver",
-      "short_name": "Doubts",
-      "description": "Scan and solve questions",
-      "url": "/",
-      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
     }
   ],
   "screenshots": [
     {
       "src": "/icon.svg",
-      "sizes": "512x512",
+      "sizes": "1280x720",
       "type": "image/svg+xml",
       "form_factor": "wide",
-      "label": "Dashboard on Desktop"
+      "label": "Dashboard Desktop"
     },
     {
       "src": "/icon.svg",
-      "sizes": "512x512",
+      "sizes": "720x1280",
       "type": "image/svg+xml",
       "form_factor": "narrow",
-      "label": "Mobile Practice Screen"
+      "label": "Mobile Dashboard"
     }
   ]
 }
