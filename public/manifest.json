@@ -1,18 +1,15 @@
 {
   "name": "PYQverse - AI Exam Prep",
   "short_name": "PYQverse",
-  "description": "Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered Previous Year Questions, smart generation, and fast, accurate exam prep.",
-  "id": "/",
+  "description": "Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered previous year questions and smart exam preparation.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "minimal-ui"],
   "orientation": "portrait-primary",
-  "theme_color": "#5B2EFF",
   "background_color": "#111827",
-  "categories": ["education", "productivity", "study"],
+  "theme_color": "#5B2EFF",
   "lang": "en",
-  "dir": "ltr",
+
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -24,43 +21,7 @@
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Start Practice",
-      "short_name": "Practice",
-      "url": "/?view=practice",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
-    },
-    {
-      "name": "Doubt Solver",
-      "short_name": "Doubts",
-      "url": "/?view=upload",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "PYQverse App Dashboard"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "PYQverse App Mobile"
+      "purpose": "any maskable"
     }
   ]
 }
