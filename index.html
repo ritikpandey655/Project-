@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#5B2EFF" />
+    <title>PYQverse - AI Exam Preparation</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- iOS / Apple Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PYQverse">
+    <link rel="apple-touch-icon" href="/icon.svg">
+    
+    <!-- SEO & Metadata -->
+    <meta name="description" content="Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered Previous Year Questions and Mock Tests." />
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Poppins', 'sans-serif'],
+            },
+            colors: {
+              brand: {
+                primary: 'var(--brand-primary)',
+                50: 'var(--primary-50)',
+                100: 'var(--primary-100)',
+                200: 'var(--primary-200)',
+                300: 'var(--primary-300)',
+                400: 'var(--primary-400)',
+                500: 'var(--primary-500)',
+                600: 'var(--primary-600)',
+                700: 'var(--primary-700)',
+                800: 'var(--primary-800)',
+                900: 'var(--primary-900)',
+                purple: 'var(--primary-500)',
+                yellow: '#FACC15'
+              }
+            },
+            animation: {
+              'blob': 'blob 7s infinite',
+              'float': 'float 6s ease-in-out infinite',
+              'pulse-glow': 'pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+              blob: {
+                '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                '100%': { transform: 'translate(0px, 0px) scale(1)' },
+              },
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-20px)' },
+              },
+              'pulse-glow': {
+                '0%, 100%': { opacity: '1' },
+                '50%': { opacity: '.5' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <style>
+      :root {
+        --brand-primary: #5B2EFF;
+        --primary-50: #efebff;
+        --primary-100: #dcd0ff;
+        --primary-200: #bfa6ff;
+        --primary-300: #9e75ff;
+        --primary-400: #7d4bff;
+        --primary-500: #5B2EFF;
+        --primary-600: #491ecb;
+        --primary-700: #38159b;
+        --primary-800: #291070;
+        --primary-900: #1d0b4d;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+        background-color: #ffffff;
+      }
+      #root {
+        min-height: 100vh;
+      }
+      .pt-safe { padding-top: env(safe-area-inset-top); }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+      .hourglass {
+        display: inline-block;
+        position: relative;
+        width: 64px;
+        height: 64px;
+        animation: hourglass-rotate 2s infinite ease-in-out;
+      }
+      .hourglass:after {
+        content: " ";
+        display: block;
+        border-radius: 50%;
+        width: 0;
+        height: 0;
+        margin: 6px;
+        box-sizing: border-box;
+        border: 26px solid var(--brand-primary);
+        border-color: var(--brand-primary) transparent var(--brand-primary) transparent;
+        animation: hourglass-sand 2s infinite ease-in-out;
+      }
+      @keyframes hourglass-rotate {
+        0% { transform: rotate(0); }
+        100% { transform: rotate(180deg); }
+      }
+      @keyframes hourglass-sand {
+        0% { border-width: 26px; }
+        50% { border-width: 0px; }
+        100% { border-width: 26px; }
+      }
+
+      /* Sand Timer CSS */
+      .sand-timer {
+        width: 40px;
+        height: 40px;
+        position: relative;
+        animation: rotate 2s linear infinite;
+      }
+      .sand-top, .sand-bottom {
+        width: 100%;
+        height: 50%;
+        background-color: var(--brand-primary);
+        mask: radial-gradient(circle at 50% 100%, transparent 50%, black 50%);
+        -webkit-mask: radial-gradient(circle at 50% 100%, transparent 50%, black 50%);
+      }
+      .sand-bottom {
+        transform: rotate(180deg);
+      }
+      .sand-stream {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 2px;
+        height: 0%;
+        background-color: var(--brand-primary);
+        transform: translate(-50%, -50%);
+        animation: stream 2s linear infinite;
+      }
+      @keyframes stream {
+        0% { height: 0%; opacity: 0; }
+        50% { height: 100%; opacity: 1; }
+        100% { height: 0%; opacity: 0; }
+      }
+      @keyframes rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.0.0",
+        "react-dom": "https://esm.sh/react-dom@19.0.0",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+        "recharts": "https://esm.sh/recharts@2.15.0",
+        "@google/genai": "https://esm.sh/@google/genai@1.3.0",
+        "firebase/app": "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js",
+        "firebase/analytics": "https://www.gstatic.com/firebasejs/11.1.0/firebase-analytics.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js",
+        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+        "react/": "https://esm.sh/react@^19.2.3/",
+        "vite": "https://esm.sh/vite@^7.3.0",
+        "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+        "path": "https://esm.sh/path@^0.12.7",
+        "dotenv/": "https://esm.sh/dotenv@^17.2.3/",
+        "express": "https://esm.sh/express@^5.2.1",
+        "cors": "https://esm.sh/cors@^2.8.5",
+        "helmet": "https://esm.sh/helmet@^8.1.0",
+        "firebase/": "https://esm.sh/firebase@^12.7.0/",
+        "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0"
+      }
+    }
+    </script>
+</head>
+<body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div id="root"></div>
+    
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW registered!', reg))
+            .catch(err => console.log('SW registration failed', err));
+        });
+      }
+    </script>
+    
+    <script type="module" src="./index.tsx"></script>
+</body>
+</html>
