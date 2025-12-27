@@ -25,23 +25,27 @@
           "value": "application/javascript"
         },
         {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
-        },
-        {
           "key": "Service-Worker-Allowed",
           "value": "/"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
         }
       ]
     },
     {
-      "source": "/icons/(.*)",
+      "source": "/icons/(.*)\\.png",
       "headers": [
+        {
+          "key": "Content-Type",
+          "value": "image/png"
+        },
         {
           "key": "Access-Control-Allow-Origin",
           "value": "*"
         },
-         {
+        {
           "key": "Cache-Control",
           "value": "public, max-age=86400"
         }
