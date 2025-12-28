@@ -9,7 +9,7 @@ app.use(helmet());
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
-// Health Check Endpoint used by Admin Dashboard
+// Health Check Endpoint (MUST match AdminDashboard fetch call)
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'Online', 
