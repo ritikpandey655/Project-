@@ -6,11 +6,12 @@
     <meta name="theme-color" content="#5B2EFF" />
     <title>PYQverse - AI Exam Preparation</title>
     
-    <!-- Standard Favicons -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <!-- Favicon - Place your image in /public/favicon.png -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
     
     <!-- SEO & Metadata -->
-    <meta name="description" content="Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered Previous Year Questions and Mock Tests." />
+    <meta name="description" content="Master UPSC, SSC, JEE, NEET, and Railways with PYQverse." />
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -51,56 +52,32 @@
     <style>
       :root {
         --brand-primary: #5B2EFF;
-        --primary-50: #efebff;
-        --primary-100: #dcd0ff;
-        --primary-200: #bfa6ff;
-        --primary-300: #9e75ff;
-        --primary-400: #7d4bff;
-        --primary-500: #5B2EFF;
-        --primary-600: #491ecb;
-        --primary-700: #38159b;
-        --primary-800: #291070;
-        --primary-900: #1d0b4d;
       }
       body {
         margin: 0;
-        padding: 0;
         background-color: #ffffff;
         -webkit-tap-highlight-color: transparent;
-      }
-      #root {
-        min-height: 100vh;
       }
     </style>
 
     <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@19.0.0",
-    "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "recharts": "https://esm.sh/recharts@2.15.0",
-    "@google/genai": "https://esm.sh/@google/genai@1.3.0",
-    "firebase/app": "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js",
-    "firebase/auth": "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js",
-    "firebase/analytics": "https://www.gstatic.com/firebasejs/11.1.0/firebase-analytics.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js",
-    "path": "https://esm.sh/path@^0.12.7",
-    "dotenv/": "https://esm.sh/dotenv@^17.2.3/",
-    "helmet": "https://esm.sh/helmet@^8.1.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/",
-    "vite": "https://esm.sh/vite@^7.3.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "express": "https://esm.sh/express@^5.2.1",
-    "cors": "https://esm.sh/cors@^2.8.5"
-  }
-}
-</script>
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.0.0",
+        "react-dom": "https://esm.sh/react-dom@19.0.0",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+        "recharts": "https://esm.sh/recharts@2.15.0",
+        "@google/genai": "https://esm.sh/@google/genai@1.3.0",
+        "firebase/app": "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js",
+        "firebase/analytics": "https://www.gstatic.com/firebasejs/11.1.0/firebase-analytics.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js"
+      }
+    }
+    </script>
 </head>
 <body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 
+
 export enum ExamType {
   UPSC = 'UPSC',
   SSC_CGL = 'SSC CGL',
@@ -171,6 +172,17 @@ export interface LeaderboardEntry {
   exam: string;
   score: number; // XP or Total Correct
   isCurrentUser: boolean;
+}
+
+/**
+ * System logging types moved to central types.ts to resolve import errors.
+ */
+export interface SystemLog {
+  id: string;
+  type: 'ERROR' | 'INFO' | 'API_FAIL';
+  message: string;
+  details?: string;
+  timestamp: number;
 }
 
 export type ViewState = 'landing' | 'login' | 'signup' | 'forgotPassword' | 'onboarding' | 'tutorial' | 'dashboard' | 'practice' | 'upload' | 'stats' | 'profile' | 'paperGenerator' | 'paperView' | 'bookmarks' | 'admin' | 'downloads' | 'analytics' | 'leaderboard' | 'news' | 'pyqLibrary' | 'privacy' | 'terms';

@@ -1,9 +1,10 @@
+
 import { db } from "../src/firebaseConfig";
 import { 
   collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, 
   query, where, limit, addDoc, orderBy 
 } from "firebase/firestore";
-import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction, SyllabusItem } from '../types';
+import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction, SyllabusItem, SystemLog } from '../types';
 import { ExamType } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
 
@@ -19,14 +20,9 @@ export const INITIAL_STATS: UserStats = {
 
 // --- SYSTEM LOGGING (NEW) ---
 
-export interface SystemLog {
-  id: string;
-  type: 'ERROR' | 'INFO' | 'API_FAIL';
-  message: string;
-  details?: string;
-  timestamp: number;
-}
-
+/**
+ * Log an error or system event to Firestore for admin monitoring.
+ */
 export const logSystemError = async (type: 'ERROR' | 'API_FAIL' | 'INFO', message: string, details?: any) => {
   try {
     // Ensure details is never undefined, as Firestore addDoc throws on undefined values
@@ -45,6 +41,9 @@ export const logSystemError = async (type: 'ERROR' | 'API_FAIL' | 'INFO', messag
   }
 };
 
+/**
+ * Fetches recent system logs for the Admin Dashboard.
+ */
 export const getSystemLogs = async (): Promise<SystemLog[]> => {
   try {
     // Get last 50 logs
@@ -60,11 +59,13 @@ export const getSystemLogs = async (): Promise<SystemLog[]> => {
   }
 };
 
+/**
+ * Clears old system logs to keep Firestore costs low.
+ */
 export const clearSystemLogs = async () => {
   try {
     const q = query(collection(db, "system_logs"), limit(100));
     const snapshot = await getDocs(q);
-    const batch = [];
     for (const doc of snapshot.docs) {
       deleteDoc(doc.ref);
     }
