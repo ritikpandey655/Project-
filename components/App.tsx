@@ -36,8 +36,6 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { LandingPage } from './LandingPage'; 
-import { SafariInstallPrompt } from './SafariInstallPrompt';
-import { InstallModal } from './InstallModal';
 import { BookmarksList } from './BookmarksList';
 import { auth } from '../src/firebaseConfig';
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -82,72 +80,37 @@ const App: React.FC = () => {
   const [sessionWrong, setSessionWrong] = useState(0);
   const [examHistory, setExamHistory] = useState<ExamResult[]>([]);
   
-  // Install Logic
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [showInstallModal, setShowInstallModal] = useState(false);
-  
   const currentSessionId = useRef<string>(Date.now().toString() + Math.random().toString());
 
-  // Check if app is running in standalone mode (already installed)
   useEffect(() => {
-    const checkStandalone = () => {
-      const isStd = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
-      setIsStandalone(!!isStd);
-    };
-    checkStandalone();
-    window.addEventListener('resize', checkStandalone); 
-    
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('resize', checkStandalone);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
-  // Handle Share Target & Protocol Links
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    
-    // Handle Share Target
     const title = params.get('title');
     const text = params.get('text');
     const url = params.get('url');
     if (title || text || url) {
         const query = [title, text, url].filter(Boolean).join(' ');
         setInitialDoubtQuery(query);
-        // We will switch view once user is loaded, or if public, we handle it
     }
-
-    // Handle Deep Links (Shortcuts)
     const viewParam = params.get('view') as ViewState;
     if (viewParam && ['practice', 'upload', 'dashboard'].includes(viewParam)) {
         setState(prev => ({ ...prev, view: viewParam }));
         if (viewParam === 'practice') setShowPracticeConfig(true);
     }
-    
-    // Clean URL
     if (window.location.search) {
         window.history.replaceState({}, '', '/');
     }
   }, []);
-
-  const handleInstallClick = useCallback(async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-          setDeferredPrompt(null);
-      }
-    } else {
-      setShowInstallModal(true);
-    }
-  }, [deferredPrompt]);
 
   const applyTheme = useCallback((themeName: string) => {
     const palette = THEME_PALETTES[themeName] || THEME_PALETTES['PYQverse Prime'];
@@ -190,7 +153,6 @@ const App: React.FC = () => {
         language: prefs.language,
         theme: prefs.theme || 'PYQverse Prime',
         examConfig: config,
-        // Prioritize explicit navigation from initialDoubtQuery
         view: initialDoubtQuery ? 'upload' : (['landing', 'login', 'signup'].includes(lastView) ? 'dashboard' : prev.view !== 'landing' ? prev.view : lastView)
       }));
       if (prefs.theme) applyTheme(prefs.theme);
@@ -300,7 +262,7 @@ const App: React.FC = () => {
           {state.view === 'login' && <LoginScreen onLogin={(user) => loadUserData(user.id)} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} onNavigateToPrivacy={() => navigateTo('privacy')} onNavigateToTerms={() => navigateTo('terms')} />}
           {state.view === 'signup' && <SignupScreen onSignup={() => {}} onBackToLogin={() => navigateTo('login')} onNavigateToPrivacy={() => navigateTo('privacy')} onNavigateToTerms={() => navigateTo('terms')} />}
           {state.view === 'forgotPassword' && <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />}
-          {state.view === 'dashboard' && <Dashboard stats={state.stats} user={state.user} onStartPractice={() => setShowPracticeConfig(true)} onUpload={() => navigateTo('upload')} onGeneratePaper={() => navigateTo('paperGenerator')} onOpenBookmarks={() => navigateTo('bookmarks')} onOpenAnalytics={() => navigateTo('analytics')} onOpenLeaderboard={() => navigateTo('leaderboard')} selectedExam={state.selectedExam} darkMode={state.darkMode} language={state.language} onToggleTimer={() => {}} onToggleDarkMode={() => {}} onStartCurrentAffairs={() => {}} onReadCurrentAffairs={() => {}} onReadNotes={() => {}} onEnableNotifications={() => {}} showTimer={true} onInstall={handleInstallClick} canInstall={!isStandalone} onNavigate={navigateTo} />}
+          {state.view === 'dashboard' && <Dashboard stats={state.stats} user={state.user} onStartPractice={() => setShowPracticeConfig(true)} onUpload={() => navigateTo('upload')} onGeneratePaper={() => navigateTo('paperGenerator')} onOpenBookmarks={() => navigateTo('bookmarks')} onOpenAnalytics={() => navigateTo('analytics')} onOpenLeaderboard={() => navigateTo('leaderboard')} selectedExam={state.selectedExam} darkMode={state.darkMode} language={state.language} onToggleTimer={() => {}} onToggleDarkMode={() => {}} onStartCurrentAffairs={() => {}} onReadCurrentAffairs={() => {}} onReadNotes={() => {}} onEnableNotifications={() => {}} showTimer={true} isOnline={isOnline} onNavigate={navigateTo} />}
           {state.view === 'practice' && practiceQueue[currentQIndex] && (
               <QuestionCard question={practiceQueue[currentQIndex]} onAnswer={handleAnswer} onNext={handleNextQuestion} onBack={() => navigateTo('dashboard')} isLast={currentQIndex === practiceQueue.length - 1 && practiceConfig.mode !== 'endless'} isLoadingNext={isFetchingMore} language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} onBookmarkToggle={(q) => state.user && toggleBookmark(state.user.id, q)} sessionStats={{ currentIndex: currentQIndex, total: practiceConfig.mode === 'endless' ? 100 : practiceConfig.count, correct: sessionCorrect, wrong: sessionWrong }} />
           )}
@@ -318,17 +280,15 @@ const App: React.FC = () => {
              if (state.user) navigateTo('dashboard');
              else navigateTo('landing');
           }} />}
-          {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} onExamChange={() => {}} onInstall={handleInstallClick} canInstall={!isStandalone} />}
+          {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} />}
           {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} />}
         </div>
 
         {showPracticeConfig && state.selectedExam && <PracticeConfigModal examType={state.selectedExam} onClose={() => setShowPracticeConfig(false)} onStart={(conf) => { setPracticeConfig(conf); handleStartPractice(conf); }} onExamChange={(e) => setState(s => ({ ...s, selectedExam: e }))} isPro={state.user?.isPro} isAdmin={state.user?.isAdmin} />}
         
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={state.user} stats={state.stats} darkMode={state.darkMode} onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))} showTimer={state.showTimer} onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))} language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} currentTheme={state.theme} onThemeChange={(t) => { setState(s => ({ ...s, theme: t })); applyTheme(t); }} onNavigate={navigateTo} onLogout={handleLogout} onEnableNotifications={() => {}} onInstall={handleInstallClick} canInstall={!isStandalone} />
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={state.user} stats={state.stats} darkMode={state.darkMode} onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))} showTimer={state.showTimer} onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))} language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} currentTheme={state.theme} onThemeChange={(t) => { setState(s => ({ ...s, theme: t })); applyTheme(t); }} onNavigate={navigateTo} onLogout={handleLogout} onEnableNotifications={() => {}} />
         
         {!isEntryView && state.view !== 'practice' && state.view !== 'paperView' && <MobileBottomNav currentView={state.view} onNavigate={navigateTo} onAction={() => setShowPracticeConfig(true)} />}
-        <SafariInstallPrompt />
-        {showInstallModal && <InstallModal onClose={() => setShowInstallModal(false)} />}
       </main>
     </div>
   );

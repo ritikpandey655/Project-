@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { User, UserStats, ExamType } from '../types';
 import { Button } from './Button';
-import { getUserQuestions, removeUser } from '../services/storageService';
+import { removeUser } from '../services/storageService';
 import { auth } from '../src/firebaseConfig';
 import { deleteUser } from "firebase/auth";
 
@@ -12,43 +12,28 @@ interface ProfileScreenProps {
   onUpdateUser: (updatedUser: User) => void;
   onBack: () => void;
   onLogout: () => void;
-  onInstall?: () => void;
-  canInstall?: boolean;
-  onExamChange: (exam: ExamType) => void;
-  availableExams?: string[];
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ 
   user, 
   stats, 
-  selectedExam, 
   onUpdateUser, 
   onBack, 
-  onLogout,
-  onInstall,
-  canInstall,
-  onExamChange,
-  availableExams = []
+  onLogout
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [notesCount, setNotesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
   const [mobile, setMobile] = useState(user.mobile || '');
   const [currentClass, setCurrentClass] = useState(user.currentClass || '');
   const [address, setAddress] = useState(user.address || '');
   const [userState, setUserState] = useState(user.state || '');
   const [pincode, setPincode] = useState(user.pincode || '');
 
-  useEffect(() => {
-    getUserQuestions(user.id).then(qs => setNotesCount(qs.length));
-  }, [user.id]);
-
   const handleSave = () => {
     setIsLoading(true);
     setTimeout(() => {
-      onUpdateUser({ ...user, name, email, mobile, currentClass, address, state: userState, pincode });
+      onUpdateUser({ ...user, name, mobile, currentClass, address, state: userState, pincode });
       setIsEditing(false);
       setIsLoading(false);
     }, 800);
@@ -56,7 +41,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   const handleCancel = () => {
     setIsEditing(false);
-    setName(user.name); setEmail(user.email); setMobile(user.mobile || ''); setCurrentClass(user.currentClass || ''); setAddress(user.address || ''); setUserState(user.state || ''); setPincode(user.pincode || '');
+    setName(user.name); setMobile(user.mobile || ''); setCurrentClass(user.currentClass || ''); setAddress(user.address || ''); setUserState(user.state || ''); setPincode(user.pincode || '');
   };
 
   const handleDeleteAccount = async () => {

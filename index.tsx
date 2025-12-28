@@ -1,4 +1,3 @@
-
 import React, { ReactNode, ErrorInfo } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './components/App';
@@ -12,7 +11,6 @@ interface ErrorBoundaryState {
   error: any;
 }
 
-// Error Boundary to catch runtime crashes (White Screen of Death)
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState;
 
@@ -51,7 +49,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       );
     }
 
-    // Fix: Cast 'this' to any to avoid "Property 'props' does not exist" TS error on strict environments
     return (this as any).props.children;
   }
 }
@@ -69,18 +66,3 @@ root.render(
     </ErrorBoundary>
   </React.StrictMode>
 );
-// ================================
-// ✅ PWA Service Worker Registration
-// ================================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js', { scope: '/' })
-      .then(reg => {
-        console.log('✅ Service Worker registered and controlling:', reg);
-      })
-      .catch(err => {
-        console.error('❌ Service Worker registration failed:', err);
-      });
-  });
-}

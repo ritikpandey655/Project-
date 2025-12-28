@@ -33,9 +33,6 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 
-// Initialize AI
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 // --- ROUTES ---
 
 // Health & Latency Check
@@ -66,12 +63,16 @@ app.post('/api/ai/generate', async (req, res) => {
 
     const modelName = model || 'gemini-3-flash-preview';
 
+    // Fix: Create a new GoogleGenAI instance right before making an API call.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
     const response = await ai.models.generateContent({
       model: modelName,
       contents: contents,
       config: config || {}
     });
 
+    // Fix: Access response.text directly as a property.
     res.json({ success: true, data: response.text });
 
   } catch (error) {

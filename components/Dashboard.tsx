@@ -2,8 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { UserStats, ExamType, User, Question, ViewState } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Button } from './Button';
-import { TRANSLATIONS, TECHNICAL_EXAMS } from '../constants';
-import { saveFeedback } from '../services/storageService';
+import { TRANSLATIONS } from '../constants';
 
 interface DashboardProps {
   stats: UserStats;
@@ -24,8 +23,6 @@ interface DashboardProps {
   currentTheme?: string;
   onThemeChange?: (theme: string) => void;
   onUpgrade?: () => void;
-  onInstall?: () => void;
-  canInstall?: boolean;
   qotd?: Question | null;
   onOpenQOTD?: () => void;
   onOpenBookmarks?: () => void;
@@ -43,27 +40,15 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   onStartPractice, 
   onUpload, 
   onGeneratePaper,
-  onStartCurrentAffairs,
-  onReadCurrentAffairs,
-  onReadNotes,
-  onEnableNotifications,
-  darkMode,
-  onUpgrade,
-  qotd,
-  onOpenQOTD,
-  onOpenBookmarks,
-  onOpenAnalytics,
-  onOpenLeaderboard,
-  onOpenPYQLibrary,
-  onInstall,
-  canInstall, // This now reflects !isStandalone
   isOnline = true,
   language = 'en',
   selectedExam,
+  onOpenAnalytics,
+  onOpenLeaderboard,
+  onOpenBookmarks,
   onNavigate
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>('All');
-
   const t = TRANSLATIONS[language];
 
   const displayedStats = useMemo(() => {
@@ -100,26 +85,6 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
       {!isOnline && (
         <div className="bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-lg flex items-center justify-between animate-fade-in">
           <span className="uppercase tracking-tighter">📡 Offline Mode</span>
-        </div>
-      )}
-
-      {/* PWA Install Banner - Always show if not installed (canInstall = !isStandalone) */}
-      {canInstall && onInstall && (
-        <div className="bg-brand-600 rounded-3xl p-6 text-white shadow-xl shadow-brand-500/20 flex flex-col sm:flex-row items-center justify-between gap-6 animate-pop-in border border-brand-400/30 relative overflow-hidden group">
-           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full duration-1000 transition-transform"></div>
-           <div className="flex items-center gap-4 relative z-10">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl shadow-inner">📲</div>
-              <div>
-                <h3 className="font-display font-black text-xl leading-none mb-1">Install PYQverse</h3>
-                <p className="text-brand-100 text-xs font-medium opacity-80">Access preparation 2x faster from home screen.</p>
-              </div>
-           </div>
-           <button 
-             onClick={onInstall}
-             className="w-full sm:w-auto bg-white text-brand-600 px-6 py-3 rounded-2xl font-black text-sm shadow-xl active:scale-95 transition-all relative z-10"
-           >
-             INSTALL APP
-           </button>
         </div>
       )}
 

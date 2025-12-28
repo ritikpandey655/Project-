@@ -10,10 +10,6 @@ const PORT = process.env.PORT || 5000;
 
 app.disable('x-powered-by');
 
-// Fix: Always use new GoogleGenAI({ apiKey: process.env.API_KEY })
-// and ensure API key is obtained exclusively from process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 app.use(helmet());
 app.use(cors({ origin: true, credentials: true })); // Allow all for local dev
 app.use(express.json({ limit: '50mb' }));
@@ -30,6 +26,9 @@ router.post('/ai/generate', async (req, res) => {
 
     // Fix: Select 'gemini-3-flash-preview' as default and ensure prohibited models are avoided.
     const modelToUse = model || 'gemini-3-flash-preview';
+
+    // Fix: Create a new GoogleGenAI instance right before making an API call.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     // Fix: Always use ai.models.generateContent to query GenAI with both model and contents.
     const response = await ai.models.generateContent({

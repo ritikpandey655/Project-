@@ -1,7 +1,5 @@
-
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
 import * as path from 'path';
 
 export default defineConfig(({ mode }) => {
@@ -18,35 +16,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     plugins: [
-      react(),
-      VitePWA({
-        registerType: 'autoUpdate',
-        injectRegister: null, // We handle SW registration manually in index.html
-        filename: 'sw.js', // Output filename
-        manifest: false, // Strictly use public/manifest.json
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'offline.html', 'icon.svg', 'robots.txt', 'custom-sw.js'],
-        workbox: {
-          // Import our custom logic script
-          importScripts: ['custom-sw.js'],
-          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,json,txt}'],
-          navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/auth/, /^\/api/, /^\/docs/, /^\/openapi.json/],
-          cleanupOutdatedCaches: true,
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: { cacheName: 'google-fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }, cacheableResponse: { statuses: [0, 200] } }
-            },
-            {
-              urlPattern: ({ request }) => request.destination === 'image',
-              handler: 'CacheFirst',
-              options: { cacheName: 'images-cache', expiration: { maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60 } },
-            }
-          ]
-        }
-      })
+      react()
     ],
     resolve: {
       alias: { '@': path.resolve('.') },
