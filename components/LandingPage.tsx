@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from './Button';
 import { LogoIcon } from './LogoIcon';
@@ -51,7 +52,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
         {/* Massive Headline */}
         <h1 className="max-w-5xl text-6xl sm:text-7xl lg:text-9xl font-display font-black text-slate-900 dark:text-white mb-6 leading-[0.9] tracking-tighter animate-slide-up">
           Prepare Exams.<br/>
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E935C1] to-[#5B2EFF]">Instantly. AI Only.</span>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-600">Instantly. AI Only.</span>
         </h1>
         
         {/* Subtext Flow */}
@@ -78,7 +79,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
         </p>
 
         {/* Bottom Glow Effect (Matching screenshot) */}
-        <div className="absolute bottom-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-t from-red-500/10 via-pink-500/10 to-transparent blur-[100px] rounded-full pointer-events-none -z-10"></div>
+        <div className="absolute bottom-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-t from-brand-500/10 via-brand-500/5 to-transparent blur-[100px] rounded-full pointer-events-none -z-10"></div>
       </div>
 
       {/* Official Footer */}

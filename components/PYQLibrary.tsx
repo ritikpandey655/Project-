@@ -85,7 +85,7 @@ export const PYQLibrary: React.FC<PYQLibraryProps> = ({ examType, onBack, onBook
       )}
 
       <div className="flex items-center gap-4 mb-6">
-        <button onClick={onBack} className="text-slate-500 hover:text-indigo-600 flex items-center gap-1 transition-colors">
+        <button onClick={onBack} className="text-slate-500 hover:text-brand-600 flex items-center gap-1 transition-colors">
           <span className="text-xl">⬅️</span> Back
         </button>
         <div>

@@ -33,7 +33,7 @@ export const OfflinePapersList: React.FC<OfflinePapersListProps> = ({ userId, on
     <div className="max-w-3xl mx-auto animate-fade-in p-4 sm:p-0">
       <button 
         onClick={onBack}
-        className="mb-6 text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 transition-colors"
+        className="mb-6 text-sm text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 flex items-center gap-1 transition-colors"
       >
         ← Back to Dashboard
       </button>
@@ -60,12 +60,12 @@ export const OfflinePapersList: React.FC<OfflinePapersListProps> = ({ userId, on
             <div 
               key={paper.id}
               onClick={() => onOpenPaper(paper)}
-              className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 cursor-pointer transition-all group relative"
+              className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-brand-500 dark:hover:border-brand-500 cursor-pointer transition-all group relative"
             >
               <div className="flex justify-between items-start">
                  <div>
                     <div className="flex gap-2 mb-1">
-                      <span className="text-[10px] font-bold uppercase bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 px-2 py-0.5 rounded">{paper.examType}</span>
+                      <span className="text-[10px] font-bold uppercase bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-300 px-2 py-0.5 rounded">{paper.examType}</span>
                       <span className="text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded">{paper.subject}</span>
                     </div>
                     <h3 className="font-bold text-slate-800 dark:text-white text-lg">{paper.title}</h3>
@@ -84,7 +84,7 @@ export const OfflinePapersList: React.FC<OfflinePapersListProps> = ({ userId, on
                  </button>
               </div>
               <div className="absolute top-1/2 right-4 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
-                 <span className="text-indigo-600 dark:text-indigo-400 font-bold text-sm">Open Paper →</span>
+                 <span className="text-brand-600 dark:text-brand-400 font-bold text-sm">Open Paper →</span>
               </div>
             </div>
           ))}

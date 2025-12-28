@@ -1,13 +1,10 @@
+
 import { Question, QuestionSource, QuestionType, QuestionPaper } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
-import { getOfficialQuestions, getSystemConfig } from "./storageService";
+import { getOfficialQuestions, getSystemConfig, getApiKeys } from "./storageService";
 import { GoogleGenAI } from "@google/genai";
 
-const CLIENT_API_KEY = process.env.API_KEY || "";
-
-/**
- * Helper: Clean JSON output from AI models
- */
+// Helpers
 const cleanJson = (text: string) => {
   if (!text) return "";
   const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
@@ -22,32 +19,9 @@ const cleanJson = (text: string) => {
 };
 
 /**
- * Backend Proxy Wrapper
- */
-const callBackend = async (endpoint: string, payload: any) => {
-    try {
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'x-api-key': CLIENT_API_KEY 
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) throw new Error(`Backend Error: ${response.status}`);
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error);
-        return result.data; 
-    } catch (e) {
-        console.warn("Backend failed, checking for fallback...", e);
-        throw e;
-    }
-};
-
-/**
  * Universal AI Generator
- * Dynamically switches between Gemini and Groq based on Admin Config
+ * Automatically switches between Gemini and Groq based on Admin Config.
+ * Prioritizes BACKEND (Vercel Env Vars). Fallbacks to Client keys only if backend fails.
  */
 export const generateWithAI = async (
     prompt: string, 
@@ -55,114 +29,156 @@ export const generateWithAI = async (
     temperature: number = 0.7
 ): Promise<any> => {
     try {
-        // 1. Check System Config (Cached in LocalStorage for speed)
         const config = await getSystemConfig();
         const provider = config.aiProvider || 'gemini'; 
         
         let textOutput = "";
 
-        if (provider === 'groq') {
-            // --- GROQ PATH ---
-            try {
-                console.log("⚡ Using Groq (Llama-3)");
-                const payload = {
+        // --- 1. Try Backend (Preferred) ---
+        try {
+            if (provider === 'groq') {
+                // Call Groq Endpoint
+                textOutput = await callBackend('/api/ai/groq', {
                     model: config.modelName || 'llama-3.3-70b-versatile',
                     messages: [{ role: "user", content: prompt }],
                     jsonMode: isJson
-                };
-                textOutput = await callBackend('/api/ai/groq', payload);
-            } catch (groqError) {
-                console.warn("Groq failed, falling back to Gemini.", groqError);
-                // Fallback to Gemini if Groq fails
-                return await generateWithGemini(prompt, isJson, temperature);
+                });
+            } else {
+                // Call Gemini Endpoint
+                textOutput = await callBackend('/api/ai/generate', {
+                    model: 'gemini-2.5-flash-preview',
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    config: { temperature }
+                });
             }
-        } else {
-            // --- GEMINI PATH ---
-            return await generateWithGemini(prompt, isJson, temperature, config.modelName);
+        } catch (backendError) {
+            console.warn(`Backend (${provider}) unreachable. Attempting Client Fallback...`, backendError);
+            
+            // --- 2. Client-Side Fallback (If Backend Fails) ---
+            const localKeys = getApiKeys();
+            
+            if (provider === 'groq') {
+                if (!localKeys.groq) throw new Error("Backend failed and no Client Groq Key found.");
+                textOutput = await callGroqDirect(localKeys.groq, prompt, isJson);
+            } else {
+                if (!localKeys.gemini) throw new Error("Backend failed and no Client Gemini Key found.");
+                textOutput = await callGeminiDirect(localKeys.gemini, prompt, temperature);
+            }
         }
 
+        // --- 3. Parse & Return ---
         if (isJson) {
             try { return JSON.parse(cleanJson(textOutput)); } 
-            catch (e) { throw new Error("AI Response JSON Parse Error"); }
+            catch (e) { 
+                console.error("JSON Parse Error on:", textOutput);
+                throw new Error("AI returned invalid JSON."); 
+            }
         }
         return textOutput;
 
     } catch (e: any) {
-        console.error("AI Generation Critical Fail:", e);
-        throw e;
+        console.error("AI Generation Failed:", e);
+        throw e; // Propagate error to UI
     }
 };
 
-/**
- * Specific Gemini Implementation (Client-Side Fallback Capability)
- */
-const generateWithGemini = async (prompt: string, isJson: boolean, temperature: number, modelOverride?: string) => {
-    const modelName = modelOverride || 'gemini-2.5-flash-preview';
-    const payload = {
-        model: modelName,
+// --- API Wrappers ---
+
+const callBackend = async (endpoint: string, payload: any) => {
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error(err.error || `Server Error ${response.status}`);
+    }
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error);
+    return result.data;
+};
+
+const callGeminiDirect = async (apiKey: string, prompt: string, temperature: number) => {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-preview',
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { temperature }
-    };
+    });
+    return response.text;
+};
 
+const callGroqDirect = async (apiKey: string, prompt: string, isJson: boolean) => {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { 
+            "Authorization": `Bearer ${apiKey}`, 
+            "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.7,
+            response_format: isJson ? { type: "json_object" } : undefined
+        })
+    });
+    if (!response.ok) throw new Error("Groq Client API Failed");
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "";
+};
+
+// --- Connection Check ---
+
+export const checkAIConnectivity = async () => {
+    const start = Date.now();
     try {
-        // Try Server First
-        const text = await callBackend('/api/ai/generate', payload);
-        if (isJson) return JSON.parse(cleanJson(text));
-        return text;
-    } catch (serverError) {
-        // Client-Side Fallback
-        if (CLIENT_API_KEY) {
-            console.log("⚠️ Backend down. Using Client-Side Gemini.");
-            const ai = new GoogleGenAI({ apiKey: CLIENT_API_KEY });
-            const response = await ai.models.generateContent({
-                model: modelName,
-                contents: payload.contents,
-                config: payload.config
-            });
-            const text = response.text;
-            if (isJson) return JSON.parse(cleanJson(text));
-            return text;
+        const res = await fetch('/api/health');
+        if (res.ok) {
+            const data = await res.json();
+            const latency = Date.now() - start;
+            // Return status based on ENV detection
+            const secure = data.env?.gemini === 'Active' || data.env?.groq === 'Active';
+            return { 
+                status: secure ? 'Online (Server)' : 'Server No-Key', 
+                latency, 
+                secure 
+            };
         }
-        throw serverError;
+        throw new Error("Backend Offline");
+    } catch (e) {
+        // Fallback check
+        const keys = getApiKeys();
+        if (keys.gemini || keys.groq) {
+            return { status: 'Client Mode', latency: 1, secure: true };
+        }
+        return { status: 'Disconnected', latency: 0, secure: false };
     }
 };
 
-// --- EXPORTED FUNCTIONS (Using the Universal Generator) ---
+// --- Exported Generators (Same as before) ---
 
-export const generateExamQuestions = async (
-    exam: string, 
-    subject: string, 
-    count: number = 5,
-    difficulty: string = 'Medium',
-    topics: string[] = []
-): Promise<Question[]> => {
+export const generateExamQuestions = async (exam: string, subject: string, count: number, difficulty: string, topics: string[] = []) => {
   try {
-      const officialQs = await getOfficialQuestions(exam, subject, count);
-      if (officialQs.length >= count) return officialQs;
-      
-      const neededCount = count - officialQs.length;
-      const prompt = `Generate exactly ${neededCount} high-quality MCQs for the ${exam} competitive exam. 
-      Subject: ${subject}. Difficulty: ${difficulty}. 
-      ${topics.length > 0 ? `Target Topics: ${topics.join(', ')}.` : ''} 
-      Requirements: 4 clear options, 1 correct index (0-3), and a conceptual explanation.
-      Return JSON array: [{"text": "...", "options": ["A", "B", "C", "D"], "correctIndex": 0, "explanation": "..."}]`;
+      const prompt = `Generate ${count} MCQs for ${exam} (${subject}). Difficulty: ${difficulty}. 
+      ${topics.length > 0 ? `Topics: ${topics.join(', ')}.` : ''} 
+      Strictly return a JSON Array: [{"text": "...", "options": ["A", "B", "C", "D"], "correctIndex": 0, "explanation": "..."}]`;
 
       const items = await generateWithAI(prompt, true, 0.7);
       const data = Array.isArray(items) ? items : (items.questions || []);
 
-      const formatted = data.map((q: any) => ({
+      return data.map((q: any) => ({
           id: `ai-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           text: q.text || q.question,
           options: (Array.isArray(q.options) && q.options.length >= 2) ? q.options.map(String) : ["Yes", "No"],
           correctIndex: q.correctIndex ?? 0,
-          explanation: q.explanation || "Logic-based answer provided by AI engine.",
+          explanation: q.explanation || "Explanation generated by AI.",
           source: QuestionSource.PYQ_AI,
           examType: exam,
           subject: subject,
           createdAt: Date.now()
       }));
-
-      return [...officialQs, ...formatted];
   } catch (e) {
       console.warn("Generation failed, using mock data.", e);
       return MOCK_QUESTIONS_FALLBACK as any;
@@ -173,26 +189,6 @@ export const solveTextQuestion = async (text: string, exam: string, subject: str
     const prompt = `Expert Solver: Analyze this ${exam} (${subject}) query: "${text}". 
     Solve it and Return JSON: {"text": "Restated Question", "options": ["A","B","C","D"], "correctIndex": 0, "explanation": "Step-by-step logic."}`;
     return await generateWithAI(prompt, true, 0.4);
-};
-
-export const generateQuestionFromImage = async (base64: string, mimeType: string, exam: string, subject: string) => {
-    // Images ONLY supported by Gemini
-    const prompt = `Analyze image for ${exam}. Return JSON: {text, options[], correctIndex, explanation}`;
-    const payload = {
-        model: 'gemini-2.5-flash-preview', 
-        contents: [{ role: 'user', parts: [{ inlineData: { data: base64, mimeType } }, { text: prompt }] }]
-    };
-    try {
-        const text = await callBackend('/api/ai/generate', payload); // Or client fallback
-        return JSON.parse(cleanJson(text));
-    } catch(e) {
-        if(CLIENT_API_KEY) {
-             const ai = new GoogleGenAI({ apiKey: CLIENT_API_KEY });
-             const res = await ai.models.generateContent({ model: 'gemini-2.5-flash-preview', contents: payload.contents });
-             return JSON.parse(cleanJson(res.text));
-        }
-        return null;
-    }
 };
 
 export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any) => {
@@ -207,15 +203,30 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
     return data.map((q: any) => ({ ...q, id: `pyq-${Math.random()}`, source: 'PYQ_AI', examType: exam, subject, pyqYear: year }));
 };
 
-export const checkAIConnectivity = async () => {
+export const generateQuestionFromImage = async (base64: string, mimeType: string, exam: string, subject: string) => {
+    // Note: Image processing is heavy, so we try backend first, but usually requires Gemini
+    // For this implementation, we use the generateWithAI wrapper but adapt payload for images if needed.
+    // However, the unified generateWithAI is text-only. 
+    // We implement a specific Image handler here that calls backend /api/ai/generate directly with image parts.
     try {
-        const res = await fetch('/api/health');
-        if (res.ok) {
-            const data = await res.json();
-            return { status: 'Operational', latency: 10, secure: data.secure };
-        }
-        throw new Error("Backend Down");
-    } catch (e) {
-        return { status: CLIENT_API_KEY ? 'Client-Only' : 'Failed', latency: 0, secure: !!CLIENT_API_KEY };
+        const response = await fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'gemini-2.5-flash-preview',
+                contents: [{ 
+                    role: 'user', 
+                    parts: [
+                        { inlineData: { data: base64, mimeType } }, 
+                        { text: `Analyze image for ${exam}. Return JSON: {text, options[], correctIndex, explanation}` }
+                    ] 
+                }]
+            })
+        });
+        if(!response.ok) throw new Error("Backend Image Fail");
+        const res = await response.json();
+        return JSON.parse(cleanJson(res.data));
+    } catch(e) {
+        return null;
     }
 };

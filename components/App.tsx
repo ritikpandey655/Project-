@@ -71,6 +71,7 @@ const App: React.FC = () => {
   const [sessionWrong, setSessionWrong] = useState(0);
   const [examHistory, setExamHistory] = useState<ExamResult[]>([]);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [generationLatency, setGenerationLatency] = useState<number>(0);
   
   const currentSessionId = useRef<string>(Date.now().toString());
 
@@ -200,8 +201,14 @@ const App: React.FC = () => {
     setShowPracticeConfig(false);
     setSessionCorrect(0);
     setSessionWrong(0);
+    setGenerationLatency(0); // Reset
+    
+    const startTime = Date.now();
     try {
       const qs = await generateExamQuestions(state.selectedExam, configToUse.subject, configToUse.count, 'Medium', configToUse.topic ? [configToUse.topic] : []);
+      const duration = Date.now() - startTime;
+      setGenerationLatency(duration); // Capture Latency
+      
       setPracticeQueue(qs);
       setCurrentQIndex(0);
       navigateTo('practice');
@@ -225,7 +232,7 @@ const App: React.FC = () => {
       if (currentQIndex >= practiceQueue.length - 2) {
         setIsFetchingMore(true);
         try {
-          const moreQs = await generateExamQuestions(state.selectedExam!, practiceConfig.subject, 5);
+          const moreQs = await generateExamQuestions(state.selectedExam!, practiceConfig.subject, 5, 'Medium');
           setPracticeQueue(prev => [...prev, ...moreQs]);
         } catch (e) {}
         setIsFetchingMore(false);
@@ -361,6 +368,7 @@ const App: React.FC = () => {
                   correct: sessionCorrect, 
                   wrong: sessionWrong 
                 }} 
+                latency={generationLatency} // Pass latency to UI
               />
           )}
 

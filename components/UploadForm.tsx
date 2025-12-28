@@ -161,7 +161,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Search Input Bar Overhaul */}
       <div className="bg-white dark:bg-slate-800 rounded-[32px] p-2 shadow-xl border border-slate-100 dark:border-slate-700 transition-colors flex items-center gap-2 group animate-slide-up">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-xl flex-shrink-0 ml-2">🔍</div>
+          <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-900/30 flex items-center justify-center text-xl flex-shrink-0 ml-2 text-brand-600">🔍</div>
           <input 
             type="text" 
             placeholder="Type any question or topic..." 
@@ -172,7 +172,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
           />
           <button 
             onClick={() => handleSolveQuery()}
-            className="px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black text-sm shadow-lg shadow-indigo-600/30 active:scale-95 transition-transform mr-1"
+            className="px-8 py-3.5 bg-brand-600 text-white rounded-2xl font-black text-sm shadow-lg shadow-brand-600/30 active:scale-95 transition-transform mr-1"
           >
             SOLVE
           </button>
@@ -221,7 +221,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
               required
               value={text}
               onChange={e => setText(e.target.value)}
-              className="w-full p-5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white font-medium outline-none h-32 resize-none focus:border-indigo-500 transition-colors"
+              className="w-full p-5 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white font-medium outline-none h-32 resize-none focus:border-brand-500 transition-colors"
               placeholder="Paste question text here..."
             />
           </div>
@@ -252,7 +252,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
             />
           </div>
 
-          <Button type="submit" className="w-full py-5 !rounded-full shadow-2xl shadow-indigo-500/20 font-black text-xl">
+          <Button type="submit" className="w-full py-5 !rounded-full shadow-2xl shadow-brand-500/20 font-black text-xl">
               SAVE TO NOTEBOOK
           </Button>
         </form>

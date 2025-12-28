@@ -66,7 +66,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       <div className="flex items-center justify-between mb-6">
         <button onClick={onBack} className="text-sm text-slate-500 flex items-center gap-1 font-medium transition-colors">← Back</button>
         <div className="flex gap-2">
-            {!isEditing ? (<button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-bold">Edit Profile</button>) : (
+            {!isEditing ? (<button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-brand-50 text-brand-600 rounded-lg text-sm font-bold">Edit Profile</button>) : (
                 <><button onClick={handleCancel} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-bold">Cancel</button><Button onClick={handleSave} isLoading={isLoading} size="sm">Save</Button></>
             )}
         </div>
@@ -74,7 +74,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1 space-y-6">
             <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col items-center text-center">
-                <div className="mb-4 relative"><div className="w-28 h-28 rounded-full bg-indigo-100 flex items-center justify-center text-4xl font-bold text-indigo-600">{name.charAt(0).toUpperCase()}</div></div>
+                <div className="mb-4 relative"><div className="w-28 h-28 rounded-full bg-brand-100 flex items-center justify-center text-4xl font-bold text-brand-600">{name.charAt(0).toUpperCase()}</div></div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{user.name}</h2>
                 <div className="w-full grid grid-cols-2 gap-2 text-center bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
                     <div><span className="block text-lg font-bold text-brand-purple">{stats.streakCurrent}</span><span className="text-[10px] text-slate-500 uppercase">Streak</span></div>

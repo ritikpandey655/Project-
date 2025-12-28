@@ -19,6 +19,7 @@ interface QuestionCardProps {
     correct: number;
     wrong: number;
   };
+  latency?: number; // New prop for latency display
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({ 
@@ -31,7 +32,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   language = 'en',
   onToggleLanguage,
   onBookmarkToggle,
-  sessionStats
+  sessionStats,
+  latency = 0
 }) => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -173,14 +175,14 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         
         {/* Meta Bar */}
         <div className="px-6 pt-6 pb-2 flex justify-between items-center">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
                {question.subject || 'General'}
             </span>
-            {question.pyqYear && (
-               <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                  {question.pyqYear} PYQ
-               </span>
+            {latency > 0 && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
+                   ⚡ {(latency / 1000).toFixed(2)}s
+                </span>
             )}
           </div>
           

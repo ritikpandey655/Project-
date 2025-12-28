@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { User, UserStats } from '../types';
 import { THEME_PALETTES, TRANSLATIONS } from '../constants';
@@ -68,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="p-6 pt-safe bg-gradient-to-br from-indigo-600 to-purple-700 text-white relative overflow-hidden shrink-0">
+        <div className="p-6 pt-safe bg-gradient-to-br from-brand-600 to-brand-800 text-white relative overflow-hidden shrink-0">
            <div className="relative z-10 flex flex-col items-center text-center">
               <div className="w-20 h-20 rounded-full border-4 border-white/20 shadow-lg overflow-hidden mb-3 bg-white/10 backdrop-blur-sm flex items-center justify-center">
                  {user?.photoURL ? (
@@ -78,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                  )}
               </div>
               <h2 className="font-display font-bold text-xl tracking-tight leading-none">{user?.name}</h2>
-              <p className="text-sm text-indigo-100 mt-1 opacity-90">{user?.email}</p>
+              <p className="text-sm text-brand-100 mt-1 opacity-90">{user?.email}</p>
               
               <button 
                 onClick={() => { onNavigate('profile'); onClose(); }}
@@ -140,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       <button
                           key={theme}
                           onClick={() => onThemeChange(theme)}
-                          className={`w-8 h-8 rounded-full border-2 transition-transform ${currentTheme === theme ? 'ring-2 ring-offset-2 ring-indigo-500 scale-110 border-white shadow-md' : 'border-transparent hover:scale-105'}`}
+                          className={`w-8 h-8 rounded-full border-2 transition-transform ${currentTheme === theme ? 'ring-2 ring-offset-2 ring-brand-500 scale-110 border-white shadow-md' : 'border-transparent hover:scale-105'}`}
                           style={{ backgroundColor: THEME_PALETTES[theme][500] }}
                           title={theme}
                       />
@@ -156,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                     </div>
                     <button 
                       onClick={onToggleDarkMode}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${darkMode ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${darkMode ? 'bg-brand-600' : 'bg-slate-300'}`}
                     >
                       <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${darkMode ? 'translate-x-5' : 'translate-x-1'}`} />
                     </button>
@@ -169,7 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                     </div>
                     <button 
                       onClick={onToggleLanguage}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${language === 'hi' ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${language === 'hi' ? 'bg-brand-600' : 'bg-slate-300'}`}
                     >
                       <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${language === 'hi' ? 'translate-x-5' : 'translate-x-1'}`} />
                     </button>

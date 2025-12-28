@@ -74,7 +74,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
          <div className="bg-slate-900/40 backdrop-blur-3xl p-10 rounded-[40px] max-w-md w-full text-center border border-white/5 shadow-2xl animate-pop-in">
             <div className="mb-8 flex justify-center"><LogoIcon size="md" /></div>
             <h2 className="text-3xl font-black text-white mb-3 font-display">Check Your Inbox!</h2>
-            <p className="text-slate-400 text-sm mb-8">Verification sent to: <span className="text-indigo-400 font-black">{email}</span></p>
+            <p className="text-slate-400 text-sm mb-8">Verification sent to: <span className="text-brand-400 font-black">{email}</span></p>
             <Button onClick={onBackToLogin} className="w-full !py-4 !bg-white/10 !text-white !rounded-2xl border-0 font-black">Back to Login</Button>
          </div>
       </div>
@@ -89,18 +89,18 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
           <div className="text-center mb-10"><div className="flex justify-center mb-6"><LogoIcon size="md" /></div><h2 className="text-3xl font-display font-black text-white mb-1">Create Account</h2></div>
           {error && <div className="p-4 mb-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-200 text-xs font-bold text-center">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-5">
-            <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 font-bold" placeholder="Full Name" />
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 font-bold" placeholder="Email" />
+            <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold" placeholder="Full Name" />
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold" placeholder="Email" />
             <div className="grid grid-cols-2 gap-4">
-              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 font-bold" placeholder="Password" />
-              <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 font-bold" placeholder="Confirm" />
+              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold" placeholder="Password" />
+              <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold" placeholder="Confirm" />
             </div>
-            <select value={selectedExam} onChange={(e) => setSelectedExam(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-indigo-500 font-bold appearance-none cursor-pointer">
+            <select value={selectedExam} onChange={(e) => setSelectedExam(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold appearance-none cursor-pointer">
                 {availableExams.map((exam) => (<option key={exam} value={exam} className="text-slate-900">{exam}</option>))}
             </select>
-            <Button type="submit" isLoading={isLoading} className="w-full py-5 mt-4 !rounded-2xl !bg-indigo-600 !text-white !font-black !text-lg shadow-2xl">{isLoading ? loadingText : 'Launch Universe'}</Button>
+            <Button type="submit" isLoading={isLoading} className="w-full py-5 mt-4 !rounded-2xl !bg-brand-600 !text-white !font-black !text-lg shadow-2xl">{isLoading ? loadingText : 'Launch Universe'}</Button>
           </form>
-          <div className="mt-10 pt-6 border-t border-white/5 text-center"><p className="text-sm text-slate-500 font-bold">Have an account? <button onClick={onBackToLogin} className="text-indigo-400">Log In</button></p></div>
+          <div className="mt-10 pt-6 border-t border-white/5 text-center"><p className="text-sm text-slate-500 font-bold">Have an account? <button onClick={onBackToLogin} className="text-brand-400">Log In</button></p></div>
         </div>
       </div>
 

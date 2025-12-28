@@ -100,7 +100,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
                 <select
                   value={examType}
                   onChange={(e) => onExamChange(e.target.value as ExamType)}
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition-colors"
                 >
                   {examsList.map(e => (
                     <option key={e} value={e}>{e}</option>
@@ -115,7 +115,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
             <select
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition-colors"
             >
               {subjects.map(s => (
                 <option key={s} value={s}>{s}</option>
@@ -134,7 +134,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
                  value={topic}
                  onChange={(e) => setTopic(e.target.value)}
                  placeholder="e.g. Thermodynamics, Ancient History..."
-                 className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+                 className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition-colors"
                />
                <p className="text-[10px] text-slate-400 mt-1">Leave blank for random questions from {subject}</p>
              </div>
@@ -153,10 +153,10 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
                     onClick={() => selectMode(m.id)}
                     className={`p-3 rounded-xl border-2 text-left transition-all relative overflow-hidden ${
                       mode === m.id 
-                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 ring-1 ring-indigo-600' 
+                        ? 'border-brand-600 bg-brand-50 dark:bg-brand-900/30 ring-1 ring-brand-600' 
                         : isLocked
                         ? 'border-slate-100 dark:border-slate-700 opacity-60 bg-slate-50 dark:bg-slate-900 cursor-not-allowed'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-brand-300 dark:hover:border-brand-700 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
                     {isLocked && (
@@ -164,9 +164,9 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
                     )}
                     <div className="flex justify-between items-start mb-1">
                       <span className="text-lg">{m.icon}</span>
-                      {mode === m.id && <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>}
+                      {mode === m.id && <div className="w-2 h-2 bg-brand-600 rounded-full"></div>}
                     </div>
-                    <div className={`font-bold text-sm ${mode === m.id ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`}>{m.label}</div>
+                    <div className={`font-bold text-sm ${mode === m.id ? 'text-brand-700 dark:text-brand-300' : 'text-slate-700 dark:text-slate-300'}`}>{m.label}</div>
                     <div className="text-[10px] text-slate-500 dark:text-slate-400">{m.desc}</div>
                   </button>
                 );
@@ -174,7 +174,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
             </div>
           </div>
 
-          <Button onClick={handleStart} className="w-full py-3.5 text-lg font-bold shadow-lg shadow-indigo-200 dark:shadow-none">
+          <Button onClick={handleStart} className="w-full py-3.5 text-lg font-bold shadow-lg shadow-brand-200 dark:shadow-none">
             Start Practice
           </Button>
         </div>
