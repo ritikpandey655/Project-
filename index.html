@@ -9,13 +9,13 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
-    <!-- Standard Favicons -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="shortcut icon" type="image/png" href="/icon-192.png" />
+    <!-- Favicon & Icons with Cache Busting -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=4" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=4" />
+    <link rel="shortcut icon" type="image/png" href="/favicon.png?v=4" />
     
     <!-- iOS / Apple Support -->
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png?v=4" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="PYQverse">
@@ -79,38 +79,8 @@
         background-color: #ffffff;
         -webkit-tap-highlight-color: transparent;
       }
-      .sand-timer {
-        width: 40px;
-        height: 40px;
-        position: relative;
-        animation: rotate 2s linear infinite;
-      }
-      .sand-top, .sand-bottom {
-        width: 100%;
-        height: 50%;
-        background-color: var(--brand-primary);
-        mask: radial-gradient(circle at 50% 100%, transparent 50%, black 50%);
-        -webkit-mask: radial-gradient(circle at 50% 100%, transparent 50%, black 50%);
-      }
-      .sand-bottom { transform: rotate(180deg); }
-      .sand-stream {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 2px;
-        height: 0%;
-        background-color: var(--brand-primary);
-        transform: translate(-50%, -50%);
-        animation: stream 2s linear infinite;
-      }
-      @keyframes stream {
-        0% { height: 0%; opacity: 0; }
-        50% { height: 100%; opacity: 1; }
-        100% { height: 0%; opacity: 0; }
-      }
-      @keyframes rotate {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+      #root {
+        min-height: 100vh;
       }
     </style>
 
