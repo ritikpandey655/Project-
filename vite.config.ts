@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import * as path from 'path';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+  const env = loadEnv(mode, process.cwd(), '');
   
   return {
     server: {
@@ -24,11 +24,21 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       chunkSizeWarningLimit: 1600,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom'],
+            charts: ['recharts'],
+            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore']
+          }
+        }
+      }
     },
     define: {
+      // safely stringify to prevent "undefined" build errors
       'process.env.API_KEY': JSON.stringify(env.API_KEY || ""), 
       'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY || ""),
-      'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID),
+      'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID || ""),
     },
   };
 });

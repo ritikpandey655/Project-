@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from './Button';
 import { User, SystemLog } from '../types';
 import { 
   getAllUsers, removeUser, toggleUserPro,
-  getSystemLogs, clearSystemLogs
+  getSystemLogs, clearSystemLogs, saveSystemConfig, getSystemConfig
 } from '../services/storageService';
 import { checkAIConnectivity } from '../services/geminiService';
 
@@ -12,208 +11,151 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'monitor' | 'users' | 'logs'>('monitor');
-  const [diagnostics, setDiagnostics] = useState<{
-    status: string;
-    latency: number;
-    secure: boolean;
-    timestamp: number;
-  }>({
-    status: 'Connecting...',
-    latency: 0,
-    secure: false,
-    timestamp: Date.now()
-  });
+  const [activeTab, setActiveTab] = useState<'monitor' | 'config' | 'users' | 'logs'>('monitor');
+  const [diagnostics, setDiagnostics] = useState<any>({ status: 'Connecting...' });
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [config, setConfig] = useState<{ aiProvider: 'gemini' | 'groq', modelName?: string }>({ aiProvider: 'gemini', modelName: 'gemini-2.5-flash-preview' });
   const [isLoading, setIsLoading] = useState(false);
 
   const runDiagnostics = async () => {
     const result = await checkAIConnectivity();
-    setDiagnostics({
-        status: result.status,
-        latency: result.latency,
-        secure: result.secure,
-        timestamp: Date.now()
-    });
+    setDiagnostics(result);
   };
 
-  const loadAdminData = async () => {
+  const loadData = async () => {
     setIsLoading(true);
-    try {
-      const [u, l] = await Promise.all([getAllUsers(), getSystemLogs()]);
-      setUsers(u);
-      setLogs(l);
-    } catch (e) {
-      console.error("Admin Load Error:", e);
-    } finally {
-      setIsLoading(false);
-    }
+    const [u, l, c] = await Promise.all([getAllUsers(), getSystemLogs(), getSystemConfig()]);
+    setUsers(u);
+    setLogs(l);
+    if(c.aiProvider) setConfig(c);
+    setIsLoading(false);
   };
 
   useEffect(() => {
     runDiagnostics();
-    loadAdminData();
-    const interval = setInterval(runDiagnostics, 10000); 
-    return () => clearInterval(interval);
+    loadData();
   }, []);
+
+  const handleSaveConfig = async () => {
+    setIsLoading(true);
+    await saveSystemConfig(config);
+    alert(`System Updated: Using ${config.aiProvider.toUpperCase()}`);
+    setIsLoading(false);
+  };
 
   const handleTogglePro = async (user: User) => {
     await toggleUserPro(user.id, !!user.isPro);
-    loadAdminData();
+    loadData();
   };
-
-  const handleDeleteUser = async (id: string) => {
-    if (window.confirm("Delete this user permanently?")) {
-      await removeUser(id);
-      loadAdminData();
-    }
-  };
-
-  const isGreen = diagnostics.status === 'Operational' || diagnostics.status === 'Client-Only';
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#0a0814] text-white font-sans overflow-hidden flex flex-col animate-fade-in">
-      {/* Admin Header */}
-      <div className="bg-[#121026] border-b border-white/5 p-4 flex justify-between items-center shrink-0 shadow-xl">
+      {/* Header */}
+      <div className="bg-[#121026] border-b border-white/5 p-4 flex justify-between items-center shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-brand-500 rounded-xl flex items-center justify-center font-black shadow-[0_0_20px_rgba(91,46,255,0.4)]">A</div>
+          <div className="w-10 h-10 bg-brand-500 rounded-xl flex items-center justify-center font-black">A</div>
           <div>
-            <h1 className="text-lg font-display font-black tracking-tight leading-none">PYQverse <span className="text-brand-400">CONTROL</span></h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">System Administrator Dashboard</p>
+            <h1 className="text-lg font-black tracking-tight">PYQverse CONTROL</h1>
+            <p className="text-[10px] text-slate-500 font-bold uppercase">Administrator</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button 
-            onClick={loadAdminData} 
-            className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all"
-            title="Refresh Data"
-          >
-            <svg className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-          <button onClick={onBack} className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-xs font-black rounded-xl transition-all shadow-lg shadow-red-600/20 active:scale-95">EXIT</button>
-        </div>
+        <button onClick={onBack} className="px-6 py-2 bg-red-600 font-black rounded-xl text-xs">EXIT</button>
       </div>
 
-      {/* Admin Navigation */}
-      <div className="flex bg-[#121026]/50 border-b border-white/5 p-1.5 gap-1.5">
-        {(['monitor', 'users', 'logs'] as const).map(tab => (
+      {/* Tabs */}
+      <div className="flex bg-[#121026]/50 border-b border-white/5 p-1">
+        {['monitor', 'config', 'users', 'logs'].map(tab => (
           <button 
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border ${activeTab === tab ? 'bg-brand-500 border-brand-400 text-white shadow-lg' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
+            key={tab} 
+            onClick={() => setActiveTab(tab as any)}
+            className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest ${activeTab === tab ? 'bg-brand-500 text-white' : 'text-slate-500 hover:text-white'}`}
           >
             {tab}
           </button>
         ))}
       </div>
 
-      {/* Admin Content Area */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+        
         {activeTab === 'monitor' && (
-          <div className="space-y-6 max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className={`p-8 rounded-[32px] border-2 transition-all ${isGreen ? 'bg-green-500/10 border-green-500/30 shadow-[0_0_30px_rgba(34,197,94,0.1)]' : 'bg-red-500/10 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.1)]'}`}>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">System Status</p>
-                <h3 className={`text-3xl font-black ${isGreen ? 'text-green-400' : 'text-red-400'}`}>{diagnostics.status}</h3>
-                <p className="text-[10px] mt-2 text-slate-500 italic">Checked: {new Date(diagnostics.timestamp).toLocaleTimeString()}</p>
-              </div>
-              <div className="p-8 rounded-[32px] border-2 bg-slate-800/20 border-white/10 shadow-xl">
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Latency</p>
-                <h3 className="text-4xl font-black text-white">{diagnostics.latency} <span className="text-sm text-slate-500">ms</span></h3>
-                <div className="w-full bg-slate-700/50 h-1.5 rounded-full mt-4 overflow-hidden">
-                   <div className="bg-brand-500 h-full transition-all" style={{ width: `${Math.min(diagnostics.latency / 10, 100)}%` }}></div>
-                </div>
-              </div>
-              <div className={`p-8 rounded-[32px] border-2 transition-all ${diagnostics.secure ? 'bg-brand-500/10 border-brand-500/30 shadow-[0_0_30px_rgba(91,46,255,0.1)]' : 'bg-orange-500/10 border-orange-500/30 shadow-[0_0_30px_rgba(249,115,22,0.1)]'}`}>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Security</p>
-                <h3 className="text-xl font-black text-white leading-tight">
-                  {diagnostics.secure ? 'KEY ACTIVE' : 'NO KEY FOUND'}
-                </h3>
-                <p className="text-[10px] mt-2 text-slate-500">Mode: {diagnostics.status === 'Client-Only' ? 'Browser Direct' : 'Backend Proxy'}</p>
-              </div>
-            </div>
+          <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+             <div className={`p-8 rounded-[32px] border-2 ${diagnostics.status !== 'Failed' ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                <h3 className="text-sm font-black uppercase text-slate-400 mb-2">Backend Status</h3>
+                <p className="text-3xl font-black">{diagnostics.status}</p>
+                <p className="text-xs mt-2 text-slate-500">{diagnostics.secure ? 'API Key Active' : 'API Key Missing'}</p>
+             </div>
+             <div className="p-8 rounded-[32px] bg-slate-800/50 border border-white/10">
+                <h3 className="text-sm font-black uppercase text-slate-400 mb-2">Current Engine</h3>
+                <p className="text-3xl font-black text-brand-400">{config.aiProvider === 'groq' ? 'GROQ (Llama)' : 'GEMINI 2.5'}</p>
+             </div>
+          </div>
+        )}
 
-            <div className="bg-[#121026] rounded-[32px] p-8 border border-white/5 shadow-2xl">
-              <h4 className="text-sm font-black uppercase mb-6 text-brand-400 tracking-widest flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span>
-                Environment Information
-              </h4>
-              <div className="space-y-4 font-mono text-xs">
-                <div className="flex justify-between border-b border-white/5 pb-4">
-                  <span className="text-slate-500">Infrastructure</span>
-                  <span className="text-white font-bold">{diagnostics.status === 'Client-Only' ? 'Client-Side Fallback' : 'Vercel / Node'}</span>
+        {activeTab === 'config' && (
+          <div className="max-w-2xl mx-auto bg-[#121026] p-8 rounded-[32px] border border-white/5">
+             <h2 className="text-2xl font-black mb-6">AI Engine Configuration</h2>
+             
+             <div className="space-y-6">
+                <div>
+                   <label className="block text-xs font-black uppercase text-slate-500 mb-3">Select Provider</label>
+                   <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        onClick={() => setConfig({ ...config, aiProvider: 'gemini', modelName: 'gemini-2.5-flash-preview' })}
+                        className={`p-4 rounded-xl border-2 text-left transition-all ${config.aiProvider === 'gemini' ? 'border-brand-500 bg-brand-500/10' : 'border-white/10 bg-white/5'}`}
+                      >
+                         <span className="block font-black text-lg">Google Gemini</span>
+                         <span className="text-xs text-slate-400">Model: 2.5 Flash</span>
+                      </button>
+                      <button 
+                        onClick={() => setConfig({ ...config, aiProvider: 'groq', modelName: 'llama-3.3-70b-versatile' })}
+                        className={`p-4 rounded-xl border-2 text-left transition-all ${config.aiProvider === 'groq' ? 'border-brand-500 bg-brand-500/10' : 'border-white/10 bg-white/5'}`}
+                      >
+                         <span className="block font-black text-lg">Groq Cloud</span>
+                         <span className="text-xs text-slate-400">Model: Llama 3.3</span>
+                      </button>
+                   </div>
                 </div>
-                <div className="flex justify-between border-b border-white/5 pb-4">
-                  <span className="text-slate-500">AI Model Primary</span>
-                  <span className="text-brand-400 font-bold">gemini-3-flash-preview</span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-slate-500">Handshake Time</span>
-                  <span className="text-white">{new Date(diagnostics.timestamp).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
+
+                <button 
+                  onClick={handleSaveConfig} 
+                  disabled={isLoading}
+                  className="w-full py-4 bg-brand-600 hover:bg-brand-500 rounded-xl font-black shadow-lg shadow-brand-500/20"
+                >
+                   {isLoading ? 'SAVING...' : 'APPLY CONFIGURATION'}
+                </button>
+             </div>
           </div>
         )}
 
         {activeTab === 'users' && (
-          <div className="space-y-4 max-w-5xl mx-auto">
-            {/* User List Code (Unchanged) */}
-             <div className="grid grid-cols-1 gap-3">
-              {users.map(u => (
-                <div key={u.id} className="bg-white/5 border border-white/5 p-5 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-black text-slate-300 overflow-hidden shadow-inner">
-                      {u.photoURL ? <img src={u.photoURL} className="w-full h-full object-cover" /> : u.name?.[0]}
+            <div className="space-y-2">
+                {users.map(u => (
+                    <div key={u.id} className="flex justify-between items-center bg-white/5 p-4 rounded-xl">
+                        <div>
+                            <p className="font-bold">{u.name}</p>
+                            <p className="text-xs text-slate-500">{u.email}</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${u.isPro ? 'bg-brand-500 text-white' : 'bg-slate-700 text-slate-400'}`}>{u.isPro ? 'PRO' : 'FREE'}</span>
+                            <button onClick={() => handleTogglePro(u)} className="text-xs underline text-brand-400">Toggle</button>
+                        </div>
                     </div>
-                    <div>
-                      <p className="font-black text-sm flex items-center gap-2">
-                        {u.name}
-                        {u.isAdmin && <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-[8px] font-black rounded-lg uppercase border border-red-500/20">Admin</span>}
-                        {u.isPro && <span className="px-2 py-0.5 bg-brand-500/20 text-brand-400 text-[8px] font-black rounded-lg uppercase border border-brand-500/20">Pro</span>}
-                      </p>
-                      <p className="text-[10px] text-slate-500 font-bold">{u.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleTogglePro(u)} className="px-4 py-2 bg-brand-500/10 text-brand-400 rounded-xl text-[10px] font-black border border-brand-500/20 hover:bg-brand-500 hover:text-white transition-all">TOGGLE PRO</button>
-                    <button onClick={() => handleDeleteUser(u.id)} className="px-4 py-2 bg-red-500/10 text-red-400 rounded-xl text-[10px] font-black border border-red-500/20 hover:bg-red-500 hover:text-white transition-all">DELETE</button>
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
-          </div>
+        )}
+        
+        {activeTab === 'logs' && (
+            <div className="font-mono text-xs text-slate-400 space-y-1">
+                {logs.map(l => (
+                    <div key={l.id} className="border-b border-white/5 py-2">
+                        <span className={l.type === 'ERROR' ? 'text-red-400' : 'text-green-400'}>{l.type}</span>: {l.message}
+                    </div>
+                ))}
+            </div>
         )}
 
-        {activeTab === 'logs' && (
-          <div className="max-w-5xl mx-auto flex flex-col h-full">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black">System Event Logs</h3>
-              <button 
-                onClick={() => { if(window.confirm("Clear all system logs?")) { clearSystemLogs(); setLogs([]); } }} 
-                className="px-4 py-2 bg-red-500/10 text-red-400 text-[10px] font-black rounded-xl border border-red-500/20 hover:bg-red-500 hover:text-white transition-all"
-              >
-                PURGE LOGS
-              </button>
-            </div>
-            <div className="bg-black/40 rounded-[32px] p-6 font-mono text-[10px] text-slate-400 space-y-2 border border-white/5 h-[60vh] overflow-y-auto scrollbar-hide shadow-inner">
-              {logs.length === 0 ? (
-                <div className="h-full flex items-center justify-center italic opacity-30 text-sm">No critical events recorded in the current cycle.</div>
-              ) : (
-                logs.map(log => (
-                  <div key={log.id} className="flex gap-4 border-b border-white/5 pb-2 last:border-0 hover:bg-white/5 transition-colors p-2 rounded-lg">
-                    <span className="text-slate-600 shrink-0 font-bold">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-                    <span className={`font-black ${log.type === 'ERROR' ? 'text-red-400' : log.type === 'API_FAIL' ? 'text-orange-400' : 'text-brand-400'}`}>{log.type}</span>
-                    <span className="text-slate-300 break-all">{log.message}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
