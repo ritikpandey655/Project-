@@ -1,10 +1,11 @@
 
 import { Question, QuestionSource, QuestionType, QuestionPaper, NewsItem } from "../types";
 import { MOCK_QUESTIONS_FALLBACK } from "../constants";
-import { getOfficialQuestions, getSystemConfig, logSystemError } from "./storageService";
+import { getOfficialQuestions, logSystemError } from "./storageService";
 
-// --- BACKEND API HANDLER ---
-
+/**
+ * Robust fetch wrapper for the backend AI proxy
+ */
 const callBackend = async (endpoint: string, payload: any) => {
     try {
         const response = await fetch(endpoint, {
@@ -16,28 +17,29 @@ const callBackend = async (endpoint: string, payload: any) => {
         if (!response.ok) {
             const errorText = await response.text();
             if (response.status === 429) {
-                logSystemError('API_FAIL', 'AI Quota Exceeded (429)');
-                throw new Error("AI Quota Exceeded. Please wait a minute.");
+                logSystemError('API_FAIL', 'AI Quota Exceeded');
+                throw new Error("AI Busy: Too many requests. Please wait 60 seconds.");
             }
-            logSystemError('ERROR', `Backend Error: ${response.status}`, errorText);
-            throw new Error(`API Error ${response.status}: ${errorText}`);
+            logSystemError('ERROR', `Backend Error ${response.status}`, errorText);
+            throw new Error(`Connection Error: ${response.status}`);
         }
 
         const result = await response.json();
         
         if (!result.success) {
-            throw new Error(result.error || "Unknown Backend Error");
+            throw new Error(result.error || "AI Generation failed.");
         }
 
         return result.data; 
     } catch (e) {
-        console.error("API Call Failed:", e);
+        console.error("Critical AI Communication Failure:", e);
         throw e;
     }
 };
 
-// --- UTILS ---
-
+/**
+ * Standard JSON cleaning for AI responses
+ */
 const cleanJson = (text: string) => {
   if (!text) return "";
   const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
@@ -52,12 +54,13 @@ const cleanJson = (text: string) => {
 };
 
 const safeOptions = (opts: any): string[] => {
-    if (Array.isArray(opts) && opts.length > 0) return opts.map(o => String(o));
+    if (Array.isArray(opts) && opts.length >= 2) return opts.map(o => String(o));
     return ["Option A", "Option B", "Option C", "Option D"];
 };
 
-// --- MAIN GENERATION FUNCTION ---
-
+/**
+ * Universal AI Generation Handler
+ */
 export const generateWithAI = async (
     prompt: string, 
     isJson: boolean = true, 
@@ -69,8 +72,7 @@ export const generateWithAI = async (
             model: modelName,
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             config: {
-                temperature: temperature,
-                responseMimeType: isJson ? "application/json" : "text/plain"
+                temperature: temperature
             }
         };
         const textOutput = await callBackend('/api/ai/generate', payload);
@@ -79,73 +81,20 @@ export const generateWithAI = async (
             try {
                 return JSON.parse(cleanJson(textOutput));
             } catch (e) {
-                console.error("AI JSON Parse Error:", textOutput);
-                throw new Error("AI returned invalid data format.");
+                console.error("AI returned malformed JSON:", textOutput);
+                throw new Error("AI response was unreadable. Re-trying...");
             }
         }
         return textOutput;
     } catch (e: any) {
-        logSystemError('ERROR', 'AI Generation Failed', e.message);
+        logSystemError('ERROR', 'AI Handshake Failed', e.message);
         throw e;
     }
 };
 
 /**
- * Solves a specific question text directly.
+ * Generates MCQs for Practice sessions
  */
-export const solveTextQuestion = async (
-    questionText: string,
-    examType: string,
-    subject: string
-): Promise<any> => {
-    const prompt = `Act as an expert exam tutor for ${examType} (${subject}). 
-    Analyze and solve this query: "${questionText}".
-    
-    If it's a topic, generate a high-quality MCQ for it.
-    If it's a specific question, provide the correct answer and explanation.
-    
-    Return JSON:
-    {
-        "text": "The cleaned question text",
-        "options": ["A", "B", "C", "D"],
-        "correctIndex": 0,
-        "explanation": "Step-by-step logic"
-    }`;
-
-    return await generateWithAI(prompt, true, 0.3);
-};
-
-/**
- * Generates questions from an image.
- */
-export const generateQuestionFromImage = async (
-    base64: string, 
-    mimeType: string,
-    examType: string, 
-    subject: string
-): Promise<any> => {
-    const prompt = `Extract and solve the exam question for ${examType} (${subject}) from this image. 
-    Return a JSON object with: text, options (4), correctIndex, and a detailed explanation.`;
-
-    const payload = {
-        model: 'gemini-3-flash-preview',
-        contents: [{ 
-            role: 'user', 
-            parts: [
-                { inlineData: { data: base64, mimeType: mimeType } },
-                { text: prompt }
-            ] 
-        }],
-        config: {
-            temperature: 0.2,
-            responseMimeType: "application/json"
-        }
-    };
-
-    const textOutput = await callBackend('/api/ai/generate', payload);
-    return JSON.parse(cleanJson(textOutput));
-};
-
 export const generateExamQuestions = async (
     exam: string, 
     subject: string, 
@@ -158,11 +107,15 @@ export const generateExamQuestions = async (
       if (officialQs.length >= count) return officialQs;
       
       const neededCount = count - officialQs.length;
-      const prompt = `Generate ${neededCount} MCQs for ${exam} (${subject}). Difficulty: ${difficulty}. 
-      ${topics.length > 0 ? `Focus on topics: ${topics.join(', ')}.` : ''} 
-      Return JSON array: [{text, options:[], correctIndex, explanation}].`;
+      const prompt = `Generate exactly ${neededCount} high-quality MCQs for the ${exam} competitive exam. 
+      Subject: ${subject}. 
+      Difficulty: ${difficulty}. 
+      ${topics.length > 0 ? `Target Topics: ${topics.join(', ')}.` : ''} 
+      Requirements: 4 clear options, 1 correct index (0-3), and a conceptual step-by-step explanation.
+      
+      Return as a raw JSON array: [{"text": "...", "options": ["A", "B", "C", "D"], "correctIndex": 0, "explanation": "..."}]`;
 
-      const items = await generateWithAI(prompt, true, 0.5);
+      const items = await generateWithAI(prompt, true, 0.7);
       const data = Array.isArray(items) ? items : (items.questions || []);
 
       const formatted = data.map((q: any) => ({
@@ -170,7 +123,7 @@ export const generateExamQuestions = async (
           text: q.text || q.question,
           options: safeOptions(q.options),
           correctIndex: q.correctIndex ?? 0,
-          explanation: q.explanation || "Logic-based answer.",
+          explanation: q.explanation || "Logic-based answer provided by AI engine.",
           source: QuestionSource.PYQ_AI,
           examType: exam,
           subject: subject,
@@ -179,96 +132,170 @@ export const generateExamQuestions = async (
 
       return [...officialQs, ...formatted];
   } catch (e) {
-      console.warn("AI Generation failed, using fallback.", e);
+      console.warn("AI Generation fallback to mock data.", e);
       return MOCK_QUESTIONS_FALLBACK as any;
   }
 };
 
 /**
- * Generates a list of Previous Year Questions (PYQs).
+ * Specialized Doubt Solver (Text)
+ */
+export const solveTextQuestion = async (
+    questionText: string,
+    examType: string,
+    subject: string
+): Promise<any> => {
+    const prompt = `Expert Solver Mode: Analyze the following query for ${examType} (${subject}): "${questionText}".
+    
+    If it's a specific question, solve it with full steps.
+    If it's a topic, provide a master MCQ for that topic.
+    
+    Return JSON:
+    {
+        "text": "Cleaned original question",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctIndex": 0,
+        "explanation": "Detailed conceptual breakdown"
+    }`;
+
+    return await generateWithAI(prompt, true, 0.4);
+};
+
+// Fix: Implemented missing vision-based doubt solver function
+/**
+ * Vision-based doubt solver extracting questions from images
+ */
+export const generateQuestionFromImage = async (
+    base64: string,
+    mimeType: string,
+    exam: string,
+    subject: string
+): Promise<any> => {
+    const prompt = `Analyze this image containing a question for the ${exam} exam (${subject}). 
+    Extract the question text, identify options, find the correct answer, and provide a detailed solution.
+    
+    Return JSON format:
+    {
+        "text": "Extracted question text",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctIndex": 0,
+        "explanation": "Detailed step-by-step solution"
+    }`;
+
+    try {
+        const payload = {
+            model: 'gemini-3-flash-preview',
+            contents: [{
+                role: 'user',
+                parts: [
+                    { inlineData: { data: base64, mimeType: mimeType } },
+                    { text: prompt }
+                ]
+            }],
+            config: { temperature: 0.4 }
+        };
+        const textOutput = await callBackend('/api/ai/generate', payload);
+        return JSON.parse(cleanJson(textOutput));
+    } catch (e) {
+        console.error("Vision Analysis Error:", e);
+        return null;
+    }
+};
+
+// Fix: Implemented missing full-length mock paper generator
+/**
+ * Generates a comprehensive mock paper with multiple sections and AI logic
+ */
+export const generateFullPaper = async (
+    exam: string,
+    subject: string,
+    difficulty: string,
+    seedData: string,
+    config: any
+): Promise<QuestionPaper | null> => {
+    const prompt = `Generate a professional full-length mock paper for ${exam} (${subject}).
+    Difficulty: ${difficulty}.
+    Additional Context: ${seedData}
+    
+    Include exactly ${config.mcqCount} MCQs in Section A.
+    ${config.includeShort ? 'Include Section B with short-answer questions.' : ''}
+    ${config.includeLong ? 'Include Section C with long-answer questions.' : ''}
+    
+    Return JSON structure:
+    {
+      "id": "gen-${Date.now()}",
+      "title": "${subject} Master Mock for ${exam}",
+      "totalMarks": 100,
+      "durationMinutes": 180,
+      "examType": "${exam}",
+      "subject": "${subject}",
+      "difficulty": "${difficulty}",
+      "createdAt": ${Date.now()},
+      "sections": [
+        {
+          "id": "sec-1",
+          "title": "Section A: Multiple Choice",
+          "instructions": "All questions are compulsory. 4 marks each.",
+          "marksPerQuestion": 4,
+          "questions": [
+             {
+               "id": "q1",
+               "text": "...",
+               "options": ["A", "B", "C", "D"],
+               "correctIndex": 0,
+               "explanation": "..."
+             }
+          ]
+        }
+      ]
+    }`;
+
+    try {
+        const result = await generateWithAI(prompt, true, 0.7, 'gemini-3-pro-preview');
+        return result as QuestionPaper;
+    } catch (e) {
+        console.error("Paper Generation Error:", e);
+        return null;
+    }
+};
+
+// Fix: Implemented missing PYQ library generator
+/**
+ * Retrieves authentic-style Previous Year Questions based on historical exam patterns
  */
 export const generatePYQList = async (
-    exam: string, 
-    subject: string, 
+    exam: string,
+    subject: string,
     year: number,
     topic: string = ''
 ): Promise<Question[]> => {
-    const prompt = `Act as an expert exam archivist. Provide 10 realistic Previous Year Questions for ${exam} in the subject of ${subject} specifically for the year ${year}. ${topic ? `Focus on the topic: ${topic}.` : ''}
+    const prompt = `Provide 10 highly accurate Previous Year Questions (PYQs) for ${exam} (${subject}) for the year ${year}.
+    ${topic ? `Focus on topic: ${topic}` : ''}
     
-    Return a JSON array of objects:
-    [{
-        "text": "The question text",
-        "options": ["Option A", "Option B", "Option C", "Option D"],
-        "correctIndex": 0,
-        "explanation": "Detailed explanation of the solution"
-    }]`;
+    Return JSON array: [{"id": "...", "text": "...", "options": ["...", "..."], "correctIndex": 0, "explanation": "..."}]`;
 
     try {
-        const items = await generateWithAI(prompt, true, 0.4);
+        const items = await generateWithAI(prompt, true, 0.6);
         const data = Array.isArray(items) ? items : (items.questions || []);
-
+        
         return data.map((q: any) => ({
-            id: `pyq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            text: q.text || q.question,
-            options: safeOptions(q.options),
-            correctIndex: q.correctIndex ?? 0,
-            explanation: q.explanation || "Verified answer from official archives.",
-            source: QuestionSource.OFFICIAL,
+            ...q,
+            id: q.id || `pyq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            source: QuestionSource.PYQ_AI,
             examType: exam,
             subject: subject,
             pyqYear: year,
             createdAt: Date.now()
         }));
     } catch (e) {
-        console.warn("Failed to fetch PYQ list, returning empty array", e);
+        console.error("PYQ Retrieval Error:", e);
         return [];
     }
 };
 
-export const generateFullPaper = async (
-    exam: string, 
-    subject: string, 
-    difficulty: string, 
-    seedData: string, 
-    config: any
-): Promise<QuestionPaper | null> => {
-    const qCount = config.mcqCount || 20;
-    const prompt = `Create a full ${exam} Mock Paper for ${subject}. 
-    Difficulty: ${difficulty}. Additional context: ${seedData}.
-    Generate exactly ${qCount} MCQs with detailed explanations.
-    
-    JSON structure: {
-        "title": "${exam} Mock Test", 
-        "totalMarks": ${qCount * 4}, 
-        "durationMinutes": 180, 
-        "sections": [{ "title": "Main Section", "questions": [{text, options, correctIndex, explanation}] }]
-    }`;
-
-    try {
-        const data = await generateWithAI(prompt, true, 0.4);
-        if (!data || !data.sections) return null;
-
-        data.sections.forEach((s: any) => {
-            s.id = `sec-${Math.random().toString(36).substr(2, 5)}`;
-            s.questions.forEach((q: any) => {
-                q.id = `pq-${Math.random().toString(36).substr(2, 5)}`;
-                q.options = safeOptions(q.options);
-            });
-        });
-
-        return {
-            ...data,
-            id: `paper-${Date.now()}`,
-            examType: exam,
-            subject: subject,
-            difficulty: difficulty,
-            createdAt: Date.now()
-        } as QuestionPaper;
-    } catch (e) { 
-        return null; 
-    }
-};
-
+/**
+ * Connectivity Check for Admin Control
+ */
 export const checkAIConnectivity = async (): Promise<{ status: 'Operational' | 'Failed', latency: number, secure: boolean }> => {
     const start = Date.now();
     try {

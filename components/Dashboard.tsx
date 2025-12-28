@@ -1,7 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { UserStats, ExamType, User, Question, ViewState } from '../types';
+import React, { useMemo, useState } from 'react';
+import { UserStats, ExamType, User, ViewState } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Button } from './Button';
 import { TRANSLATIONS } from '../constants';
 
 interface DashboardProps {
@@ -23,8 +22,6 @@ interface DashboardProps {
   currentTheme?: string;
   onThemeChange?: (theme: string) => void;
   onUpgrade?: () => void;
-  qotd?: Question | null;
-  onOpenQOTD?: () => void;
   onOpenBookmarks?: () => void;
   onOpenAnalytics?: () => void;
   onOpenLeaderboard?: () => void;
@@ -40,6 +37,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   onStartPractice, 
   onUpload, 
   onGeneratePaper,
+  onOpenPYQLibrary,
   isOnline = true,
   language = 'en',
   selectedExam,
@@ -48,147 +46,151 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   onOpenBookmarks,
   onNavigate
 }) => {
-  const [activeFilter, setActiveFilter] = useState<string>('All');
   const t = TRANSLATIONS[language];
 
-  const displayedStats = useMemo(() => {
-    if (activeFilter === 'All') {
-      return {
-        attempted: stats.totalAttempted,
-        correct: stats.totalCorrect,
-        subjects: stats.subjectPerformance
-      };
-    }
-    const examStats = stats.examPerformance?.[activeFilter];
-    return {
-      attempted: examStats?.totalAttempted || 0,
-      correct: examStats?.totalCorrect || 0,
-      subjects: examStats?.subjectPerformance || {}
-    };
-  }, [stats, activeFilter]);
-  
   const chartData = useMemo(() => {
-    return Object.keys(displayedStats.subjects).map(subject => ({
+    return Object.keys(stats.subjectPerformance).map(subject => ({
       name: subject.length > 10 ? subject.substring(0, 10) + '...' : subject,
-      fullSubject: subject,
-      score: displayedStats.subjects[subject].total > 0 
-        ? Math.round((displayedStats.subjects[subject].correct / displayedStats.subjects[subject].total) * 100)
+      score: stats.subjectPerformance[subject].total > 0 
+        ? Math.round((stats.subjectPerformance[subject].correct / stats.subjectPerformance[subject].total) * 100)
         : 0
     })).sort((a, b) => b.score - a.score).slice(0, 5);
-  }, [displayedStats]);
+  }, [stats]);
 
-  const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--brand-primary').trim() || '#5B2EFF';
+  const accuracy = stats.totalAttempted > 0 ? Math.round((stats.totalCorrect / stats.totalAttempted) * 100) : 0;
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-8 pb-32 animate-fade-in">
       
       {!isOnline && (
-        <div className="bg-amber-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-lg flex items-center justify-between animate-fade-in">
-          <span className="uppercase tracking-tighter">📡 Offline Mode</span>
+        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-500 px-6 py-3 rounded-2xl text-xs font-black shadow-lg flex items-center justify-between animate-pulse">
+          <span className="uppercase tracking-widest">📡 Offline Mode Active</span>
+          <span className="text-[10px]">Archives available</span>
         </div>
       )}
 
-      {/* Greeting Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4">
+      {/* Hero Greeting */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-6">
         <div>
-           <h2 className="text-3xl font-display font-black text-slate-800 dark:text-white tracking-tight leading-none">
-              Namaste, <span className="text-brand-600">{user?.name?.split(' ')[0]}</span>
+           <h2 className="text-4xl font-display font-black text-slate-800 dark:text-white tracking-tighter leading-none mb-2">
+              Welcome, <span className="text-brand-500">{user?.name?.split(' ')[0]}</span>
            </h2>
-           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 font-medium">Ready to master {selectedExam} today?</p>
+           <p className="text-slate-500 dark:text-slate-400 text-sm font-bold uppercase tracking-widest">Target: {selectedExam || 'Set Your Exam'}</p>
         </div>
-        <div className="flex gap-2">
-           <div className="bg-white dark:bg-slate-800 px-4 py-2 rounded-2xl border border-slate-100 dark:border-white/10 shadow-sm flex items-center gap-3">
-              <span className="text-xl">🔥</span>
+        <div className="flex gap-3">
+           <div className="bg-white dark:bg-slate-900/50 backdrop-blur-md px-5 py-3 rounded-[24px] border border-slate-100 dark:border-white/5 shadow-xl flex items-center gap-4 group hover:border-brand-500/50 transition-all">
+              <span className="text-2xl animate-bounce">🔥</span>
               <div className="text-left">
-                 <p className="text-[10px] font-black text-slate-400 uppercase leading-none">{t.streak}</p>
-                 <p className="text-sm font-black dark:text-white">{stats.streakCurrent} Days</p>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Streak</p>
+                 <p className="text-lg font-black dark:text-white leading-none">{stats.streakCurrent} Days</p>
               </div>
            </div>
-           <div className="bg-white dark:bg-slate-800 px-4 py-2 rounded-2xl border border-slate-100 dark:border-white/10 shadow-sm flex items-center gap-3">
-              <span className="text-xl">🎯</span>
+           <div className="bg-white dark:bg-slate-900/50 backdrop-blur-md px-5 py-3 rounded-[24px] border border-slate-100 dark:border-white/5 shadow-xl flex items-center gap-4 group hover:border-brand-500/50 transition-all">
+              <span className="text-2xl">🎯</span>
               <div className="text-left">
-                 <p className="text-[10px] font-black text-slate-400 uppercase leading-none">{t.accuracy}</p>
-                 <p className="text-sm font-black dark:text-white">{displayedStats.attempted > 0 ? Math.round((displayedStats.correct / displayedStats.attempted) * 100) : 0}%</p>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Accuracy</p>
+                 <p className="text-lg font-black dark:text-white leading-none">{accuracy}%</p>
               </div>
            </div>
         </div>
       </div>
 
-      {/* Feature Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+      {/* Main Feature Command Tiles */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         {/* AI Practice Tile */}
          <div 
            onClick={onStartPractice}
-           className="group bg-gradient-to-br from-brand-600 to-brand-800 p-8 rounded-[32px] text-white shadow-2xl shadow-brand-500/20 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-all"
+           className="group bg-gradient-to-br from-brand-600 to-brand-800 p-10 rounded-[40px] text-white shadow-2xl shadow-brand-500/20 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-[0_20px_40px_-15px_rgba(91,46,255,0.4)]"
          >
-            <div className="absolute top-[-20%] right-[-10%] text-9xl opacity-10 pointer-events-none transform rotate-12">⚡</div>
-            <div className="relative z-10 flex flex-col h-full">
-               <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-3 py-1 rounded-full w-fit mb-4">Practice Mode</span>
-               <h3 className="text-3xl font-display font-black leading-tight mb-2">Smart Revision <br/> AI Engine</h3>
-               <p className="text-brand-100/70 text-sm max-w-sm mb-8">Unlimited personalized questions based on {selectedExam} patterns.</p>
+            <div className="absolute top-[-10%] right-[-10%] text-[180px] opacity-10 pointer-events-none transform rotate-12 font-black">AI</div>
+            <div className="relative z-10 flex flex-col h-full min-h-[220px]">
+               <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full w-fit mb-6 border border-white/20">Recommended</span>
+               <h3 className="text-4xl font-display font-black leading-tight mb-4 tracking-tighter">AI Practice<br/>Universe</h3>
+               <p className="text-brand-100/70 text-sm max-w-sm mb-8 font-medium">Generate unlimited questions based on {selectedExam} 2024-25 patterns.</p>
                <div className="mt-auto">
-                  <span className="inline-flex items-center gap-2 bg-white text-brand-700 px-6 py-3 rounded-full font-black text-sm shadow-xl hover:gap-4 transition-all">
-                    START SOLVING <span className="text-xl">→</span>
+                  <span className="inline-flex items-center gap-3 bg-white text-brand-700 px-8 py-4 rounded-full font-black text-sm shadow-2xl hover:gap-6 transition-all">
+                    LAUNCH SESSION <span className="text-xl">🚀</span>
                   </span>
                </div>
             </div>
          </div>
 
-         <div className="grid grid-cols-1 gap-4">
+         {/* Doubt Solver Tile */}
+         <div className="grid grid-cols-1 gap-6">
             <div 
               onClick={onUpload}
-              className="bg-white dark:bg-slate-800 p-8 rounded-[32px] border border-slate-100 dark:border-white/10 shadow-sm hover:border-brand-300 dark:hover:border-brand-800 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-6"
+              className="bg-white dark:bg-slate-900/40 backdrop-blur-md p-8 rounded-[40px] border border-slate-100 dark:border-white/5 shadow-2xl hover:border-brand-500/50 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-8 group"
             >
-               <div className="w-14 h-14 bg-brand-50 dark:bg-brand-900/30 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0">📸</div>
+               <div className="w-20 h-20 bg-brand-50 dark:bg-brand-900/30 rounded-[28px] flex items-center justify-center text-4xl flex-shrink-0 shadow-inner group-hover:scale-110 transition-transform">📸</div>
                <div>
-                  <h3 className="text-xl font-display font-black text-slate-800 dark:text-white mb-1">{t.doubtSolver}</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm">Scan any question for an instant AI solution.</p>
+                  <h3 className="text-2xl font-display font-black text-slate-800 dark:text-white mb-2 tracking-tight">AI Doubt Solver</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Scan any question or type a topic for instant expert solution.</p>
                </div>
             </div>
 
-            <div 
-              onClick={onGeneratePaper}
-              className="bg-white dark:bg-slate-800 p-8 rounded-[32px] border border-slate-100 dark:border-white/10 shadow-sm hover:border-orange-300 dark:hover:border-orange-800 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-6"
-            >
-               <div className="w-14 h-14 bg-orange-50 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0">📝</div>
-               <div>
-                  <h3 className="text-xl font-display font-black text-slate-800 dark:text-white mb-1">Mock Test</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm">Full-length time-bound papers.</p>
-               </div>
+            <div className="grid grid-cols-2 gap-6">
+                <div 
+                  onClick={onGeneratePaper}
+                  className="bg-white dark:bg-slate-900/40 backdrop-blur-md p-6 rounded-[32px] border border-slate-100 dark:border-white/5 shadow-xl hover:border-orange-500/50 cursor-pointer active:scale-[0.98] transition-all flex flex-col items-center text-center gap-3"
+                >
+                   <div className="w-14 h-14 bg-orange-50 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center text-3xl">📝</div>
+                   <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tighter">Mock Test</h3>
+                </div>
+                <div 
+                  onClick={() => onNavigate?.('paperGenerator')}
+                  className="bg-white dark:bg-slate-900/40 backdrop-blur-md p-6 rounded-[32px] border border-slate-100 dark:border-white/5 shadow-xl hover:border-pink-500/50 cursor-pointer active:scale-[0.98] transition-all flex flex-col items-center text-center gap-3"
+                >
+                   <div className="w-14 h-14 bg-pink-50 dark:bg-pink-900/30 rounded-2xl flex items-center justify-center text-3xl">📜</div>
+                   <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tighter">PYQ Library</h3>
+                </div>
             </div>
          </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800/40 backdrop-blur-md rounded-[40px] p-8 border border-slate-100 dark:border-white/10 shadow-sm">
-         <div className="flex justify-between items-center mb-8">
-            <h3 className="font-display font-black text-2xl text-slate-800 dark:text-white">Performance Analytics</h3>
-            <button onClick={onOpenAnalytics} className="text-brand-600 dark:text-brand-400 text-xs font-black uppercase tracking-widest hover:underline">View All</button>
+      {/* Analytics Insight */}
+      <div className="bg-white dark:bg-[#121026] backdrop-blur-xl rounded-[40px] p-10 border border-slate-100 dark:border-white/5 shadow-2xl">
+         <div className="flex justify-between items-center mb-10">
+            <div>
+               <h3 className="font-display font-black text-2xl text-slate-800 dark:text-white tracking-tight">AI Intelligence Insight</h3>
+               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Based on last 30 sessions</p>
+            </div>
+            <button onClick={onOpenAnalytics} className="bg-brand-500/10 text-brand-500 px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-brand-500/20 hover:bg-brand-500 hover:text-white transition-all">Detailed Stats</button>
          </div>
-         <div className="h-[200px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-               <BarChart data={chartData}>
-                  <Bar dataKey="score" radius={[12, 12, 12, 12]}>
-                     {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.score > 70 ? '#10B981' : primaryColor} fillOpacity={0.7} />
-                     ))}
-                  </Bar>
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                  <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-               </BarChart>
-            </ResponsiveContainer>
+         <div className="h-[240px] w-full">
+            {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                   <BarChart data={chartData}>
+                      <Bar dataKey="score" radius={[16, 16, 16, 16]}>
+                         {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.score > 70 ? '#10B981' : '#5B2EFF'} fillOpacity={0.8} />
+                         ))}
+                      </Bar>
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 11, fontWeight: '700'}} />
+                      <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ borderRadius: '24px', border: 'none', backgroundColor: '#0f172a', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', color: '#fff' }} />
+                   </BarChart>
+                </ResponsiveContainer>
+            ) : (
+                <div className="h-full flex flex-col items-center justify-center opacity-40">
+                   <span className="text-4xl mb-4">📊</span>
+                   <p className="font-black text-xs uppercase tracking-widest">No analytic data yet. Start practicing!</p>
+                </div>
+            )}
          </div>
       </div>
 
-      <div className="pt-12 pb-24 border-t border-slate-200 dark:border-white/5 flex flex-col items-center">
-          <p className="text-xs font-bold text-slate-400 tracking-widest mb-4">© 2025 PYQVERSE AI</p>
-          <div className="flex gap-8 mb-6">
-             <button onClick={onOpenAnalytics} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500">Analytics</button>
-             <button onClick={onOpenLeaderboard} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500">Leaderboard</button>
-             <button onClick={onOpenBookmarks} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500">Bookmarks</button>
+      {/* Quick Access Footer */}
+      <div className="pt-16 pb-32 border-t border-slate-200 dark:border-white/5 flex flex-col items-center gap-8">
+          <div className="flex gap-12">
+             <button onClick={onOpenAnalytics} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500 transition-colors">Analytics</button>
+             <button onClick={onOpenLeaderboard} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500 transition-colors">Leaderboard</button>
+             <button onClick={onOpenBookmarks} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500 transition-colors">Bookmarks</button>
           </div>
-          <div className="flex gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-             <button onClick={() => onNavigate?.('privacy')} className="hover:text-brand-500 transition-colors uppercase">Privacy Policy</button>
-             <span>•</span>
+          <div className="flex items-center gap-4 text-[10px] font-bold text-slate-600 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-6 py-2 rounded-full">
+             <button onClick={() => onNavigate?.('privacy')} className="hover:text-brand-500 transition-colors">Privacy</button>
+             <span className="opacity-20">•</span>
              <a href="mailto:support@pyqverse.in" className="hover:text-brand-500 transition-colors">Support</a>
+             <span className="opacity-20">•</span>
+             <span className="text-slate-400">v5.0.1 ALPHA</span>
           </div>
       </div>
 

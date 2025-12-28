@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState, ExamResult } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
@@ -9,7 +8,7 @@ import {
 } from '../services/storageService';
 import { generateExamQuestions } from '../services/geminiService';
 
-// Components
+// UI Components
 import { Dashboard } from './Dashboard';
 import { QuestionCard } from './QuestionCard';
 import { UploadForm } from './UploadForm';
@@ -30,9 +29,10 @@ import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { LandingPage } from './LandingPage'; 
 import { BookmarksList } from './BookmarksList';
+import { PYQLibrary } from './PYQLibrary';
 import { LogoIcon } from './LogoIcon';
 
-// Firebase
+// Firebase Engine
 import { auth } from '../src/firebaseConfig';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
@@ -52,7 +52,7 @@ const App: React.FC = () => {
     stats: INITIAL_STATS,
     user: null,
     showTimer: true,
-    darkMode: true, // Defaulting to dark mode for universe feel
+    darkMode: true, // Default to Dark (Universe Theme)
     language: 'en',
     theme: 'PYQverse Prime', 
     examConfig: EXAM_SUBJECTS as any
@@ -74,7 +74,7 @@ const App: React.FC = () => {
   
   const currentSessionId = useRef<string>(Date.now().toString());
 
-  // PWA & Connectivity Listeners
+  // App Health & Connectivity
   useEffect(() => {
     const pwaHandler = (e: any) => { e.preventDefault(); setDeferredPrompt(e); };
     window.addEventListener('beforeinstallprompt', pwaHandler);
@@ -95,6 +95,7 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, view: newView }));
     localStorage.setItem(LAST_VIEW_KEY, newView);
     setIsSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   const loadUserData = useCallback(async (userId: string) => {
@@ -116,7 +117,7 @@ const App: React.FC = () => {
         selectedExam: prefs.selectedExam,
         stats: statsData,
         showTimer: prefs.showTimer,
-        darkMode: prefs.darkMode ?? true,
+        darkMode: true, // Force Dark Theme for aesthetics
         language: prefs.language,
         theme: prefs.theme || 'PYQverse Prime',
         examConfig: config,
@@ -151,7 +152,7 @@ const App: React.FC = () => {
       setCurrentQIndex(0);
       navigateTo('practice');
     } catch (e) {
-      alert("AI Service currently busy. Please try again in a moment.");
+      alert("AI Service busy. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -185,35 +186,43 @@ const App: React.FC = () => {
   const isEntryView = ['landing', 'login', 'signup', 'forgotPassword', 'privacy', 'terms'].includes(state.view);
 
   return (
-    <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans bg-white dark:bg-slate-950 text-slate-900 dark:text-white transition-colors`}>
+    <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans bg-white dark:bg-[#0a0814] text-slate-900 dark:text-white transition-colors selection:bg-brand-500/30`}>
       <BackgroundAnimation darkMode={state.darkMode} />
       
       {isLoading && (
-        <div className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center">
-           <div className="hourglass mb-8"></div>
-           <h3 className="text-2xl font-display font-black tracking-widest uppercase mb-2">Syncing Universe</h3>
-           <p className="text-brand-400 font-mono text-xs animate-pulse">Calculating AI patterns...</p>
+        <div className="fixed inset-0 z-[200] bg-[#0a0814]/90 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+           <div className="sand-timer mb-10">
+              <div className="sand-top"></div>
+              <div className="sand-bottom"></div>
+              <div className="sand-stream"></div>
+           </div>
+           <h3 className="text-3xl font-display font-black tracking-tighter uppercase mb-2">Syncing with AI</h3>
+           <p className="text-brand-400 font-mono text-[10px] uppercase tracking-widest animate-pulse">Calculating Exam Patterns...</p>
         </div>
       )}
 
       <main className="relative z-10 min-h-screen w-full flex flex-col">
         {!isEntryView && state.view !== 'practice' && (
-          <div className="flex justify-between items-center px-4 py-3 pt-safe sticky top-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-40 border-b border-white/5">
-              <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('dashboard')}>
+          <header className="flex justify-between items-center px-6 py-4 pt-safe sticky top-0 bg-white/80 dark:bg-[#0a0814]/80 backdrop-blur-xl z-40 border-b border-white/5">
+              <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigateTo('dashboard')}>
                   <LogoIcon size="sm" />
-                  <h1 className="font-display font-black text-xl text-brand-600 dark:text-white tracking-tighter">PYQverse</h1>
+                  <h1 className="font-display font-black text-2xl text-brand-600 dark:text-white tracking-tighter group-hover:scale-105 transition-transform">PYQverse</h1>
               </div>
-              <button onClick={() => setIsSidebarOpen(true)} className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-white/5 active:scale-95 transition-all">
-                  <svg className="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
+              <button 
+                onClick={() => setIsSidebarOpen(true)} 
+                className="p-3 rounded-2xl bg-slate-50 dark:bg-white/5 border border-white/5 hover:border-brand-500/30 active:scale-90 transition-all shadow-xl"
+              >
+                  <svg className="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
               </button>
-          </div>
+          </header>
         )}
 
-        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
           {state.view === 'landing' && <LandingPage onLogin={() => navigateTo('login')} onSignup={(q) => { if(q) setInitialDoubtQuery(q); navigateTo('signup'); }} onNavigate={navigateTo} />}
           {state.view === 'login' && <LoginScreen onLogin={(user) => loadUserData(user.id)} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} onNavigateToPrivacy={() => navigateTo('privacy')} onNavigateToTerms={() => navigateTo('terms')} />}
           {state.view === 'signup' && <SignupScreen onSignup={() => {}} onBackToLogin={() => navigateTo('login')} onNavigateToPrivacy={() => navigateTo('privacy')} onNavigateToTerms={() => navigateTo('terms')} />}
-          {state.view === 'forgotPassword' && <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />}
           
           {state.view === 'dashboard' && (
             <Dashboard 
@@ -233,6 +242,7 @@ const App: React.FC = () => {
               onOpenBookmarks={() => navigateTo('bookmarks')} 
               onOpenAnalytics={() => navigateTo('analytics')} 
               onOpenLeaderboard={() => navigateTo('leaderboard')} 
+              onOpenPYQLibrary={() => navigateTo('paperGenerator')} // Shared View logic
               selectedExam={state.selectedExam} 
               isOnline={isOnline} 
               onNavigate={navigateTo}

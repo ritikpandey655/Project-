@@ -5,29 +5,33 @@ import { GoogleGenAI } from "@google/genai";
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false, // Required for some external resource loads in PWA
+}));
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
-// Robust Health Check for Admin Panel
+// 1. Health & Security Check (Admin Panel Source)
 app.get('/api/health', (req, res) => {
   const hasKey = !!process.env.API_KEY;
   res.json({ 
     status: 'Online', 
     secure: hasKey,
     provider: 'Google Gemini',
+    node: 'Production',
     timestamp: Date.now()
   });
 });
 
-// AI Generation Logic
+// 2. Main AI Generation Endpoint
 app.post('/api/ai/generate', async (req, res) => {
   try {
     const { model, contents, config } = req.body;
     const apiKey = process.env.API_KEY;
     
     if (!apiKey) {
-      return res.status(500).json({ success: false, error: "API_KEY Missing on Server" });
+      console.error("FATAL: API_KEY is missing from environment variables.");
+      return res.status(500).json({ success: false, error: "Backend Security Error: API_KEY Missing" });
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -41,12 +45,17 @@ app.post('/api/ai/generate', async (req, res) => {
       }
     });
 
-    res.json({ success: true, data: response.text });
+    const text = response.text;
+    if (!text) {
+      throw new Error("AI returned an empty response.");
+    }
+
+    res.json({ success: true, data: text });
   } catch (error) {
-    console.error("Backend AI Error:", error);
+    console.error("AI GENERATION ERROR:", error);
     res.status(error.status || 500).json({ 
       success: false, 
-      error: error.message || "Internal Server Error during generation" 
+      error: error.message || "An unexpected error occurred during AI generation." 
     });
   }
 });
