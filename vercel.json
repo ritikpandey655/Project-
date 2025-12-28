@@ -2,6 +2,7 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/favicon.ico", "destination": "/icon-192.png" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
