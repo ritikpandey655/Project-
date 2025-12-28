@@ -18,6 +18,7 @@ interface SidebarProps {
   onNavigate: (view: any) => void;
   onLogout: () => void;
   onEnableNotifications: () => void;
+  onInstallApp?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = React.memo(({
@@ -34,7 +35,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
   onThemeChange,
   onNavigate,
   onLogout,
-  onEnableNotifications
+  onEnableNotifications,
+  onInstallApp
 }) => {
   const t = TRANSLATIONS[language];
   const [notifState, setNotifState] = useState('default');
@@ -94,10 +96,17 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                  <span className="font-medium">{t.dashboard}</span>
               </button>
               <button onClick={() => { onNavigate('upload'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
-                 <span className="text-xl">📚</span>
-                 <span className="font-medium">{t.myNotes}</span>
+                 <span className="text-xl">📸</span>
+                 <span className="font-medium">Doubt Solver</span>
               </button>
               
+              {onInstallApp && (
+                <button onClick={() => { onInstallApp(); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/20 dark:hover:bg-brand-900/40 text-brand-700 dark:text-brand-300 transition-colors">
+                   <span className="text-xl">📲</span>
+                   <span className="font-bold">Install App</span>
+                </button>
+              )}
+
               <button onClick={() => { onNavigate('privacy'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
                  <span className="text-xl">🔒</span>
                  <span className="font-medium">Privacy Policy</span>
@@ -163,19 +172,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                       className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${language === 'hi' ? 'bg-indigo-600' : 'bg-slate-300'}`}
                     >
                       <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${language === 'hi' ? 'translate-x-5' : 'translate-x-1'}`} />
-                    </button>
-                 </div>
-
-                 <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <div className="flex items-center gap-3">
-                       <span className="text-lg">⏱️</span>
-                       <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{t.timer}</span>
-                    </div>
-                    <button 
-                      onClick={onToggleTimer}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showTimer ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                    >
-                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${showTimer ? 'translate-x-5' : 'translate-x-1'}`} />
                     </button>
                  </div>
               </div>

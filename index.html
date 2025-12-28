@@ -7,17 +7,16 @@
     <title>PYQverse - AI Exam Preparation</title>
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json?v=5" />
+    <link rel="manifest" href="/manifest.json" />
     
-    <!-- Favicon & Icons with Cache Busting -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=5" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=5" />
-    <link rel="shortcut icon" type="image/png" href="/favicon.png?v=5" />
+    <!-- Favicon & Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     
-    <!-- iOS / Apple Support -->
-    <link rel="apple-touch-icon" href="/icon-192.png?v=5" />
+    <!-- iOS / Apple Specific PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="PYQverse">
     
     <!-- SEO & Metadata -->
@@ -77,10 +76,14 @@
         margin: 0;
         background-color: #ffffff;
         -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: none;
       }
       #root {
         min-height: 100vh;
       }
+      /* PWA Safe Area for Mobile Notch */
+      .pt-safe { padding-top: env(safe-area-inset-top); }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     </style>
 
     <script type="importmap">
@@ -112,14 +115,13 @@
 <body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
     <div id="root"></div>
     
-    <!-- Service Worker Registration -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(registration => {
-            console.log('SW registered: ', registration);
-          }).catch(registrationError => {
-            console.log('SW registration failed: ', registrationError);
+          navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('SW Registered');
+          }).catch(err => {
+            console.error('SW Registration Failed', err);
           });
         });
       }

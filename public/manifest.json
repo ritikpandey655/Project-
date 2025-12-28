@@ -1,32 +1,55 @@
 {
-  "name": "PYQverse - AI Exam Preparation",
+  "name": "PYQverse AI Exam Prep",
   "short_name": "PYQverse",
-  "description": "Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. AI-powered Previous Year Questions and smart mock tests.",
-  "id": "pyqverse.app.v5",
+  "description": "Master UPSC, SSC, JEE, NEET & UP Board with the world's most accurate AI exam patterns.",
+  "id": "pyqverse-app-v5",
   "start_url": "/?utm_source=pwa",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "theme_color": "#5B2EFF",
-  "background_color": "#ffffff",
+  "background_color": "#0a0814",
+  "categories": ["education", "productivity"],
   "icons": [
     {
-      "src": "/icon-192.png?v=5",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png?v=5",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png?v=5",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Practice Now",
+      "short_name": "Practice",
+      "description": "Start a new AI practice session",
+      "url": "/?view=practice",
+      "icons": [{ "src": "/favicon.png", "sizes": "32x32" }]
+    },
+    {
+      "name": "Doubt Solver",
+      "short_name": "Doubts",
+      "description": "Solve a doubt using AI camera",
+      "url": "/?view=upload",
+      "icons": [{ "src": "/favicon.png", "sizes": "32x32" }]
     }
   ]
 }

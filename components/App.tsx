@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState, ExamResult } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
@@ -79,8 +78,26 @@ const App: React.FC = () => {
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionWrong, setSessionWrong] = useState(0);
   const [examHistory, setExamHistory] = useState<ExamResult[]>([]);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   
   const currentSessionId = useRef<string>(Date.now().toString() + Math.random().toString());
+
+  // PWA Install Event Listener
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') setDeferredPrompt(null);
+  };
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -286,7 +303,7 @@ const App: React.FC = () => {
 
         {showPracticeConfig && state.selectedExam && <PracticeConfigModal examType={state.selectedExam} onClose={() => setShowPracticeConfig(false)} onStart={(conf) => { setPracticeConfig(conf); handleStartPractice(conf); }} onExamChange={(e) => setState(s => ({ ...s, selectedExam: e }))} isPro={state.user?.isPro} isAdmin={state.user?.isAdmin} />}
         
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={state.user} stats={state.stats} darkMode={state.darkMode} onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))} showTimer={state.showTimer} onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))} language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} currentTheme={state.theme} onThemeChange={(t) => { setState(s => ({ ...s, theme: t })); applyTheme(t); }} onNavigate={navigateTo} onLogout={handleLogout} onEnableNotifications={() => {}} />
+        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={state.user} stats={state.stats} darkMode={state.darkMode} onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))} showTimer={state.showTimer} onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))} language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} currentTheme={state.theme} onThemeChange={(t) => { setState(s => ({ ...s, theme: t })); applyTheme(t); }} onNavigate={navigateTo} onLogout={handleLogout} onEnableNotifications={() => {}} onInstallApp={deferredPrompt ? handleInstallApp : undefined} />
         
         {!isEntryView && state.view !== 'practice' && state.view !== 'paperView' && <MobileBottomNav currentView={state.view} onNavigate={navigateTo} onAction={() => setShowPracticeConfig(true)} />}
       </main>
