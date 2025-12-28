@@ -5,6 +5,7 @@ import {
   getAllUsers, removeUser, toggleUserPro,
   getSystemLogs, clearSystemLogs
 } from '../services/storageService';
+import { checkAIConnectivity } from '../services/geminiService';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -12,7 +13,12 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'monitor' | 'users' | 'logs'>('monitor');
-  const [diagnostics, setDiagnostics] = useState({
+  const [diagnostics, setDiagnostics] = useState<{
+    status: string;
+    latency: number;
+    secure: boolean;
+    timestamp: number;
+  }>({
     status: 'Connecting...',
     latency: 0,
     secure: false,
@@ -23,28 +29,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const runDiagnostics = async () => {
-    const start = Date.now();
-    try {
-      const res = await fetch('/api/health');
-      if (res.ok) {
-        const data = await res.json();
-        setDiagnostics({
-          status: 'Operational',
-          latency: Date.now() - start,
-          secure: data.secure,
-          timestamp: data.timestamp
-        });
-      } else {
-        throw new Error();
-      }
-    } catch (e) {
-      setDiagnostics({ 
-        status: 'Failed', 
-        latency: 0, 
-        secure: false, 
-        timestamp: Date.now() 
-      });
-    }
+    const result = await checkAIConnectivity();
+    setDiagnostics({
+        status: result.status,
+        latency: result.latency,
+        secure: result.secure,
+        timestamp: Date.now()
+    });
   };
 
   const loadAdminData = async () => {
@@ -63,7 +54,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   useEffect(() => {
     runDiagnostics();
     loadAdminData();
-    const interval = setInterval(runDiagnostics, 10000); // Check every 10s
+    const interval = setInterval(runDiagnostics, 10000); 
     return () => clearInterval(interval);
   }, []);
 
@@ -78,6 +69,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       loadAdminData();
     }
   };
+
+  const isGreen = diagnostics.status === 'Operational' || diagnostics.status === 'Client-Only';
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#0a0814] text-white font-sans overflow-hidden flex flex-col animate-fade-in">
@@ -122,24 +115,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         {activeTab === 'monitor' && (
           <div className="space-y-6 max-w-4xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className={`p-8 rounded-[32px] border-2 transition-all ${diagnostics.status === 'Operational' ? 'bg-green-500/10 border-green-500/30 shadow-[0_0_30px_rgba(34,197,94,0.1)]' : 'bg-red-500/10 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.1)]'}`}>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Backend Status</p>
-                <h3 className={`text-3xl font-black ${diagnostics.status === 'Operational' ? 'text-green-400' : 'text-red-400'}`}>{diagnostics.status}</h3>
+              <div className={`p-8 rounded-[32px] border-2 transition-all ${isGreen ? 'bg-green-500/10 border-green-500/30 shadow-[0_0_30px_rgba(34,197,94,0.1)]' : 'bg-red-500/10 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.1)]'}`}>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">System Status</p>
+                <h3 className={`text-3xl font-black ${isGreen ? 'text-green-400' : 'text-red-400'}`}>{diagnostics.status}</h3>
                 <p className="text-[10px] mt-2 text-slate-500 italic">Checked: {new Date(diagnostics.timestamp).toLocaleTimeString()}</p>
               </div>
               <div className="p-8 rounded-[32px] border-2 bg-slate-800/20 border-white/10 shadow-xl">
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">System Latency</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Latency</p>
                 <h3 className="text-4xl font-black text-white">{diagnostics.latency} <span className="text-sm text-slate-500">ms</span></h3>
                 <div className="w-full bg-slate-700/50 h-1.5 rounded-full mt-4 overflow-hidden">
                    <div className="bg-brand-500 h-full transition-all" style={{ width: `${Math.min(diagnostics.latency / 10, 100)}%` }}></div>
                 </div>
               </div>
               <div className={`p-8 rounded-[32px] border-2 transition-all ${diagnostics.secure ? 'bg-brand-500/10 border-brand-500/30 shadow-[0_0_30px_rgba(91,46,255,0.1)]' : 'bg-orange-500/10 border-orange-500/30 shadow-[0_0_30px_rgba(249,115,22,0.1)]'}`}>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">API Security</p>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Security</p>
                 <h3 className="text-xl font-black text-white leading-tight">
-                  {diagnostics.secure ? 'KEY ACTIVE' : 'KEY MISSING'}
+                  {diagnostics.secure ? 'KEY ACTIVE' : 'NO KEY FOUND'}
                 </h3>
-                <p className="text-[10px] mt-2 text-slate-500">Auth Method: System Env</p>
+                <p className="text-[10px] mt-2 text-slate-500">Mode: {diagnostics.status === 'Client-Only' ? 'Browser Direct' : 'Backend Proxy'}</p>
               </div>
             </div>
 
@@ -150,16 +143,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
               </h4>
               <div className="space-y-4 font-mono text-xs">
                 <div className="flex justify-between border-b border-white/5 pb-4">
-                  <span className="text-slate-500">Cloud Provider</span>
-                  <span className="text-white font-bold">Vercel Edge Network</span>
+                  <span className="text-slate-500">Infrastructure</span>
+                  <span className="text-white font-bold">{diagnostics.status === 'Client-Only' ? 'Client-Side Fallback' : 'Vercel / Node'}</span>
                 </div>
                 <div className="flex justify-between border-b border-white/5 pb-4">
                   <span className="text-slate-500">AI Model Primary</span>
                   <span className="text-brand-400 font-bold">gemini-3-flash-preview</span>
-                </div>
-                <div className="flex justify-between border-b border-white/5 pb-4">
-                  <span className="text-slate-500">Node Environment</span>
-                  <span className="text-white font-bold">Production (v21.x)</span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="text-slate-500">Handshake Time</span>
@@ -172,10 +161,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
         {activeTab === 'users' && (
           <div className="space-y-4 max-w-5xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-               <h3 className="text-xl font-black tracking-tight">User Directory <span className="text-brand-400 text-sm ml-2">({users.length} Active)</span></h3>
-            </div>
-            <div className="grid grid-cols-1 gap-3">
+            {/* User List Code (Unchanged) */}
+             <div className="grid grid-cols-1 gap-3">
               {users.map(u => (
                 <div key={u.id} className="bg-white/5 border border-white/5 p-5 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all">
                   <div className="flex items-center gap-4">

@@ -6,19 +6,25 @@ import { GoogleGenAI } from "@google/genai";
 const app = express();
 
 app.use(helmet({
-  contentSecurityPolicy: false, // Required for some external resource loads in PWA
+  contentSecurityPolicy: false, 
 }));
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
-// 1. Health & Security Check (Admin Panel Source)
+// Helper to get key from Env OR Header
+const getApiKey = (req) => {
+  return process.env.API_KEY || req.headers['x-api-key'] || req.query.key;
+};
+
+// 1. Health & Security Check
 app.get('/api/health', (req, res) => {
-  const hasKey = !!process.env.API_KEY;
+  const apiKey = getApiKey(req);
   res.json({ 
     status: 'Online', 
-    secure: hasKey,
+    secure: !!apiKey,
     provider: 'Google Gemini',
     node: 'Production',
+    mode: apiKey === process.env.API_KEY ? 'Server-Side' : 'Hybrid-Bridge',
     timestamp: Date.now()
   });
 });
@@ -27,17 +33,20 @@ app.get('/api/health', (req, res) => {
 app.post('/api/ai/generate', async (req, res) => {
   try {
     const { model, contents, config } = req.body;
-    const apiKey = process.env.API_KEY;
+    const apiKey = getApiKey(req);
     
     if (!apiKey) {
-      console.error("FATAL: API_KEY is missing from environment variables.");
-      return res.status(500).json({ success: false, error: "Backend Security Error: API_KEY Missing" });
+      console.error("FATAL: API_KEY missing in both Env and Headers.");
+      return res.status(500).json({ success: false, error: "Security Error: API_KEY Missing" });
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    // Use gemini-3-flash-preview as the default high-performance model
+    
+    // Default to flash-preview if not specified
+    const modelToUse = model || 'gemini-3-flash-preview';
+
     const response = await ai.models.generateContent({
-      model: model || 'gemini-3-flash-preview',
+      model: modelToUse,
       contents: contents,
       config: {
         ...config,
@@ -55,7 +64,7 @@ app.post('/api/ai/generate', async (req, res) => {
     console.error("AI GENERATION ERROR:", error);
     res.status(error.status || 500).json({ 
       success: false, 
-      error: error.message || "An unexpected error occurred during AI generation." 
+      error: error.message || "AI Generation Failed" 
     });
   }
 });
