@@ -1,5 +1,4 @@
-const CACHE_NAME = "pyqverse-cache-v3";
-
+const CACHE_NAME = "pyqverse-v2";
 const ASSETS = [
   "/",
   "/index.html",
@@ -9,31 +8,68 @@ const ASSETS = [
   "/icons/icon-512.png"
 ];
 
-self.addEventListener("install", event => {
+// Install Event
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log("Caching assets...");
+      return cache.addAll(ASSETS);
+    })
   );
   self.skipWaiting();
 });
 
-self.addEventListener("activate", event => {
+// Activate Event
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    })
   );
   self.clients.claim();
 });
 
-self.addEventListener("fetch", event => {
+// Fetch Event (CRITICAL for PWA install prompt)
+self.addEventListener("fetch", (event) => {
+  // Check if navigation request
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match("/offline.html"))
+      fetch(event.request).catch(() => {
+        return caches.match("/offline.html") || caches.match("/");
+      })
     );
     return;
   }
 
+  // Generic assets strategy: Cache First, fallback to Network
   event.respondWith(
-    caches.match(event.request).then(res => res || fetch(event.request))
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) return cachedResponse;
+      
+      return fetch(event.request).then((networkResponse) => {
+        // Only cache successful same-origin responses
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          networkResponse.type === "basic" &&
+          !event.request.url.includes("/api/")
+        ) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        // For images, we could return a placeholder if offline
+        return null;
+      });
+    })
   );
 });

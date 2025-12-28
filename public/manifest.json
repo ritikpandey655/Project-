@@ -2,13 +2,13 @@
   "name": "PYQverse - AI Exam Prep",
   "short_name": "PYQverse",
   "description": "Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. AI-powered Previous Year Questions and smart mock tests.",
-  "id": "pyqverse.pwa.v1",
-  "start_url": "/",
+  "id": "pyqverse.app.v1",
+  "start_url": "/?utm_source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#5B2EFF",
-  "background_color": "#111827",
+  "background_color": "#ffffff",
   "categories": ["education", "productivity"],
   "icons": [
     {
@@ -28,6 +28,20 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Practice",
+      "short_name": "Practice",
+      "url": "/?view=practice",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Solve Doubts",
+      "short_name": "Doubts",
+      "url": "/?view=upload",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ],
   "screenshots": [
