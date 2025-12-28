@@ -67,9 +67,21 @@ self.addEventListener("fetch", (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // For images, we could return a placeholder if offline
         return null;
       });
     })
   );
+});
+
+// Handle local messages for scheduled notifications
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SCHEDULE_REMINDER') {
+     setTimeout(() => {
+        self.registration.showNotification("Time to Study! 📚", {
+          body: "Keep your streak alive. Do a quick 5-min session now.",
+          icon: '/icons/icon-192.png',
+          badge: '/icons/icon-192.png'
+        });
+     }, event.data.delay);
+  }
 });
