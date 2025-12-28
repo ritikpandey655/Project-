@@ -15,10 +15,10 @@
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/icons/:path*", "destination": "/icons/:path*" },
+    { "source": "/favicon.ico", "destination": "/icons/icon-192.png" },
+    { "source": "/icon.svg", "destination": "/icons/icon-192.png" },
     { "source": "/manifest.json", "destination": "/manifest.json" },
     { "source": "/sw.js", "destination": "/sw.js" },
-    { "source": "/favicon.ico", "destination": "/icons/icon-192.png" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
