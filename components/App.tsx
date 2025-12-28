@@ -1,21 +1,15 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState, ExamResult } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
 import { 
-  getUserPref, 
-  getStats, 
-  saveUserPref, 
-  updateStats, 
-  saveUser,
-  getUser,
-  toggleBookmark,
-  getExamConfig,
-  updateUserActivity,
-  updateUserSession,
-  getExamHistory,
-  INITIAL_STATS
+  getUserPref, getStats, saveUserPref, updateStats, 
+  saveUser, getUser, toggleBookmark, getExamConfig,
+  updateUserActivity, updateUserSession, getExamHistory, INITIAL_STATS
 } from '../services/storageService';
 import { generateExamQuestions } from '../services/geminiService';
+
+// Components
 import { Dashboard } from './Dashboard';
 import { QuestionCard } from './QuestionCard';
 import { UploadForm } from './UploadForm';
@@ -36,9 +30,11 @@ import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { LandingPage } from './LandingPage'; 
 import { BookmarksList } from './BookmarksList';
+import { LogoIcon } from './LogoIcon';
+
+// Firebase
 import { auth } from '../src/firebaseConfig';
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { LogoIcon } from './LogoIcon';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 
@@ -56,19 +52,15 @@ const App: React.FC = () => {
     stats: INITIAL_STATS,
     user: null,
     showTimer: true,
-    generatedPaper: null,
-    darkMode: false, 
+    darkMode: true, // Defaulting to dark mode for universe feel
     language: 'en',
     theme: 'PYQverse Prime', 
-    qotd: null,
-    newsFeed: [],
-    examConfig: EXAM_SUBJECTS as unknown as Record<string, string[]> 
+    examConfig: EXAM_SUBJECTS as any
   });
 
   const [practiceQueue, setPracticeQueue] = useState<Question[]>([]);
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [isAppInitializing, setIsAppInitializing] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showPracticeConfig, setShowPracticeConfig] = useState(false);
@@ -80,71 +72,29 @@ const App: React.FC = () => {
   const [examHistory, setExamHistory] = useState<ExamResult[]>([]);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   
-  const currentSessionId = useRef<string>(Date.now().toString() + Math.random().toString());
+  const currentSessionId = useRef<string>(Date.now().toString());
 
-  // PWA Install Event Listener
+  // PWA & Connectivity Listeners
   useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstallApp = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') setDeferredPrompt(null);
-  };
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    const pwaHandler = (e: any) => { e.preventDefault(); setDeferredPrompt(e); };
+    window.addEventListener('beforeinstallprompt', pwaHandler);
+    
+    const onlineHandler = () => setIsOnline(true);
+    const offlineHandler = () => setIsOnline(false);
+    window.addEventListener('online', onlineHandler);
+    window.addEventListener('offline', offlineHandler);
+    
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('beforeinstallprompt', pwaHandler);
+      window.removeEventListener('online', onlineHandler);
+      window.removeEventListener('offline', offlineHandler);
     };
   }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const title = params.get('title');
-    const text = params.get('text');
-    const url = params.get('url');
-    if (title || text || url) {
-        const query = [title, text, url].filter(Boolean).join(' ');
-        setInitialDoubtQuery(query);
-    }
-    const viewParam = params.get('view') as ViewState;
-    if (viewParam && ['practice', 'upload', 'dashboard'].includes(viewParam)) {
-        setState(prev => ({ ...prev, view: viewParam }));
-        if (viewParam === 'practice') setShowPracticeConfig(true);
-    }
-    if (window.location.search) {
-        window.history.replaceState({}, '', '/');
-    }
-  }, []);
-
-  const applyTheme = useCallback((themeName: string) => {
-    const palette = THEME_PALETTES[themeName] || THEME_PALETTES['PYQverse Prime'];
-    const root = document.documentElement;
-    root.style.setProperty('--brand-primary', palette[500]);
-    Object.keys(palette).forEach(key => {
-      root.style.setProperty(`--primary-${key}`, (palette as any)[key]);
-    });
-  }, []);
-
-  useEffect(() => { 
-    applyTheme(state.theme); 
-  }, [state.theme, applyTheme]);
 
   const navigateTo = useCallback((newView: ViewState) => {
     setState(prev => ({ ...prev, view: newView }));
     localStorage.setItem(LAST_VIEW_KEY, newView);
+    setIsSidebarOpen(false);
   }, []);
 
   const loadUserData = useCallback(async (userId: string) => {
@@ -156,9 +106,9 @@ const App: React.FC = () => {
         getExamConfig(),
         getExamHistory(userId)
       ]);
-      const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState || 'dashboard';
       
       setExamHistory(history);
+      const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState || 'dashboard';
 
       setState(prev => ({
         ...prev,
@@ -166,37 +116,24 @@ const App: React.FC = () => {
         selectedExam: prefs.selectedExam,
         stats: statsData,
         showTimer: prefs.showTimer,
-        darkMode: prefs.darkMode ?? false,
+        darkMode: prefs.darkMode ?? true,
         language: prefs.language,
         theme: prefs.theme || 'PYQverse Prime',
         examConfig: config,
-        view: initialDoubtQuery ? 'upload' : (['landing', 'login', 'signup'].includes(lastView) ? 'dashboard' : prev.view !== 'landing' ? prev.view : lastView)
+        view: initialDoubtQuery ? 'upload' : (['landing', 'login', 'signup'].includes(lastView) ? 'dashboard' : lastView)
       }));
-      if (prefs.theme) applyTheme(prefs.theme);
+
       updateUserActivity(userId);
       updateUserSession(userId, currentSessionId.current);
     } catch (e) {
       navigateTo('dashboard');
     }
-  }, [applyTheme, navigateTo, initialDoubtQuery]);
-
-  const handleLogout = useCallback(async () => {
-    setIsSidebarOpen(false);
-    try {
-      await signOut(auth);
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
+  }, [navigateTo, initialDoubtQuery]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        await loadUserData(firebaseUser.uid);
-      } else {
-        setState(prev => ({ ...prev, user: null, view: 'landing' }));
-      }
-      setIsAppInitializing(false);
+      if (firebaseUser) await loadUserData(firebaseUser.uid);
+      else setState(prev => ({ ...prev, user: null, view: 'landing' }));
     });
     return () => unsubscribe();
   }, [loadUserData]);
@@ -214,9 +151,7 @@ const App: React.FC = () => {
       setCurrentQIndex(0);
       navigateTo('practice');
     } catch (e) {
-      alert("AI Connection busy. Using fallback questions.");
-      setPracticeQueue([]); 
-      navigateTo('practice');
+      alert("AI Service currently busy. Please try again in a moment.");
     } finally {
       setIsLoading(false);
     }
@@ -225,7 +160,9 @@ const App: React.FC = () => {
   const handleAnswer = useCallback((isCorrect: boolean) => {
       if (isCorrect) setSessionCorrect(prev => prev + 1);
       else setSessionWrong(prev => prev + 1);
-      if (state.user && state.selectedExam) updateStats(state.user.id, isCorrect, practiceQueue[currentQIndex]?.subject || 'General', state.selectedExam);
+      if (state.user && state.selectedExam) {
+        updateStats(state.user.id, isCorrect, practiceQueue[currentQIndex]?.subject || 'General', state.selectedExam);
+      }
   }, [state.user, state.selectedExam, practiceQueue, currentQIndex]);
 
   const handleNextQuestion = useCallback(async () => {
@@ -243,32 +180,30 @@ const App: React.FC = () => {
       if (currentQIndex < practiceQueue.length - 1) setCurrentQIndex(prev => prev + 1);
       else navigateTo('dashboard');
     }
-  }, [practiceConfig.mode, practiceConfig.subject, currentQIndex, practiceQueue.length, state.selectedExam, navigateTo]);
+  }, [practiceConfig, currentQIndex, practiceQueue, state.selectedExam, navigateTo]);
 
   const isEntryView = ['landing', 'login', 'signup', 'forgotPassword', 'privacy', 'terms'].includes(state.view);
 
   return (
-    <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans transition-colors duration-300 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100`}>
+    <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans bg-white dark:bg-slate-950 text-slate-900 dark:text-white transition-colors`}>
       <BackgroundAnimation darkMode={state.darkMode} />
       
       {isLoading && (
-        <div className="fixed inset-0 z-[100] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-fade-in">
-           <div className="mb-8">
-              <div className="hourglass"></div>
-           </div>
-           <h3 className="text-2xl font-display font-black text-slate-800 dark:text-white tracking-widest uppercase mb-2">Generating Universe</h3>
-           <p className="text-brand-500 dark:text-brand-300 font-mono text-xs animate-pulse">Aligning constellations...</p>
+        <div className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center">
+           <div className="hourglass mb-8"></div>
+           <h3 className="text-2xl font-display font-black tracking-widest uppercase mb-2">Syncing Universe</h3>
+           <p className="text-brand-400 font-mono text-xs animate-pulse">Calculating AI patterns...</p>
         </div>
       )}
 
       <main className="relative z-10 min-h-screen w-full flex flex-col">
         {!isEntryView && state.view !== 'practice' && (
-          <div className="flex justify-between items-center px-4 py-3 pt-safe sm:px-6 sticky top-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-40 border-b border-slate-100 dark:border-white/5 transition-colors">
+          <div className="flex justify-between items-center px-4 py-3 pt-safe sticky top-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-40 border-b border-white/5">
               <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigateTo('dashboard')}>
                   <LogoIcon size="sm" />
                   <h1 className="font-display font-black text-xl text-brand-600 dark:text-white tracking-tighter">PYQverse</h1>
               </div>
-              <button onClick={() => setIsSidebarOpen(true)} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:scale-95 transition-all">
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-white/5 active:scale-95 transition-all">
                   <svg className="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
               </button>
           </div>
@@ -279,33 +214,92 @@ const App: React.FC = () => {
           {state.view === 'login' && <LoginScreen onLogin={(user) => loadUserData(user.id)} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} onNavigateToPrivacy={() => navigateTo('privacy')} onNavigateToTerms={() => navigateTo('terms')} />}
           {state.view === 'signup' && <SignupScreen onSignup={() => {}} onBackToLogin={() => navigateTo('login')} onNavigateToPrivacy={() => navigateTo('privacy')} onNavigateToTerms={() => navigateTo('terms')} />}
           {state.view === 'forgotPassword' && <ForgotPasswordScreen onBackToLogin={() => navigateTo('login')} />}
-          {state.view === 'dashboard' && <Dashboard stats={state.stats} user={state.user} onStartPractice={() => setShowPracticeConfig(true)} onUpload={() => navigateTo('upload')} onGeneratePaper={() => navigateTo('paperGenerator')} onOpenBookmarks={() => navigateTo('bookmarks')} onOpenAnalytics={() => navigateTo('analytics')} onOpenLeaderboard={() => navigateTo('leaderboard')} selectedExam={state.selectedExam} darkMode={state.darkMode} language={state.language} onToggleTimer={() => {}} onToggleDarkMode={() => {}} onStartCurrentAffairs={() => {}} onReadCurrentAffairs={() => {}} onReadNotes={() => {}} onEnableNotifications={() => {}} showTimer={true} isOnline={isOnline} onNavigate={navigateTo} />}
-          {state.view === 'practice' && practiceQueue[currentQIndex] && (
-              <QuestionCard question={practiceQueue[currentQIndex]} onAnswer={handleAnswer} onNext={handleNextQuestion} onBack={() => navigateTo('dashboard')} isLast={currentQIndex === practiceQueue.length - 1 && practiceConfig.mode !== 'endless'} isLoadingNext={isFetchingMore} language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} onBookmarkToggle={(q) => state.user && toggleBookmark(state.user.id, q)} sessionStats={{ currentIndex: currentQIndex, total: practiceConfig.mode === 'endless' ? 100 : practiceConfig.count, correct: sessionCorrect, wrong: sessionWrong }} />
+          
+          {state.view === 'dashboard' && (
+            <Dashboard 
+              stats={state.stats} 
+              user={state.user} 
+              showTimer={state.showTimer}
+              darkMode={state.darkMode}
+              onStartPractice={() => setShowPracticeConfig(true)} 
+              onUpload={() => navigateTo('upload')} 
+              onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))}
+              onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))}
+              onGeneratePaper={() => navigateTo('paperGenerator')} 
+              onStartCurrentAffairs={() => {}}
+              onReadCurrentAffairs={() => {}}
+              onReadNotes={() => {}}
+              onEnableNotifications={() => {}}
+              onOpenBookmarks={() => navigateTo('bookmarks')} 
+              onOpenAnalytics={() => navigateTo('analytics')} 
+              onOpenLeaderboard={() => navigateTo('leaderboard')} 
+              selectedExam={state.selectedExam} 
+              isOnline={isOnline} 
+              onNavigate={navigateTo}
+              language={state.language}
+              onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))}
+              currentTheme={state.theme}
+              onThemeChange={(t) => setState(s => ({ ...s, theme: t }))}
+            />
           )}
+
+          {state.view === 'practice' && practiceQueue[currentQIndex] && (
+              <QuestionCard 
+                question={practiceQueue[currentQIndex]} 
+                onAnswer={handleAnswer} onNext={handleNextQuestion} 
+                onBack={() => navigateTo('dashboard')} 
+                isLast={currentQIndex === practiceQueue.length - 1 && practiceConfig.mode !== 'endless'} 
+                isLoadingNext={isFetchingMore} language={state.language} 
+                onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} 
+                onBookmarkToggle={(q) => state.user && toggleBookmark(state.user.id, q)} 
+                sessionStats={{ 
+                  currentIndex: currentQIndex, 
+                  total: practiceConfig.mode === 'endless' ? 1000 : practiceConfig.count, 
+                  correct: sessionCorrect, 
+                  wrong: sessionWrong 
+                }} 
+              />
+          )}
+
           {state.view === 'upload' && state.user && state.selectedExam && <UploadForm userId={state.user.id} examType={state.selectedExam} initialQuery={initialDoubtQuery || undefined} onSuccess={() => { setInitialDoubtQuery(null); navigateTo('dashboard'); }} />}
           {state.view === 'paperGenerator' && state.selectedExam && <PaperGenerator examType={state.selectedExam} onGenerate={(p) => { setState(s => ({ ...s, generatedPaper: p })); navigateTo('paperView'); }} onBack={() => navigateTo('dashboard')} onExamChange={() => {}} />}
           {state.view === 'paperView' && state.generatedPaper && state.user && <PaperView paper={state.generatedPaper} userId={state.user.id} onClose={() => navigateTo('dashboard')} language={state.language} />}
           {state.view === 'leaderboard' && state.user && <Leaderboard user={state.user} onBack={() => navigateTo('dashboard')} />}
           {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={examHistory} onBack={() => navigateTo('dashboard')} />}
           {state.view === 'bookmarks' && state.user && <BookmarksList userId={state.user.id} onBack={() => navigateTo('dashboard')} />}
-          {state.view === 'privacy' && <PrivacyPolicy onBack={() => {
-             if (state.user) navigateTo('dashboard');
-             else navigateTo('landing');
-          }} />}
-          {state.view === 'terms' && <TermsOfService onBack={() => {
-             if (state.user) navigateTo('dashboard');
-             else navigateTo('landing');
-          }} />}
-          {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} />}
+          {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={() => signOut(auth)} onUpdateUser={(u) => saveUser(u)} />}
           {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} />}
+          {state.view === 'privacy' && <PrivacyPolicy onBack={() => navigateTo(state.user ? 'dashboard' : 'landing')} />}
+          {state.view === 'terms' && <TermsOfService onBack={() => navigateTo(state.user ? 'dashboard' : 'landing')} />}
         </div>
 
-        {showPracticeConfig && state.selectedExam && <PracticeConfigModal examType={state.selectedExam} onClose={() => setShowPracticeConfig(false)} onStart={(conf) => { setPracticeConfig(conf); handleStartPractice(conf); }} onExamChange={(e) => setState(s => ({ ...s, selectedExam: e }))} isPro={state.user?.isPro} isAdmin={state.user?.isAdmin} />}
+        {showPracticeConfig && state.selectedExam && (
+          <PracticeConfigModal 
+            examType={state.selectedExam} 
+            onClose={() => setShowPracticeConfig(false)} 
+            onStart={(conf) => { setPracticeConfig(conf); handleStartPractice(conf); }} 
+            onExamChange={(e) => setState(s => ({ ...s, selectedExam: e }))} 
+            isPro={state.user?.isPro} 
+            isAdmin={state.user?.isAdmin} 
+          />
+        )}
         
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} user={state.user} stats={state.stats} darkMode={state.darkMode} onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))} showTimer={state.showTimer} onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))} language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} currentTheme={state.theme} onThemeChange={(t) => { setState(s => ({ ...s, theme: t })); applyTheme(t); }} onNavigate={navigateTo} onLogout={handleLogout} onEnableNotifications={() => {}} onInstallApp={deferredPrompt ? handleInstallApp : undefined} />
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+          user={state.user} stats={state.stats} 
+          darkMode={state.darkMode} onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))} 
+          showTimer={state.showTimer} onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))} 
+          language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} 
+          currentTheme={state.theme} onThemeChange={(t) => setState(s => ({ ...s, theme: t }))} 
+          onNavigate={navigateTo} onLogout={() => signOut(auth)} 
+          onInstallApp={deferredPrompt ? () => deferredPrompt.prompt() : undefined}
+          onEnableNotifications={() => {}}
+        />
         
-        {!isEntryView && state.view !== 'practice' && state.view !== 'paperView' && <MobileBottomNav currentView={state.view} onNavigate={navigateTo} onAction={() => setShowPracticeConfig(true)} />}
+        {!isEntryView && state.view !== 'practice' && state.view !== 'paperView' && (
+          <MobileBottomNav currentView={state.view} onNavigate={navigateTo} onAction={() => setShowPracticeConfig(true)} />
+        )}
       </main>
     </div>
   );
