@@ -1,9 +1,9 @@
+
 import React, { useState } from 'react';
 import { User, UserStats, ExamType } from '../types';
 import { Button } from './Button';
 import { removeUser } from '../services/storageService';
 import { auth } from '../src/firebaseConfig';
-import { deleteUser } from "firebase/auth";
 
 interface ProfileScreenProps {
   user: User;
@@ -51,7 +51,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setIsLoading(true);
     try {
         await removeUser(user.id);
-        if (auth.currentUser) await deleteUser(auth.currentUser);
+        if (auth.currentUser) await auth.currentUser.delete();
     } catch (error: any) {
         if (error.code === 'auth/requires-recent-login') alert("Please Re-Login before deleting.");
         else alert("Failed: " + error.message);

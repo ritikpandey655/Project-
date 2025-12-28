@@ -1,9 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, ExamType } from '../types';
 import { Button } from './Button';
 import { auth, db } from '../src/firebaseConfig';
-import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
 import { getExamConfig } from '../services/storageService';
 import { EXAM_SUBJECTS } from '../constants';
 import { LogoIcon } from './LogoIcon';
@@ -49,17 +48,17 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
     setLoadingText('Creating Account...');
     setError('');
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
       const firebaseUser = userCredential.user;
       if (firebaseUser) {
           setLoadingText('Setting up Profile...');
-          await updateProfile(firebaseUser, { displayName: name });
+          await firebaseUser.updateProfile({ displayName: name });
           const isAdmin = email.toLowerCase() === 'support@pyqverse.in';
           const newUser: User = { id: firebaseUser.uid, name, email, isAdmin };
-          await setDoc(doc(db, "users", firebaseUser.uid), newUser, { merge: true });
-          await setDoc(doc(db, "users", firebaseUser.uid, "data", "prefs"), { selectedExam }, { merge: true });
+          await db.collection("users").doc(firebaseUser.uid).set(newUser, { merge: true });
+          await db.collection("users").doc(firebaseUser.uid).collection("data").doc("prefs").set({ selectedExam }, { merge: true });
           setLoadingText('Sending Verification Link...');
-          await sendEmailVerification(firebaseUser);
+          await firebaseUser.sendEmailVerification();
           setIsVerificationSent(true);
       }
     } catch (err: any) {

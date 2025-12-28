@@ -13,6 +13,7 @@ const CLIENT_API_KEY = process.env.API_KEY || "";
 const generateWithDirectClient = async (payload: any) => {
     if (!CLIENT_API_KEY) throw new Error("No API Key available in Client.");
     
+    console.log("⚡ Switched to Client-Side AI Generation");
     const ai = new GoogleGenAI({ apiKey: CLIENT_API_KEY });
     const response = await ai.models.generateContent({
         model: payload.model || 'gemini-3-flash-preview',
@@ -38,12 +39,13 @@ const callBackend = async (endpoint: string, payload: any) => {
             body: JSON.stringify(payload)
         });
 
+        const contentType = response.headers.get("content-type");
+        // Check if response is HTML (often implies 404/SPA Fallback in dev)
+        if (contentType && contentType.includes("text/html")) {
+            throw new Error("Backend Returned HTML (Likely 404/Proxy Issue)");
+        }
+
         if (!response.ok) {
-            if (response.status === 404 || response.status === 500) {
-                console.warn("Backend unavailable, switching to Client-Side Mode.");
-                return await generateWithDirectClient(payload);
-            }
-            const errorText = await response.text();
             throw new Error(`Backend Error: ${response.status}`);
         }
 
@@ -52,8 +54,8 @@ const callBackend = async (endpoint: string, payload: any) => {
         return result.data; 
 
     } catch (e) {
-        // Ultimate Fallback: Try Direct Client if network fetch failed entirely
-        console.warn("Network/Proxy Error. Attempting Direct Client Fallback...", e);
+        // Ultimate Fallback: Try Direct Client if network fetch failed or backend is dead
+        console.warn("Backend unavailable. Attempting Direct Client Fallback...", e);
         try {
             return await generateWithDirectClient(payload);
         } catch (clientError: any) {
@@ -234,15 +236,18 @@ export const checkAIConnectivity = async (): Promise<{ status: 'Operational' | '
     const start = Date.now();
     try {
         const res = await fetch('/api/health', {
-            headers: { 'x-api-key': CLIENT_API_KEY } // Inject key check
+            headers: { 'x-api-key': CLIENT_API_KEY } 
         });
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("text/html")) throw new Error("Backend is 404 HTML");
+        
         if (res.ok) {
             const data = await res.json();
             return { status: 'Operational', latency: Date.now() - start, secure: data.secure };
         }
         throw new Error("Backend Down");
     } catch (e) {
-        // If Backend is down but we have a client key, we are still functional!
+        // If Backend is down but we have a client key, we are functional!
         if (CLIENT_API_KEY) {
             return { status: 'Client-Only', latency: 1, secure: true };
         }

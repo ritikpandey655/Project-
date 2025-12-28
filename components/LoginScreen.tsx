@@ -1,8 +1,7 @@
+
 import React, { useState } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
-import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
 import { Button } from './Button';
 import { LogoIcon } from './LogoIcon';
 
@@ -32,8 +31,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
-      const userRef = doc(db, "users", firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
+      const userRef = db.collection("users").doc(firebaseUser.uid);
+      const userSnap = await userRef.get();
       const userEmail = firebaseUser.email || "";
       const rawName = firebaseUser.displayName || "User"; 
       const emailToCheck = userEmail.toLowerCase();
@@ -46,9 +45,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         isAdmin: !!isAdmin 
       };
 
-      if (userSnap.exists()) return userSnap.data() as User;
+      if (userSnap.exists) return userSnap.data() as User;
       else {
-        await setDoc(userRef, safeData);
+        await userRef.set(safeData);
         return safeData as User;
       }
     } catch (e) {
@@ -62,7 +61,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setIsLoading(true);
     setError('');
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
+      const result = await auth.signInWithEmailAndPassword(email, password);
       if (result.user) {
         const user = await syncUserToDB(result.user);
         onLogin(user);
@@ -79,7 +78,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setIsLoading(true);
     setError('');
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await auth.signInWithPopup(googleProvider);
       if (result.user) {
          const user = await syncUserToDB(result.user);
          onLogin(user);

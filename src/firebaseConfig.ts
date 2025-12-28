@@ -1,7 +1,8 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getAnalytics, isSupported } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore";
+
+import firebase from "firebase/app";
+import "firebase/auth";
+import "firebase/firestore";
+import "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDJ48kwjfVfIm6Pi7v8Kc4fgd_PzZilZwY",
@@ -14,18 +15,26 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+} else {
+  firebase.app(); // if already initialized, use that one
+}
 
 // Initialize Services
-const auth = getAuth(app);
-const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
+const auth = firebase.auth();
+const db = firebase.firestore();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 // Initialize Analytics conditionally
 let analytics = null;
-isSupported().then(yes => {
-  if (yes) analytics = getAnalytics(app);
-});
+if (typeof window !== 'undefined') {
+    try {
+        analytics = firebase.analytics();
+    } catch (e) {
+        console.warn("Analytics not supported");
+    }
+}
 
-export { app, auth, db, analytics, googleProvider };
-export default app;
+export { firebase, auth, db, analytics, googleProvider };
+export default firebase;

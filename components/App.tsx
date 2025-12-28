@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, ExamType, Question, User, ViewState, ExamResult } from '../types';
 import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
@@ -6,7 +7,7 @@ import {
   saveUser, getUser, toggleBookmark, getExamConfig,
   updateUserActivity, updateUserSession, getExamHistory, INITIAL_STATS
 } from '../services/storageService';
-import { generateExamQuestions } from '../services/geminiService';
+import { generateExamQuestions, checkAIConnectivity } from '../services/geminiService';
 
 // UI Components
 import { Dashboard } from './Dashboard';
@@ -34,7 +35,6 @@ import { LogoIcon } from './LogoIcon';
 
 // Firebase Engine
 import { auth } from '../src/firebaseConfig';
-import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 
@@ -52,7 +52,7 @@ const App: React.FC = () => {
     stats: INITIAL_STATS,
     user: null,
     showTimer: true,
-    darkMode: true, // Default to Dark (Universe Theme)
+    darkMode: true,
     language: 'en',
     theme: 'PYQverse Prime', 
     examConfig: EXAM_SUBJECTS as any
@@ -74,9 +74,37 @@ const App: React.FC = () => {
   
   const currentSessionId = useRef<string>(Date.now().toString());
 
-  // App Health & Connectivity
+  // --- THEME ENGINE ---
+  const applyTheme = (themeName: string) => {
+    const palette = THEME_PALETTES[themeName] || THEME_PALETTES['PYQverse Prime'];
+    const root = document.documentElement;
+    
+    // Inject CSS variables for Tailwind to pick up
+    root.style.setProperty('--brand-primary', palette[500]);
+    root.style.setProperty('--primary-50', palette[50]);
+    root.style.setProperty('--primary-100', palette[100]);
+    root.style.setProperty('--primary-200', palette[200]);
+    root.style.setProperty('--primary-300', palette[300]);
+    root.style.setProperty('--primary-400', palette[400]);
+    root.style.setProperty('--primary-500', palette[500]);
+    root.style.setProperty('--primary-600', palette[600]);
+    root.style.setProperty('--primary-700', palette[700]);
+    root.style.setProperty('--primary-800', palette[800]);
+    root.style.setProperty('--primary-900', palette[900]);
+  };
+
   useEffect(() => {
-    const pwaHandler = (e: any) => { e.preventDefault(); setDeferredPrompt(e); };
+    applyTheme(state.theme);
+  }, [state.theme]);
+
+  // --- APP LIFECYCLE ---
+  useEffect(() => {
+    // PWA Install Capture
+    const pwaHandler = (e: any) => { 
+      e.preventDefault(); 
+      setDeferredPrompt(e); 
+      console.log("PWA Install Prompt Captured");
+    };
     window.addEventListener('beforeinstallprompt', pwaHandler);
     
     const onlineHandler = () => setIsOnline(true);
@@ -84,6 +112,9 @@ const App: React.FC = () => {
     window.addEventListener('online', onlineHandler);
     window.addEventListener('offline', offlineHandler);
     
+    // Initial AI Check to wake up backend or fallback
+    checkAIConnectivity();
+
     return () => {
       window.removeEventListener('beforeinstallprompt', pwaHandler);
       window.removeEventListener('online', onlineHandler);
@@ -111,13 +142,16 @@ const App: React.FC = () => {
       setExamHistory(history);
       const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState || 'dashboard';
 
+      // Apply saved theme immediately
+      if (prefs.theme) applyTheme(prefs.theme);
+
       setState(prev => ({
         ...prev,
         user: profile,
         selectedExam: prefs.selectedExam,
         stats: statsData,
         showTimer: prefs.showTimer,
-        darkMode: true, // Force Dark Theme for aesthetics
+        darkMode: prefs.darkMode ?? true,
         language: prefs.language,
         theme: prefs.theme || 'PYQverse Prime',
         examConfig: config,
@@ -132,12 +166,32 @@ const App: React.FC = () => {
   }, [navigateTo, initialDoubtQuery]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) await loadUserData(firebaseUser.uid);
-      else setState(prev => ({ ...prev, user: null, view: 'landing' }));
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        await loadUserData(firebaseUser.uid);
+      } else {
+        // HARD RESET STATE ON LOGOUT
+        setState(prev => ({ 
+          ...prev, 
+          user: null, 
+          view: 'landing',
+          stats: INITIAL_STATS,
+          selectedExam: null
+        }));
+        localStorage.removeItem(LAST_VIEW_KEY);
+      }
     });
     return () => unsubscribe();
   }, [loadUserData]);
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      // State reset handled by onAuthStateChanged listener
+    } catch (error) {
+      console.error("Logout Error:", error);
+    }
+  };
 
   const handleStartPractice = useCallback(async (conf?: PracticeConfig) => {
     const configToUse = conf || practiceConfig;
@@ -182,6 +236,21 @@ const App: React.FC = () => {
       else navigateTo('dashboard');
     }
   }, [practiceConfig, currentQIndex, practiceQueue, state.selectedExam, navigateTo]);
+
+  // Handle PWA Install Click
+  const handleInstallApp = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult: any) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the A2HS prompt');
+        }
+        setDeferredPrompt(null);
+      });
+    } else {
+      alert("Installation is not available on this browser. Try Chrome or Safari 'Add to Home Screen'.");
+    }
+  };
 
   const isEntryView = ['landing', 'login', 'signup', 'forgotPassword', 'privacy', 'terms'].includes(state.view);
 
@@ -232,8 +301,20 @@ const App: React.FC = () => {
               darkMode={state.darkMode}
               onStartPractice={() => setShowPracticeConfig(true)} 
               onUpload={() => navigateTo('upload')} 
-              onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))}
-              onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))}
+              onToggleTimer={() => {
+                setState(s => {
+                  const newState = { ...s, showTimer: !s.showTimer };
+                  if(s.user) saveUserPref(s.user.id, { showTimer: newState.showTimer });
+                  return newState;
+                })
+              }}
+              onToggleDarkMode={() => {
+                setState(s => {
+                   const newState = { ...s, darkMode: !s.darkMode };
+                   if(s.user) saveUserPref(s.user.id, { darkMode: newState.darkMode });
+                   return newState;
+                })
+              }}
               onGeneratePaper={() => navigateTo('paperGenerator')} 
               onStartCurrentAffairs={() => {}}
               onReadCurrentAffairs={() => {}}
@@ -242,14 +323,26 @@ const App: React.FC = () => {
               onOpenBookmarks={() => navigateTo('bookmarks')} 
               onOpenAnalytics={() => navigateTo('analytics')} 
               onOpenLeaderboard={() => navigateTo('leaderboard')} 
-              onOpenPYQLibrary={() => navigateTo('paperGenerator')} // Shared View logic
+              onOpenPYQLibrary={() => navigateTo('paperGenerator')} 
               selectedExam={state.selectedExam} 
               isOnline={isOnline} 
               onNavigate={navigateTo}
               language={state.language}
-              onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))}
+              onToggleLanguage={() => {
+                setState(s => {
+                  const newLang = s.language === 'en' ? 'hi' : 'en';
+                  if(s.user) saveUserPref(s.user.id, { language: newLang });
+                  return { ...s, language: newLang };
+                })
+              }}
               currentTheme={state.theme}
-              onThemeChange={(t) => setState(s => ({ ...s, theme: t }))}
+              onThemeChange={(t) => {
+                setState(s => {
+                  if(s.user) saveUserPref(s.user.id, { theme: t });
+                  return { ...s, theme: t };
+                });
+                applyTheme(t);
+              }}
             />
           )}
 
@@ -277,7 +370,7 @@ const App: React.FC = () => {
           {state.view === 'leaderboard' && state.user && <Leaderboard user={state.user} onBack={() => navigateTo('dashboard')} />}
           {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={examHistory} onBack={() => navigateTo('dashboard')} />}
           {state.view === 'bookmarks' && state.user && <BookmarksList userId={state.user.id} onBack={() => navigateTo('dashboard')} />}
-          {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={() => signOut(auth)} onUpdateUser={(u) => saveUser(u)} />}
+          {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} />}
           {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} />}
           {state.view === 'privacy' && <PrivacyPolicy onBack={() => navigateTo(state.user ? 'dashboard' : 'landing')} />}
           {state.view === 'terms' && <TermsOfService onBack={() => navigateTo(state.user ? 'dashboard' : 'landing')} />}
@@ -301,9 +394,13 @@ const App: React.FC = () => {
           darkMode={state.darkMode} onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))} 
           showTimer={state.showTimer} onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))} 
           language={state.language} onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))} 
-          currentTheme={state.theme} onThemeChange={(t) => setState(s => ({ ...s, theme: t }))} 
-          onNavigate={navigateTo} onLogout={() => signOut(auth)} 
-          onInstallApp={deferredPrompt ? () => deferredPrompt.prompt() : undefined}
+          currentTheme={state.theme} 
+          onThemeChange={(t) => {
+            setState(s => ({ ...s, theme: t }));
+            applyTheme(t);
+          }} 
+          onNavigate={navigateTo} onLogout={handleLogout} 
+          onInstallApp={deferredPrompt ? handleInstallApp : undefined}
           onEnableNotifications={() => {}}
         />
         

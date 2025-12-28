@@ -1,6 +1,6 @@
+
 import React, { useEffect, useState } from 'react';
 import { auth } from '../src/firebaseConfig';
-import { sendEmailVerification, reload } from "firebase/auth";
 import { Button } from './Button';
 
 interface VerifyEmailScreenProps {
@@ -17,7 +17,7 @@ export const VerifyEmailScreen: React.FC<VerifyEmailScreenProps> = ({ userEmail,
     const interval = setInterval(async () => {
       const user = auth.currentUser;
       if (user) {
-        await reload(user);
+        await user.reload();
         if (user.emailVerified) {
           clearInterval(interval);
           onVerified();
@@ -35,7 +35,7 @@ export const VerifyEmailScreen: React.FC<VerifyEmailScreenProps> = ({ userEmail,
 
   const handleResend = async () => {
       if (auth.currentUser) {
-          await sendEmailVerification(auth.currentUser);
+          await auth.currentUser.sendEmailVerification();
           setCanResend(false);
           setTimer(60);
           alert("Sent! Check inbox.");

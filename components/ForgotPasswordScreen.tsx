@@ -1,7 +1,7 @@
+
 import React, { useState } from 'react';
 import { Button } from './Button';
 import { auth } from '../src/firebaseConfig';
-import { sendPasswordResetEmail } from "firebase/auth";
 
 interface ForgotPasswordScreenProps {
   onBackToLogin: () => void;
@@ -19,7 +19,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ onBa
     setIsLoading(true);
     setError('');
     try {
-      await sendPasswordResetEmail(auth, email);
+      await auth.sendPasswordResetEmail(email);
       setIsSent(true);
     } catch (err: any) {
       if (err.code === 'auth/user-not-found') setError("No account found with this email.");
