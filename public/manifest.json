@@ -2,7 +2,7 @@
   "name": "PYQverse - AI Exam Prep",
   "short_name": "PYQverse",
   "description": "Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. AI-powered Previous Year Questions and smart mock tests.",
-  "id": "/",
+  "id": "pyqverse.pwa.v1",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -36,14 +36,14 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "PYQverse Dashboard"
+      "label": "PYQverse Exam Dashboard"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "PYQverse Mobile"
+      "label": "PYQverse Mobile View"
     }
   ]
 }
