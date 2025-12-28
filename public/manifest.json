@@ -36,12 +36,6 @@
       "short_name": "Practice",
       "url": "/?view=practice",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Solve Doubts",
-      "short_name": "Doubts",
-      "url": "/?view=upload",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ],
   "screenshots": [
