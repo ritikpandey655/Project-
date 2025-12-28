@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, SystemLog } from '../types';
 import { 
@@ -13,7 +14,7 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'status' | 'keys' | 'users' | 'logs'>('status');
-  const [diagnostics, setDiagnostics] = useState<any>({ status: 'Connecting...', latency: 0 });
+  const [diagnostics, setDiagnostics] = useState<any>({ status: 'Connecting...', latency: 0, secure: false });
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [config, setConfig] = useState<{ aiProvider: 'gemini' | 'groq', modelName?: string }>({ aiProvider: 'gemini' });
@@ -48,6 +49,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     saveApiKeys(apiKeys);
     alert(`System Updated: Provider set to ${config.aiProvider.toUpperCase()}`);
     setIsLoading(false);
+    loadData(); // Reload to update status
   };
 
   const runLatencyTest = async () => {
@@ -67,17 +69,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   // Latency Color Helper
   const getLatencyColor = (ms: number) => {
       if (ms === 0) return 'text-slate-500';
-      if (ms < 800) return 'text-green-400';
+      if (ms < 800) return 'text-brand-green'; // Using theme color concept
       if (ms < 2000) return 'text-yellow-400';
       return 'text-red-400';
   };
+
+  // Determine Overall Status
+  const hasClientKeys = !!(apiKeys.gemini || apiKeys.groq);
+  const isSecureServer = diagnostics.secure;
+  
+  let statusColor = 'text-red-400';
+  let statusText = 'Offline / No Keys';
+  let statusDesc = 'Env Keys Missing. Check Vercel Settings or Add Below.';
+  let cardBorder = 'bg-red-500/10 border-red-500/30';
+
+  if (isSecureServer) {
+      statusColor = 'text-green-400';
+      statusText = 'Online (Server)';
+      statusDesc = 'Backend Environment Variables Active';
+      cardBorder = 'bg-green-500/10 border-green-500/30';
+  } else if (hasClientKeys) {
+      statusColor = 'text-yellow-400';
+      statusText = 'Online (Client)';
+      statusDesc = 'Using Manual API Keys (Browser Storage)';
+      cardBorder = 'bg-yellow-500/10 border-yellow-500/30';
+  }
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#0a0814] text-white font-sans overflow-hidden flex flex-col animate-fade-in">
       {/* Header */}
       <div className="bg-[#121026] border-b border-white/5 p-4 flex justify-between items-center shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-brand-500 rounded-xl flex items-center justify-center font-black shadow-[0_0_15px_rgba(91,46,255,0.5)]">A</div>
+          <div className="w-10 h-10 bg-brand-500 rounded-xl flex items-center justify-center font-black shadow-[0_0_15px_var(--brand-primary)]">A</div>
           <div>
             <h1 className="text-lg font-display font-black tracking-tight leading-none">PYQverse <span className="text-brand-400">ADMIN</span></h1>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">System Control Center</p>
@@ -113,13 +136,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         {activeTab === 'status' && (
           <div className="max-w-5xl mx-auto space-y-6">
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 <div className={`p-8 rounded-[32px] border-2 transition-all ${diagnostics.secure ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                 {/* Connectivity Card */}
+                 <div className={`p-8 rounded-[32px] border-2 transition-all ${cardBorder}`}>
                     <h3 className="text-xs font-black uppercase text-slate-400 mb-2 tracking-widest">Connectivity</h3>
-                    <p className={`text-3xl font-black ${diagnostics.secure ? 'text-green-400' : 'text-red-400'}`}>
-                        {diagnostics.status}
+                    <p className={`text-3xl font-black ${statusColor}`}>
+                        {statusText}
                     </p>
                     <p className="text-[10px] mt-2 text-slate-500 font-medium">
-                        {diagnostics.secure ? 'Backend Environment Variables Detected' : 'Env Keys Missing. Check Vercel Settings.'}
+                        {statusDesc}
                     </p>
                  </div>
                  
@@ -189,29 +213,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     <hr className="border-white/5" />
 
                     <div className="space-y-4">
-                        <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                            <p className="text-xs text-blue-200">
-                                ℹ️ <strong>Note:</strong> API Keys are loaded from Vercel Environment Variables. 
-                                You only need to enter keys below if you want to <u>override</u> the server keys locally on this device.
+                        <div className={`p-4 border rounded-xl ${isSecureServer ? 'bg-green-500/10 border-green-500/20' : 'bg-yellow-500/10 border-yellow-500/20'}`}>
+                            <p className={`text-xs ${isSecureServer ? 'text-green-200' : 'text-yellow-200'}`}>
+                                {isSecureServer 
+                                    ? "✅ Server Environment Keys are Active. You don't need to enter keys below unless you want to override them." 
+                                    : "⚠️ Server Keys Missing. Please enter keys below to use Client Mode."}
                             </p>
                         </div>
                         <div>
-                            <label className="block text-xs font-black uppercase text-slate-500 mb-2 ml-1 tracking-widest">Gemini API Key (Override)</label>
+                            <label className="block text-xs font-black uppercase text-slate-500 mb-2 ml-1 tracking-widest">Gemini API Key (Manual Override)</label>
                             <input 
                                 type="text" 
                                 value={apiKeys.gemini} 
                                 onChange={e => setApiKeys({ ...apiKeys, gemini: e.target.value })}
-                                placeholder="Leave empty to use Server Key"
+                                placeholder={isSecureServer ? "Using Server Key (Hidden)" : "Paste AI Studio Key Here"}
                                 className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white font-mono text-xs focus:border-brand-500 outline-none transition-colors"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-black uppercase text-slate-500 mb-2 ml-1 tracking-widest">Groq API Key (Override)</label>
+                            <label className="block text-xs font-black uppercase text-slate-500 mb-2 ml-1 tracking-widest">Groq API Key (Manual Override)</label>
                             <input 
                                 type="text" 
                                 value={apiKeys.groq} 
                                 onChange={e => setApiKeys({ ...apiKeys, groq: e.target.value })}
-                                placeholder="Leave empty to use Server Key"
+                                placeholder={isSecureServer ? "Using Server Key (Hidden)" : "Paste Groq Cloud Key Here"}
                                 className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white font-mono text-xs focus:border-brand-500 outline-none transition-colors"
                             />
                         </div>
