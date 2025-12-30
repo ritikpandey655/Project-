@@ -1,140 +1,118 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#5B2EFF" />
+    <title>PYQverse - AI Exam Preparation</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Favicon & Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    
+    <!-- iOS / Apple Specific PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PYQverse">
+    
+    <!-- SEO & Metadata -->
+    <meta name="description" content="Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. AI-powered Previous Year Questions and Mock Tests." />
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 
-  <title>PYQverse - AI Exam Preparation</title>
-
-  <!-- PWA -->
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#5B2EFF" />
-
-  <!-- Favicon & Icons (ROOT ONLY, NO ?v=3, NO /icons/) -->
-  <link rel="icon" type="image/png" href="/favicon.png" />
-  <link rel="apple-touch-icon" href="/icon-192.png" />
-
-  <!-- iOS / Apple PWA -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="PYQverse" />
-
-  <!-- SEO -->
-  <meta
-    name="description"
-    content="Master UPSC, SSC, JEE, NEET, and Railways with PYQverse. Free AI-powered Previous Year Questions and Mock Tests."
-  />
-
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700;800;900&display=swap"
-    rel="stylesheet"
-  />
-
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ["Inter", "sans-serif"],
-            display: ["Poppins", "sans-serif"],
-          },
-          colors: {
-            brand: {
-              primary: "var(--brand-primary)",
-              50: "var(--primary-50)",
-              100: "var(--primary-100)",
-              200: "var(--primary-200)",
-              300: "var(--primary-300)",
-              400: "var(--primary-400)",
-              500: "var(--primary-500)",
-              600: "var(--primary-600)",
-              700: "var(--primary-700)",
-              800: "var(--primary-800)",
-              900: "var(--primary-900)",
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Poppins', 'sans-serif'],
             },
-          },
-        },
-      },
-    };
-  </script>
+            colors: {
+              brand: {
+                primary: '#5B2EFF',
+                50: '#efebff',
+                100: '#dcd0ff',
+                200: '#bfa6ff',
+                300: '#9e75ff',
+                400: '#7d4bff',
+                500: '#5B2EFF',
+                600: '#491ecb',
+                700: '#38159b',
+                800: '#291070',
+                900: '#1d0b4d',
+              }
+            }
+          }
+        }
+      }
+    </script>
 
-  <style>
-    :root {
-      --brand-primary: #5b2eff;
-      --primary-50: #efebff;
-      --primary-100: #dcd0ff;
-      --primary-200: #bfa6ff;
-      --primary-300: #9e75ff;
-      --primary-400: #7d4bff;
-      --primary-500: #5b2eff;
-      --primary-600: #491ecb;
-      --primary-700: #38159b;
-      --primary-800: #291070;
-      --primary-900: #1d0b4d;
+    <style>
+      :root {
+        --brand-primary: #5B2EFF;
+        --safe-top: env(safe-area-inset-top);
+        --safe-bottom: env(safe-area-inset-bottom);
+      }
+      body {
+        margin: 0;
+        background-color: #ffffff;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: none;
+        font-family: 'Inter', sans-serif;
+      }
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .pt-safe { padding-top: var(--safe-top, 20px); }
+      .pb-safe { padding-bottom: var(--safe-bottom, 20px); }
+      
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.0.0",
+        "react-dom": "https://esm.sh/react-dom@19.0.0",
+        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+        "@google/genai": "https://esm.sh/@google/genai@0.1.0",
+        "firebase/app": "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js",
+        "firebase/analytics": "https://www.gstatic.com/firebasejs/11.1.0/firebase-analytics.js"
+      }
     }
-
-    body {
-      margin: 0;
-      background-color: #ffffff;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    #root {
-      min-height: 100vh;
-    }
-  </style>
-
-  <!-- Import Map (unchanged) -->
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@19.0.0",
-    "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "@google/genai": "https://esm.sh/@google/genai@1.3.0",
-    "firebase/app": "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js",
-    "firebase/auth": "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js",
-    "firebase/analytics": "https://www.gstatic.com/firebasejs/11.1.0/firebase-analytics.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js",
-    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0",
-    "path": "https://esm.sh/path@^0.12.7",
-    "dotenv/": "https://esm.sh/dotenv@^17.2.3/",
-    "helmet": "https://esm.sh/helmet@^8.1.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/",
-    "recharts": "https://esm.sh/recharts@^3.6.0",
-    "vite": "https://esm.sh/vite@^7.3.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "express": "https://esm.sh/express@^5.2.1",
-    "cors": "https://esm.sh/cors@^2.8.5"
-  }
-}
-</script>
+    </script>
 </head>
-
 <body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-  <div id="root"></div>
+    <div id="root"></div>
+    
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW Ready'))
+            .catch(err => console.log('SW Fail', err));
+        });
+      }
+    </script>
 
-  <!-- Service Worker -->
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js");
-      });
-    }
-  </script>
-
-  <!-- App Entry -->
-  <script type="module" src="/index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
