@@ -79,18 +79,13 @@ const App: React.FC = () => {
   const applyTheme = (themeName: string) => {
     const palette = THEME_PALETTES[themeName] || THEME_PALETTES['PYQverse Prime'];
     const root = document.documentElement;
-    
-    // Inject CSS variables for Tailwind to pick up
     root.style.setProperty('--brand-primary', palette[500]);
     root.style.setProperty('--primary-50', palette[50]);
     root.style.setProperty('--primary-100', palette[100]);
     root.style.setProperty('--primary-200', palette[200]);
-    root.style.setProperty('--primary-300', palette[300]);
-    root.style.setProperty('--primary-400', palette[400]);
     root.style.setProperty('--primary-500', palette[500]);
     root.style.setProperty('--primary-600', palette[600]);
     root.style.setProperty('--primary-700', palette[700]);
-    root.style.setProperty('--primary-800', palette[800]);
     root.style.setProperty('--primary-900', palette[900]);
   };
 
@@ -100,11 +95,9 @@ const App: React.FC = () => {
 
   // --- APP LIFECYCLE ---
   useEffect(() => {
-    // PWA Install Capture
     const pwaHandler = (e: any) => { 
       e.preventDefault(); 
       setDeferredPrompt(e); 
-      console.log("PWA Install Prompt Captured");
     };
     window.addEventListener('beforeinstallprompt', pwaHandler);
     
@@ -113,7 +106,6 @@ const App: React.FC = () => {
     window.addEventListener('online', onlineHandler);
     window.addEventListener('offline', offlineHandler);
     
-    // Initial AI Check to wake up backend or fallback
     checkAIConnectivity();
 
     return () => {
@@ -143,7 +135,6 @@ const App: React.FC = () => {
       setExamHistory(history);
       const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState || 'dashboard';
 
-      // Apply saved theme immediately
       if (prefs.theme) applyTheme(prefs.theme);
 
       setState(prev => ({
@@ -171,7 +162,6 @@ const App: React.FC = () => {
       if (firebaseUser) {
         await loadUserData(firebaseUser.uid);
       } else {
-        // HARD RESET STATE ON LOGOUT
         setState(prev => ({ 
           ...prev, 
           user: null, 
@@ -188,7 +178,6 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     try {
       await auth.signOut();
-      // State reset handled by onAuthStateChanged listener
     } catch (error) {
       console.error("Logout Error:", error);
     }
@@ -201,14 +190,9 @@ const App: React.FC = () => {
     setShowPracticeConfig(false);
     setSessionCorrect(0);
     setSessionWrong(0);
-    setGenerationLatency(0); // Reset
     
-    const startTime = Date.now();
     try {
       const qs = await generateExamQuestions(state.selectedExam, configToUse.subject, configToUse.count, 'Medium', configToUse.topic ? [configToUse.topic] : []);
-      const duration = Date.now() - startTime;
-      setGenerationLatency(duration); // Capture Latency
-      
       setPracticeQueue(qs);
       setCurrentQIndex(0);
       navigateTo('practice');
@@ -244,27 +228,28 @@ const App: React.FC = () => {
     }
   }, [practiceConfig, currentQIndex, practiceQueue, state.selectedExam, navigateTo]);
 
-  // Handle PWA Install Click
   const handleInstallApp = () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult: any) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('User accepted the A2HS prompt');
-        }
-        setDeferredPrompt(null);
-      });
+      setDeferredPrompt(null);
     } else {
-      alert("Installation is not available on this browser. Try Chrome or Safari 'Add to Home Screen'.");
+      alert("Use browser menu to 'Add to Home Screen'");
     }
   };
 
   const isEntryView = ['landing', 'login', 'signup', 'forgotPassword', 'privacy', 'terms'].includes(state.view);
 
   return (
-    <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans bg-white dark:bg-[#0a0814] text-slate-900 dark:text-white transition-colors selection:bg-brand-500/30`}>
+    <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans bg-white dark:bg-[#0a0814] text-slate-900 dark:text-white transition-colors selection:bg-brand-500/30 flex flex-col`}>
       <BackgroundAnimation darkMode={state.darkMode} />
       
+      {/* Offline Indicator */}
+      {!isOnline && (
+        <div className="bg-red-600 text-white text-[10px] font-bold text-center py-1 uppercase tracking-widest sticky top-0 z-[100] shadow-lg">
+          Offline Mode Active
+        </div>
+      )}
+
       {isLoading && (
         <div className="fixed inset-0 z-[200] bg-[#0a0814]/90 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
            <div className="sand-timer mb-10">
@@ -277,7 +262,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <main className="relative z-10 min-h-screen w-full flex flex-col">
+      <main className="relative z-10 flex-1 w-full flex flex-col">
         {!isEntryView && state.view !== 'practice' && (
           <header className="flex justify-between items-center px-6 py-4 pt-safe sticky top-0 bg-white/80 dark:bg-[#0a0814]/80 backdrop-blur-xl z-40 border-b border-white/5">
               <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigateTo('dashboard')}>
@@ -295,7 +280,7 @@ const App: React.FC = () => {
           </header>
         )}
 
-        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {state.view === 'landing' && <LandingPage onLogin={() => navigateTo('login')} onSignup={(q) => { if(q) setInitialDoubtQuery(q); navigateTo('signup'); }} onNavigate={navigateTo} />}
           {state.view === 'login' && <LoginScreen onLogin={(user) => loadUserData(user.id)} onNavigateToSignup={() => navigateTo('signup')} onForgotPassword={() => navigateTo('forgotPassword')} isOnline={isOnline} onNavigateToPrivacy={() => navigateTo('privacy')} onNavigateToTerms={() => navigateTo('terms')} />}
           {state.view === 'signup' && <SignupScreen onSignup={() => {}} onBackToLogin={() => navigateTo('login')} onNavigateToPrivacy={() => navigateTo('privacy')} onNavigateToTerms={() => navigateTo('terms')} />}
@@ -308,20 +293,8 @@ const App: React.FC = () => {
               darkMode={state.darkMode}
               onStartPractice={() => setShowPracticeConfig(true)} 
               onUpload={() => navigateTo('upload')} 
-              onToggleTimer={() => {
-                setState(s => {
-                  const newState = { ...s, showTimer: !s.showTimer };
-                  if(s.user) saveUserPref(s.user.id, { showTimer: newState.showTimer });
-                  return newState;
-                })
-              }}
-              onToggleDarkMode={() => {
-                setState(s => {
-                   const newState = { ...s, darkMode: !s.darkMode };
-                   if(s.user) saveUserPref(s.user.id, { darkMode: newState.darkMode });
-                   return newState;
-                })
-              }}
+              onToggleTimer={() => setState(s => ({ ...s, showTimer: !s.showTimer }))}
+              onToggleDarkMode={() => setState(s => ({ ...s, darkMode: !s.darkMode }))}
               onGeneratePaper={() => navigateTo('paperGenerator')} 
               onStartCurrentAffairs={() => {}}
               onReadCurrentAffairs={() => {}}
@@ -335,19 +308,10 @@ const App: React.FC = () => {
               isOnline={isOnline} 
               onNavigate={navigateTo}
               language={state.language}
-              onToggleLanguage={() => {
-                setState(s => {
-                  const newLang = s.language === 'en' ? 'hi' : 'en';
-                  if(s.user) saveUserPref(s.user.id, { language: newLang });
-                  return { ...s, language: newLang };
-                })
-              }}
+              onToggleLanguage={() => setState(s => ({ ...s, language: s.language === 'en' ? 'hi' : 'en' }))}
               currentTheme={state.theme}
               onThemeChange={(t) => {
-                setState(s => {
-                  if(s.user) saveUserPref(s.user.id, { theme: t });
-                  return { ...s, theme: t };
-                });
+                setState(s => ({ ...s, theme: t }));
                 applyTheme(t);
               }}
             />
@@ -368,7 +332,7 @@ const App: React.FC = () => {
                   correct: sessionCorrect, 
                   wrong: sessionWrong 
                 }} 
-                latency={generationLatency} // Pass latency to UI
+                latency={generationLatency}
               />
           )}
 

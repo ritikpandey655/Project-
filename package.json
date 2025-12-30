@@ -11,7 +11,7 @@
     "server": "node api/index.js"
   },
   "dependencies": {
-    "@google/genai": "^1.30.0",
+    "@google/genai": "^0.1.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
@@ -30,6 +30,7 @@
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.5.3",
-    "vite": "^5.4.1"
+    "vite": "^5.4.1",
+    "vite-plugin-pwa": "^0.20.0"
   }
 }

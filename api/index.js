@@ -1,33 +1,54 @@
 
-import 'dotenv/config';
+import { config } from 'dotenv';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { GoogleGenAI } from "@google/genai";
+
+// --- ROBUST ENV LOADING ---
+// This ensures .env is found whether running via 'node api/index.js' or 'vercel dev'
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Try loading from root (../.env) and current (./.env)
+config({ path: join(__dirname, '../.env') });
+config({ path: join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.disable('x-powered-by');
 
-// Allow CORS for all domains to prevent connectivity issues
+// Allow CORS for all domains
 app.use(cors({ origin: true, credentials: true })); 
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Helper to get API Key safely
+const getGeminiKey = () => {
+    return process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_API_KEY;
+};
+
+const getGroqKey = () => {
+    return process.env.GROQ_API_KEY;
+};
+
 // --- HEALTH CHECK & LATENCY TEST ---
 app.get('/api/health', (req, res) => {
-    // Check if keys are loaded in the environment
-    const geminiStatus = !!process.env.API_KEY;
-    const groqStatus = !!process.env.GROQ_API_KEY;
+    const geminiKey = getGeminiKey();
+    const groqKey = getGroqKey();
     
+    console.log(`[Health Check] Gemini Key Present: ${!!geminiKey}, Groq Key Present: ${!!groqKey}`);
+
     res.json({ 
         status: 'online', 
         timestamp: Date.now(),
         env: {
-            gemini: geminiStatus ? 'Active' : 'Missing',
-            groq: groqStatus ? 'Active' : 'Missing'
+            gemini: geminiKey ? 'Active' : 'Missing',
+            groq: groqKey ? 'Active' : 'Missing'
         }
     });
 });
@@ -37,20 +58,19 @@ app.post('/api/ai/generate', async (req, res) => {
   try {
     const { model, contents, config } = req.body;
     
-    // 1. Get Key from Environment (Vercel) or Header (Client Override)
-    const apiKey = process.env.API_KEY || req.headers['x-api-key'];
+    // 1. Get Key from Environment or Header
+    const apiKey = getGeminiKey() || req.headers['x-api-key'];
     
     if (!apiKey) {
+        console.error("[API Error] No API Key found in Environment Variables.");
         return res.status(500).json({ 
             success: false, 
-            error: "Configuration Error: API_KEY not found in server environment." 
+            error: "Server Error: API Key not configured on server. Check Vercel Environment Variables." 
         });
     }
 
-    // 2. Initialize Gemini 2.5 Flash (Default)
-    // If user requests a specific model, we respect it, otherwise default.
+    // 2. Initialize Gemini
     const modelToUse = model || 'gemini-2.5-flash-preview'; 
-
     const ai = new GoogleGenAI({ apiKey });
 
     // 3. Generate
@@ -63,14 +83,14 @@ app.post('/api/ai/generate', async (req, res) => {
     res.json({ success: true, data: response.text });
 
   } catch (error) {
-    console.error("Gemini Backend Error:", error);
+    console.error("Gemini Backend Error:", error.message);
     
     let status = 500;
     let message = error.message;
 
     if (error.status === 429) {
         status = 429;
-        message = "Gemini Rate Limit Exceeded (429). Try again later.";
+        message = "Server Busy (429). Please try again in a few seconds.";
     }
 
     res.status(status).json({ success: false, error: message });
@@ -82,13 +102,12 @@ app.post('/api/ai/groq', async (req, res) => {
   try {
     const { model, messages, jsonMode } = req.body;
     
-    // 1. Get Key from Environment
-    const apiKey = process.env.GROQ_API_KEY || req.headers['x-groq-key'];
+    const apiKey = getGroqKey() || req.headers['x-groq-key'];
     
     if (!apiKey) {
         return res.status(503).json({ 
             success: false, 
-            error: "Configuration Error: GROQ_API_KEY not found in server environment." 
+            error: "Groq Key missing on server." 
         });
     }
 
@@ -125,14 +144,12 @@ app.post('/api/ai/groq', async (req, res) => {
 });
 
 // --- LOCAL SERVER STARTUP ---
-// This allows running `node api/index.js` locally
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, '0.0.0.0', () => {
       console.log(`\n🚀 Backend running on http://localhost:${PORT}`);
-      console.log(`   - Gemini Key: ${process.env.API_KEY ? 'Loaded ✅' : 'Missing ❌'}`);
-      console.log(`   - Groq Key:   ${process.env.GROQ_API_KEY ? 'Loaded ✅' : 'Missing ❌'}\n`);
+      console.log(`   - Gemini Key: ${getGeminiKey() ? 'Loaded ✅' : 'Missing ❌'}`);
+      console.log(`   - Groq Key:   ${getGroqKey() ? 'Loaded ✅' : 'Missing ❌'}\n`);
   });
 }
 
-// Export for Vercel Serverless
 export default app;
