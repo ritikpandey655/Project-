@@ -204,7 +204,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             className={`p-4 rounded-2xl border-2 text-left transition-all ${config.aiProvider === 'gemini' ? 'border-brand-500 bg-brand-500/10' : 'border-white/10 bg-white/5'}`}
                           >
                              <div className="font-black text-lg">Google Gemini</div>
-                             <div className="text-[10px] text-slate-400 mt-1">Version 2.5 Flash</div>
+                             <div className="text-[10px] text-slate-400 mt-1">Version 2.0 Flash Exp</div>
                           </button>
                           <button 
                             onClick={() => setConfig({ ...config, aiProvider: 'groq' })}
