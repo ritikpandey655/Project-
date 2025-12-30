@@ -1,6 +1,6 @@
 
-const CACHE_NAME = 'pyqverse-v6-core';
-const DYNAMIC_CACHE = 'pyqverse-v6-dynamic';
+const CACHE_NAME = 'pyqverse-v7-core';
+const DYNAMIC_CACHE = 'pyqverse-v7-dynamic';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -48,15 +48,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Navigation Requests (HTML): Network First, Fallback to Cache, Fallback to /index.html (SPA)
+  // 2. Navigation Requests (HTML): Network First, Fallback to Cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .catch(() => {
-          return caches.match(event.request).then((cachedRes) => {
+          // IMPORTANT: ignoreSearch: true ensures /?utm_source=pwa matches /
+          return caches.match(event.request, { ignoreSearch: true }).then((cachedRes) => {
             if (cachedRes) return cachedRes;
-            // IMPORTANT for PWA: Return index.html for any unknown route (SPA support)
-            return caches.match('/index.html') || caches.match('/offline.html');
+            // Return index.html for SPA routes, also ignore search params
+            return caches.match('/index.html', { ignoreSearch: true }) || caches.match('/offline.html');
           });
         })
     );
@@ -65,7 +66,7 @@ self.addEventListener('fetch', (event) => {
 
   // 3. Static Assets (Images, JS, CSS): Stale-While-Revalidate
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
         // Cache new assets dynamically
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
@@ -76,7 +77,7 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-         // Network failed, nothing to do (cachedResponse might exist)
+         // Network failed, nothing to do
       });
       return cachedResponse || fetchPromise;
     })

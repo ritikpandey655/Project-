@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                     {Object.keys(THEME_PALETTES).map(theme => (
                       <button
                           key={theme}
-                          onClick={() => onThemeChange(theme)}
+                          onClick={() => { onThemeChange(theme); onClose(); }} 
                           className={`w-8 h-8 rounded-full border-2 transition-transform ${currentTheme === theme ? 'ring-2 ring-offset-2 ring-brand-500 scale-110 border-white shadow-md' : 'border-transparent hover:scale-105'}`}
                           style={{ backgroundColor: THEME_PALETTES[theme][500] }}
                           title={theme}
