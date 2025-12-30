@@ -109,7 +109,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           <div className="w-10 h-10 bg-brand-500 rounded-xl flex items-center justify-center font-black shadow-[0_0_15px_var(--brand-primary)]">A</div>
           <div>
             <h1 className="text-lg font-display font-black tracking-tight leading-none">PYQverse <span className="text-brand-400">ADMIN</span></h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">System Control Center</p>
+            <p className="text-slate-500 font-bold uppercase tracking-widest mt-0.5">System Control Center</p>
           </div>
         </div>
         <div className="flex gap-3">
@@ -222,10 +222,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         <div className={`p-4 border rounded-xl ${isSecureServer ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
                             <p className={`text-xs ${isSecureServer ? 'text-green-200' : 'text-red-200'}`}>
                                 {isSecureServer 
-                                    ? "✅ Server Environment Keys are Active. You are good to go!" 
+                                    ? "✅ Server Environment Keys are Active." 
                                     : "⚠️ Server Keys Missing. Please create a .env file in the root folder with API_KEY=..."}
                             </p>
                         </div>
+
+                        {/* ADDED: Visual Reminder for Google Console Whitelist */}
+                        {config.aiProvider === 'gemini' && (
+                            <div className="p-4 bg-brand-500/10 border border-brand-500/20 rounded-xl">
+                                <p className="text-[10px] font-black uppercase text-brand-400 mb-1">Google Console Requirement</p>
+                                <p className="text-xs text-slate-300 leading-relaxed">
+                                    Since "Website Restrictions" are enabled on your API Key, ensure these are allowed in Google Cloud Console:
+                                </p>
+                                <ul className="text-xs text-slate-400 mt-2 list-disc list-inside space-y-1 font-mono">
+                                    <li>https://pyqverse.in/* (Required for Server)</li>
+                                    <li>http://localhost:3000/* (For Localhost)</li>
+                                </ul>
+                            </div>
+                        )}
                         
                         {!isSecureServer && (
                             <div className="opacity-50 pointer-events-none">
