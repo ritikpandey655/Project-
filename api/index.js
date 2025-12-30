@@ -1,35 +1,49 @@
 
 import { config } from 'dotenv';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { GoogleGenAI } from "@google/genai";
+import fs from 'fs';
 
 // --- ROBUST ENV LOADING ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-config({ path: join(__dirname, '../.env') });
-config({ path: join(__dirname, '.env') });
+// Search for .env in the root directory (where package.json usually lives)
+const rootEnvPath = resolve(process.cwd(), '.env');
+
+if (fs.existsSync(rootEnvPath)) {
+    config({ path: rootEnvPath });
+    console.log(`[Server] ✅ Loaded .env file from: ${rootEnvPath}`);
+} else {
+    // Fallback: try loading default .env (works in some setups)
+    config(); 
+    console.warn("[Server] ⚠️  WARNING: No .env file found at root. Checking system variables...");
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.disable('x-powered-by');
 
+// Allow CORS
 app.use(cors({ origin: true, credentials: true })); 
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Helper to get keys with debug logging
 const getGeminiKey = () => {
-    return process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_API_KEY;
+    const key = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    return key ? key.replace(/['"]/g, '').trim() : null;
 };
 
 const getGroqKey = () => {
-    return process.env.GROQ_API_KEY;
+    const key = process.env.GROQ_API_KEY;
+    return key ? key.replace(/['"]/g, '').trim() : null;
 };
 
 // --- HEALTH CHECK ---
@@ -37,33 +51,36 @@ app.get('/api/health', (req, res) => {
     const geminiKey = getGeminiKey();
     const groqKey = getGroqKey();
     
-    console.log(`[Health Check] Gemini Key Present: ${!!geminiKey}, Groq Key Present: ${!!groqKey}`);
-
-    res.json({ 
+    const statusData = { 
         status: 'online', 
         timestamp: Date.now(),
         env: {
             gemini: geminiKey ? 'Active' : 'Missing',
             groq: groqKey ? 'Active' : 'Missing'
         }
-    });
+    };
+
+    console.log(`[Health Check] Status: ${JSON.stringify(statusData.env)}`);
+    res.json(statusData);
 });
 
 // --- GEMINI ROUTE ---
 app.post('/api/ai/generate', async (req, res) => {
   try {
     const { model, contents, config } = req.body;
-    const apiKey = getGeminiKey() || req.headers['x-api-key'];
+    const apiKey = getGeminiKey();
     
     if (!apiKey) {
-        console.error("[API Error] No API Key found in Environment Variables.");
+        console.error("❌ [Backend] Gemini API Key is MISSING in .env file");
         return res.status(500).json({ 
             success: false, 
-            error: "Server Error: API Key not configured on server. Check Vercel Environment Variables." 
+            error: "SERVER_KEY_MISSING: Create a .env file in root with API_KEY=..." 
         });
     }
 
     const modelToUse = model || 'gemini-2.5-flash-preview'; 
+    
+    // Initialize Google GenAI
     const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({
@@ -72,17 +89,18 @@ app.post('/api/ai/generate', async (req, res) => {
         config: config || {}
     });
     
-    res.json({ success: true, data: response.text });
+    let text = "";
+    if (response.text) {
+        text = response.text;
+    } else if (response.candidates && response.candidates.length > 0) {
+        text = response.candidates[0].content.parts.map(p => p.text).join('');
+    }
+
+    res.json({ success: true, data: text });
 
   } catch (error) {
-    console.error("Gemini Backend Error:", error.message);
-    let status = 500;
-    let message = error.message;
-    if (error.status === 429) {
-        status = 429;
-        message = "Server Busy (429). Please try again in a few seconds.";
-    }
-    res.status(status).json({ success: false, error: message });
+    console.error("Gemini Backend Error:", error);
+    res.status(500).json({ success: false, error: error.message || "AI Generation Failed" });
   }
 });
 
@@ -90,9 +108,11 @@ app.post('/api/ai/generate', async (req, res) => {
 app.post('/api/ai/groq', async (req, res) => {
   try {
     const { model, messages, jsonMode } = req.body;
-    const apiKey = getGroqKey() || req.headers['x-groq-key'];
+    const apiKey = getGroqKey();
     
-    if (!apiKey) return res.status(503).json({ success: false, error: "Groq Key missing on server." });
+    if (!apiKey) {
+        return res.status(503).json({ success: false, error: "SERVER_KEY_MISSING: GROQ_API_KEY missing in .env" });
+    }
 
     const body = { 
         model: model || "llama-3.3-70b-versatile", 
@@ -123,12 +143,20 @@ app.post('/api/ai/groq', async (req, res) => {
 });
 
 // --- LOCAL STARTUP ---
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production' || process.env.VITE_VERCEL_ENV !== 'production') {
   app.listen(PORT, '0.0.0.0', () => {
-      console.log(`\n🚀 Backend running on http://localhost:${PORT}`);
+      console.log(`\n🚀 Backend Server Running on http://localhost:${PORT}`);
+      console.log(`   -------------------------------------------------`);
+      
       const k = getGeminiKey();
-      console.log(`   - Gemini Key: ${k ? `Loaded (Starts with ${k.substring(0,4)}...)` : 'Missing ❌'}`);
-      console.log(`   - Groq Key:   ${getGroqKey() ? 'Loaded ✅' : 'Missing ❌'}\n`);
+      if (k) console.log(`   ✅ Gemini Key Found: ...${k.slice(-4)}`);
+      else console.log(`   ❌ Gemini Key MISSING (Check .env file)`);
+
+      const g = getGroqKey();
+      if (g) console.log(`   ✅ Groq Key Found:   ...${g.slice(-4)}`);
+      else console.log(`   ❌ Groq Key MISSING`);
+      
+      console.log(`   -------------------------------------------------\n`);
   });
 }
 

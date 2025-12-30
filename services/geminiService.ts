@@ -51,17 +51,18 @@ export const generateWithAI = async (
                     config: { temperature }
                 });
             }
-        } catch (backendError) {
-            console.warn(`Backend (${provider}) unreachable. Attempting Client Fallback...`, backendError);
+        } catch (backendError: any) {
+            console.warn(`Backend (${provider}) unreachable. Attempting Client Fallback... Error: ${backendError.message}`);
             
             // --- 2. Client-Side Fallback (If Backend Fails) ---
+            // If user strictly does not want client mode, this will throw eventually
             const localKeys = getApiKeys();
             
             if (provider === 'groq') {
-                if (!localKeys.groq) throw new Error("Backend failed and no Client Groq Key found.");
+                if (!localKeys.groq) throw new Error("Backend failed. Please ensure Server is running or add Client Key.");
                 textOutput = await callGroqDirect(localKeys.groq, prompt, isJson);
             } else {
-                if (!localKeys.gemini) throw new Error("Backend failed and no Client Gemini Key found.");
+                if (!localKeys.gemini) throw new Error("Backend failed. Please ensure Server is running or add Client Key.");
                 textOutput = await callGeminiDirect(localKeys.gemini, prompt, temperature);
             }
         }
@@ -134,26 +135,30 @@ const callGroqDirect = async (apiKey: string, prompt: string, isJson: boolean) =
 export const checkAIConnectivity = async () => {
     const start = Date.now();
     try {
+        // Attempt to hit the backend health check
         const res = await fetch('/api/health');
+        
         if (res.ok) {
             const data = await res.json();
             const latency = Date.now() - start;
-            // Return status based on ENV detection
+            
+            // Check if environment variables are active on the server
             const secure = data.env?.gemini === 'Active' || data.env?.groq === 'Active';
-            return { 
-                status: secure ? 'Online (Server)' : 'Server No-Key', 
-                latency, 
-                secure 
-            };
+            
+            if (secure) {
+                return { status: 'Online (Server)', latency, secure: true };
+            } else {
+                return { status: 'Server No-Keys', latency, secure: false, message: "Backend connected but keys missing" };
+            }
         }
         throw new Error("Backend Offline");
     } catch (e) {
-        // Fallback check
+        // Backend is completely unreachable
         const keys = getApiKeys();
         if (keys.gemini || keys.groq) {
             return { status: 'Client Mode', latency: 1, secure: true };
         }
-        return { status: 'Disconnected', latency: 0, secure: false };
+        return { status: 'Disconnected', latency: 0, secure: false, message: "Start server: npm run server" };
     }
 };
 

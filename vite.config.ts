@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, path.resolve('.'), '');
   
   return {
-    publicDir: 'public', // Ensures public assets are copied
+    publicDir: 'public',
     server: {
       proxy: {
         '/api': {
@@ -37,9 +37,9 @@ export default defineConfig(({ mode }) => {
         }
       }
     },
+    // We strictly DO NOT define API keys here anymore.
+    // This forces the app to use the Backend for all AI operations.
     define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || ""), 
-      'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY || ""),
       'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID || ""),
     },
   };

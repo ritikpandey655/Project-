@@ -69,7 +69,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   // Latency Color Helper
   const getLatencyColor = (ms: number) => {
       if (ms === 0) return 'text-slate-500';
-      if (ms < 800) return 'text-brand-green'; // Using theme color concept
+      if (ms < 800) return 'text-brand-green'; 
       if (ms < 2000) return 'text-yellow-400';
       return 'text-red-400';
   };
@@ -77,21 +77,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   // Determine Overall Status
   const hasClientKeys = !!(apiKeys.gemini || apiKeys.groq);
   const isSecureServer = diagnostics.secure;
+  const isServerReachable = diagnostics.status !== 'Disconnected';
   
   let statusColor = 'text-red-400';
-  let statusText = 'Offline / No Keys';
-  let statusDesc = 'Env Keys Missing. Check Vercel Settings or Add Below.';
+  let statusText = 'Disconnected';
+  let statusDesc = 'Run: npm run server';
   let cardBorder = 'bg-red-500/10 border-red-500/30';
 
   if (isSecureServer) {
       statusColor = 'text-green-400';
       statusText = 'Online (Server)';
-      statusDesc = 'Backend Environment Variables Active';
+      statusDesc = 'Backend Active & Secured';
       cardBorder = 'bg-green-500/10 border-green-500/30';
+  } else if (isServerReachable && !isSecureServer) {
+      statusColor = 'text-orange-400';
+      statusText = 'Server No Keys';
+      statusDesc = 'Backend connected but keys missing in .env';
+      cardBorder = 'bg-orange-500/10 border-orange-500/30';
   } else if (hasClientKeys) {
       statusColor = 'text-yellow-400';
       statusText = 'Online (Client)';
-      statusDesc = 'Using Manual API Keys (Browser Storage)';
+      statusDesc = 'Using Manual Browser Keys (Fallback)';
       cardBorder = 'bg-yellow-500/10 border-yellow-500/30';
   }
 
@@ -213,33 +219,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     <hr className="border-white/5" />
 
                     <div className="space-y-4">
-                        <div className={`p-4 border rounded-xl ${isSecureServer ? 'bg-green-500/10 border-green-500/20' : 'bg-yellow-500/10 border-yellow-500/20'}`}>
-                            <p className={`text-xs ${isSecureServer ? 'text-green-200' : 'text-yellow-200'}`}>
+                        <div className={`p-4 border rounded-xl ${isSecureServer ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                            <p className={`text-xs ${isSecureServer ? 'text-green-200' : 'text-red-200'}`}>
                                 {isSecureServer 
-                                    ? "✅ Server Environment Keys are Active. You don't need to enter keys below unless you want to override them." 
-                                    : "⚠️ Server Keys Missing. Please enter keys below to use Client Mode."}
+                                    ? "✅ Server Environment Keys are Active. You are good to go!" 
+                                    : "⚠️ Server Keys Missing. Please create a .env file in the root folder with API_KEY=..."}
                             </p>
                         </div>
-                        <div>
-                            <label className="block text-xs font-black uppercase text-slate-500 mb-2 ml-1 tracking-widest">Gemini API Key (Manual Override)</label>
-                            <input 
-                                type="text" 
-                                value={apiKeys.gemini} 
-                                onChange={e => setApiKeys({ ...apiKeys, gemini: e.target.value })}
-                                placeholder={isSecureServer ? "Using Server Key (Hidden)" : "Paste AI Studio Key Here"}
-                                className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white font-mono text-xs focus:border-brand-500 outline-none transition-colors"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-black uppercase text-slate-500 mb-2 ml-1 tracking-widest">Groq API Key (Manual Override)</label>
-                            <input 
-                                type="text" 
-                                value={apiKeys.groq} 
-                                onChange={e => setApiKeys({ ...apiKeys, groq: e.target.value })}
-                                placeholder={isSecureServer ? "Using Server Key (Hidden)" : "Paste Groq Cloud Key Here"}
-                                className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white font-mono text-xs focus:border-brand-500 outline-none transition-colors"
-                            />
-                        </div>
+                        
+                        {!isSecureServer && (
+                            <div className="opacity-50 pointer-events-none">
+                                <div>
+                                    <label className="block text-xs font-black uppercase text-slate-500 mb-2 ml-1 tracking-widest">Gemini API Key (Manual Override)</label>
+                                    <input 
+                                        type="text" 
+                                        value={apiKeys.gemini} 
+                                        onChange={e => setApiKeys({ ...apiKeys, gemini: e.target.value })}
+                                        placeholder="Use .env file instead"
+                                        className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white font-mono text-xs focus:border-brand-500 outline-none transition-colors"
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <button 
