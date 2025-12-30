@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { UserStats, ExamType, User, ViewState } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -72,24 +73,24 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
       {/* Hero Greeting */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 py-6">
         <div>
-           <h2 className="text-4xl font-display font-black text-slate-800 dark:text-white tracking-tighter leading-none mb-2">
+           <h2 className="text-4xl font-display font-black text-slate-900 dark:text-white tracking-tighter leading-none mb-2">
               Welcome, <span className="text-brand-500">{user?.name?.split(' ')[0]}</span>
            </h2>
            <p className="text-slate-500 dark:text-slate-400 text-sm font-bold uppercase tracking-widest">Target: {selectedExam || 'Set Your Exam'}</p>
         </div>
         <div className="flex gap-3">
-           <div className="bg-white dark:bg-slate-900/50 backdrop-blur-md px-5 py-3 rounded-[24px] border border-slate-100 dark:border-white/5 shadow-xl flex items-center gap-4 group hover:border-brand-500/50 transition-all">
+           <div className="bg-white dark:bg-slate-900/50 backdrop-blur-md px-5 py-3 rounded-[24px] border border-slate-200 dark:border-white/5 shadow-xl flex items-center gap-4 group hover:border-brand-500/50 transition-all">
               <span className="text-2xl animate-bounce">🔥</span>
               <div className="text-left">
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Streak</p>
-                 <p className="text-lg font-black dark:text-white leading-none">{stats.streakCurrent} Days</p>
+                 <p className="text-lg font-black text-slate-800 dark:text-white leading-none">{stats.streakCurrent} Days</p>
               </div>
            </div>
-           <div className="bg-white dark:bg-slate-900/50 backdrop-blur-md px-5 py-3 rounded-[24px] border border-slate-100 dark:border-white/5 shadow-xl flex items-center gap-4 group hover:border-brand-500/50 transition-all">
+           <div className="bg-white dark:bg-slate-900/50 backdrop-blur-md px-5 py-3 rounded-[24px] border border-slate-200 dark:border-white/5 shadow-xl flex items-center gap-4 group hover:border-brand-500/50 transition-all">
               <span className="text-2xl">🎯</span>
               <div className="text-left">
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Accuracy</p>
-                 <p className="text-lg font-black dark:text-white leading-none">{accuracy}%</p>
+                 <p className="text-lg font-black text-slate-800 dark:text-white leading-none">{accuracy}%</p>
               </div>
            </div>
         </div>
@@ -115,11 +116,11 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
             </div>
          </div>
 
-         {/* Doubt Solver Tile */}
+         {/* Doubt Solver & Mock Test Tile */}
          <div className="grid grid-cols-1 gap-6">
             <div 
               onClick={onUpload}
-              className="bg-white dark:bg-slate-900/40 backdrop-blur-md p-8 rounded-[40px] border border-slate-100 dark:border-white/5 shadow-2xl hover:border-brand-500/50 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-8 group"
+              className="bg-white dark:bg-slate-900/40 backdrop-blur-md p-8 rounded-[40px] border border-slate-200 dark:border-white/5 shadow-2xl hover:border-brand-500/50 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-8 group"
             >
                <div className="w-20 h-20 bg-brand-50 dark:bg-brand-900/30 rounded-[28px] flex items-center justify-center text-4xl flex-shrink-0 shadow-inner group-hover:scale-110 transition-transform">📸</div>
                <div>
@@ -128,27 +129,21 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
-                <div 
-                  onClick={onGeneratePaper}
-                  className="bg-white dark:bg-slate-900/40 backdrop-blur-md p-6 rounded-[32px] border border-slate-100 dark:border-white/5 shadow-xl hover:border-orange-500/50 cursor-pointer active:scale-[0.98] transition-all flex flex-col items-center text-center gap-3"
-                >
-                   <div className="w-14 h-14 bg-orange-50 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center text-3xl">📝</div>
-                   <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tighter">Mock Test</h3>
-                </div>
-                <div 
-                  onClick={() => onNavigate?.('paperGenerator')}
-                  className="bg-white dark:bg-slate-900/40 backdrop-blur-md p-6 rounded-[32px] border border-slate-100 dark:border-white/5 shadow-xl hover:border-pink-500/50 cursor-pointer active:scale-[0.98] transition-all flex flex-col items-center text-center gap-3"
-                >
-                   <div className="w-14 h-14 bg-pink-50 dark:bg-pink-900/30 rounded-2xl flex items-center justify-center text-3xl">📜</div>
-                   <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tighter">PYQ Library</h3>
-                </div>
+            <div 
+              onClick={onGeneratePaper}
+              className="bg-white dark:bg-slate-900/40 backdrop-blur-md p-6 rounded-[32px] border border-slate-200 dark:border-white/5 shadow-xl hover:border-orange-500/50 cursor-pointer active:scale-[0.98] transition-all flex flex-row items-center gap-6"
+            >
+               <div className="w-16 h-16 bg-orange-50 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0">📝</div>
+               <div>
+                 <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tighter">Mock Test Generator</h3>
+                 <p className="text-xs text-slate-500 font-bold">Full length exams with timer</p>
+               </div>
             </div>
          </div>
       </div>
 
       {/* Analytics Insight */}
-      <div className="bg-white dark:bg-[#121026] backdrop-blur-xl rounded-[40px] p-10 border border-slate-100 dark:border-white/5 shadow-2xl">
+      <div className="bg-white dark:bg-[#121026] backdrop-blur-xl rounded-[40px] p-10 border border-slate-200 dark:border-white/5 shadow-2xl">
          <div className="flex justify-between items-center mb-10">
             <div>
                <h3 className="font-display font-black text-2xl text-slate-800 dark:text-white tracking-tight">AI Intelligence Insight</h3>
@@ -172,14 +167,14 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
             ) : (
                 <div className="h-full flex flex-col items-center justify-center opacity-40">
                    <span className="text-4xl mb-4">📊</span>
-                   <p className="font-black text-xs uppercase tracking-widest">No analytic data yet. Start practicing!</p>
+                   <p className="font-black text-xs uppercase tracking-widest text-slate-500">No analytic data yet. Start practicing!</p>
                 </div>
             )}
          </div>
       </div>
 
       {/* Quick Access Footer */}
-      <div className="pt-16 pb-32 border-t border-slate-200 dark:border-white/5 flex flex-col items-center gap-8">
+      <div className="pt-8 pb-32 border-t border-slate-200 dark:border-white/5 flex flex-col items-center gap-8">
           <div className="flex gap-12">
              <button onClick={onOpenAnalytics} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500 transition-colors">Analytics</button>
              <button onClick={onOpenLeaderboard} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-500 transition-colors">Leaderboard</button>
@@ -190,7 +185,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
              <span className="opacity-20">•</span>
              <a href="mailto:support@pyqverse.in" className="hover:text-brand-500 transition-colors">Support</a>
              <span className="opacity-20">•</span>
-             <span className="text-slate-400">v5.0.1 ALPHA</span>
+             <span className="text-slate-400">v5.1.0 BETA</span>
           </div>
       </div>
 

@@ -30,7 +30,6 @@ import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { LandingPage } from './LandingPage'; 
 import { BookmarksList } from './BookmarksList';
-import { PYQLibrary } from './PYQLibrary';
 import { LogoIcon } from './LogoIcon';
 
 // Firebase Engine
@@ -178,8 +177,24 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     try {
       await auth.signOut();
+      // Force reset state immediately to prevent "stuck" UI
+      setState({
+          view: 'landing', 
+          selectedExam: null,
+          stats: INITIAL_STATS,
+          user: null,
+          showTimer: true,
+          darkMode: true,
+          language: 'en',
+          theme: 'PYQverse Prime', 
+          examConfig: EXAM_SUBJECTS as any
+      });
+      localStorage.removeItem(LAST_VIEW_KEY);
+      setIsSidebarOpen(false);
     } catch (error) {
       console.error("Logout Error:", error);
+      // Fallback reload if auth hangs
+      window.location.reload();
     }
   };
 
@@ -262,18 +277,18 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <main className="relative z-10 flex-1 w-full flex flex-col">
+      <main className="relative z-10 flex-1 w-full flex flex-col pb-24 sm:pb-0"> 
         {!isEntryView && state.view !== 'practice' && (
-          <header className="flex justify-between items-center px-6 py-4 pt-safe sticky top-0 bg-white/80 dark:bg-[#0a0814]/80 backdrop-blur-xl z-40 border-b border-white/5">
+          <header className="flex justify-between items-center px-6 py-4 pt-safe sticky top-0 bg-white/80 dark:bg-[#0a0814]/80 backdrop-blur-xl z-40 border-b border-slate-200 dark:border-white/5 shadow-sm dark:shadow-none">
               <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigateTo('dashboard')}>
                   <LogoIcon size="sm" />
                   <h1 className="font-display font-black text-2xl text-brand-600 dark:text-white tracking-tighter group-hover:scale-105 transition-transform">PYQverse</h1>
               </div>
               <button 
                 onClick={() => setIsSidebarOpen(true)} 
-                className="p-3 rounded-2xl bg-slate-50 dark:bg-white/5 border border-white/5 hover:border-brand-500/30 active:scale-90 transition-all shadow-xl"
+                className="p-3 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-brand-500/30 active:scale-90 transition-all shadow-md dark:shadow-xl"
               >
-                  <svg className="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 text-slate-700 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
               </button>

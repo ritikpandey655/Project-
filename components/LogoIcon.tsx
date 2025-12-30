@@ -29,8 +29,8 @@ export const LogoIcon: React.FC<LogoIconProps> = ({ size = "md", className = "" 
       {/* Center Deep Glow */}
       <div className="absolute inset-4 bg-brand-600/10 rounded-full blur-2xl animate-pulse-glow"></div>
 
-      {/* The Main "Glass" Core */}
-      <div className="relative z-10 w-4/5 h-4/5 bg-gradient-to-br from-brand-500 via-brand-600 to-pink-500 rounded-[28%] shadow-[0_25px_60px_-15px_rgba(79,70,229,0.4)] flex items-center justify-center border border-white/20 transform rotate-[10deg] hover:rotate-0 transition-all duration-500 animate-float backdrop-blur-sm">
+      {/* The Main "Glass" Core - Animation Restored */}
+      <div className="relative z-10 w-4/5 h-4/5 bg-gradient-to-br from-brand-500 via-brand-600 to-pink-500 rounded-[28%] shadow-[0_25px_60px_-15px_rgba(79,70,229,0.4)] flex items-center justify-center border border-white/20 transform rotate-[10deg] hover:rotate-0 transition-all duration-500 backdrop-blur-sm animate-float">
         {/* Shine overlay */}
         <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent rounded-[inherit]"></div>
         
