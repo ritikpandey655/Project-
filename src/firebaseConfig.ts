@@ -1,8 +1,8 @@
 
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getAnalytics, isSupported } from "firebase/analytics";
+import firebase from "firebase/app";
+import "firebase/auth";
+import "firebase/firestore";
+import "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDJ48kwjfVfIm6Pi7v8Kc4fgd_PzZilZwY",
@@ -15,17 +15,21 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase (Singleton Pattern)
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+const app = firebase.app();
 
 // Services
-const auth = getAuth(app);
-const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
+const auth = firebase.auth();
+const db = firebase.firestore();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 // Analytics (Conditional for environment)
-let analytics = null;
-isSupported().then((yes) => {
-    if (yes) analytics = getAnalytics(app);
+let analytics: firebase.analytics.Analytics | null = null;
+firebase.analytics.isSupported().then((yes) => {
+    if (yes) analytics = firebase.analytics();
 });
 
 export { app as firebase, auth, db, analytics, googleProvider };
