@@ -31,6 +31,7 @@ import { TermsOfService } from './TermsOfService';
 import { LandingPage } from './LandingPage'; 
 import { BookmarksList } from './BookmarksList';
 import { LogoIcon } from './LogoIcon';
+import { PWAInstallBanner } from './PWAInstallBanner';
 
 // Firebase Engine
 import { auth } from '../src/firebaseConfig';
@@ -69,9 +70,12 @@ const App: React.FC = () => {
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionWrong, setSessionWrong] = useState(0);
   const [examHistory, setExamHistory] = useState<ExamResult[]>([]);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [generationLatency, setGenerationLatency] = useState<number>(0);
   
+  // PWA State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  
+  const [generationLatency, setGenerationLatency] = useState<number>(0);
   const currentSessionId = useRef<string>(Date.now().toString());
 
   // --- THEME ENGINE ---
@@ -97,6 +101,8 @@ const App: React.FC = () => {
     const pwaHandler = (e: any) => { 
       e.preventDefault(); 
       setDeferredPrompt(e); 
+      // Show banner only if user hasn't dismissed it recently (logic can be added)
+      setShowInstallBanner(true);
     };
     window.addEventListener('beforeinstallprompt', pwaHandler);
     
@@ -177,7 +183,6 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     try {
       await auth.signOut();
-      // Force reset state immediately to prevent "stuck" UI
       setState({
           view: 'landing', 
           selectedExam: null,
@@ -193,7 +198,6 @@ const App: React.FC = () => {
       setIsSidebarOpen(false);
     } catch (error) {
       console.error("Logout Error:", error);
-      // Fallback reload if auth hangs
       window.location.reload();
     }
   };
@@ -243,12 +247,16 @@ const App: React.FC = () => {
     }
   }, [practiceConfig, currentQIndex, practiceQueue, state.selectedExam, navigateTo]);
 
-  const handleInstallApp = () => {
+  const handleInstallApp = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
-      setDeferredPrompt(null);
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+        setShowInstallBanner(false);
+      }
     } else {
-      alert("Use browser menu to 'Add to Home Screen'");
+      alert("To install, use your browser's 'Add to Home Screen' option.");
     }
   };
 
@@ -263,6 +271,11 @@ const App: React.FC = () => {
         <div className="bg-red-600 text-white text-[10px] font-bold text-center py-1 uppercase tracking-widest sticky top-0 z-[100] shadow-lg">
           Offline Mode Active
         </div>
+      )}
+
+      {/* PWA Install Banner */}
+      {showInstallBanner && deferredPrompt && (
+        <PWAInstallBanner onInstall={handleInstallApp} onDismiss={() => setShowInstallBanner(false)} />
       )}
 
       {isLoading && (

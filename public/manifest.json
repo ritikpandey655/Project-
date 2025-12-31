@@ -3,14 +3,17 @@
   "name": "PYQverse AI Exam Prep",
   "short_name": "PYQverse",
   "description": "Master UPSC, SSC, JEE, NEET & UP Board with the world's most accurate AI exam patterns.",
-  "id": "pyqverse-app-v5",
-  "start_url": "/?utm_source=pwa",
+  "id": "pyqverse-app-v6",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
   "theme_color": "#5B2EFF",
   "background_color": "#0a0814",
-  "categories": ["education", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["education", "productivity", "study"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
@@ -58,14 +61,14 @@
       "name": "Practice Now",
       "short_name": "Practice",
       "description": "Start a new AI practice session",
-      "url": "/?view=practice",
+      "url": "/?view=practice&source=shortcut",
       "icons": [{ "src": "/favicon.png", "sizes": "32x32" }]
     },
     {
       "name": "Doubt Solver",
       "short_name": "Doubts",
       "description": "Solve a doubt using AI camera",
-      "url": "/?view=upload",
+      "url": "/?view=upload&source=shortcut",
       "icons": [{ "src": "/favicon.png", "sizes": "32x32" }]
     }
   ]
