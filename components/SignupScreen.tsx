@@ -33,22 +33,21 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
 
   // Enhanced Firework Generation: Radial Bursts
   const bursts = useMemo(() => {
-    const burstCount = 5; // More bursts for celebration feeling
+    const burstCount = 6; 
     const particlesPerBurst = 14; 
     const allParticles = [];
     const colors = ['#FDE047', '#3B82F6', '#EC4899', '#8B5CF6', '#10B981', '#F59E0B'];
 
     for (let b = 0; b < burstCount; b++) {
       const burstDelay = Math.random() * 2.5;
-      // Position spread across screen
-      const burstX = 10 + Math.random() * 80; 
-      const burstY = 10 + Math.random() * 70;
+      const burstX = Math.random() * 100; 
+      const burstY = Math.random() * 100;
 
       for (let p = 0; p < particlesPerBurst; p++) {
         const angle = (Math.PI * 2 * p) / particlesPerBurst;
         const velocity = 50 + Math.random() * 120;
         const tx = Math.cos(angle) * velocity;
-        const ty = Math.sin(angle) * velocity + (Math.random() * 40); // Gravity
+        const ty = Math.sin(angle) * velocity + (Math.random() * 40); 
 
         allParticles.push({
           id: `s-b${b}-p${p}`,
@@ -105,7 +104,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
   if (isVerificationSent) {
     return (
       <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center p-4 overflow-hidden relative">
-         <div className="absolute inset-0 pointer-events-none z-0">
+         <div className="fixed inset-0 pointer-events-none z-0">
              {bursts.map(p => (
                  <div 
                    key={p.id} 
@@ -138,8 +137,8 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-slate-950 via-[#0a0814] to-black flex flex-col justify-between overflow-y-auto relative overflow-x-hidden">
       
-      {/* 2026 Improved Fireworks Container */}
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+      {/* 2026 Improved Fireworks Container FIXED FULL SCREEN */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
           {bursts.map(p => (
               <div 
                 key={p.id} 
@@ -161,7 +160,20 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
 
       <div className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
         <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-3xl border border-white/5 rounded-[40px] p-10 shadow-2xl relative z-10 animate-fade-in flex flex-col my-8 ring-1 ring-white/10">
-          <div className="text-center mb-10"><div className="flex justify-center mb-6"><LogoIcon size="md" /></div><h2 className="text-3xl font-display font-black text-white mb-1">Create Account</h2></div>
+          <div className="text-center mb-8">
+              <div className="flex justify-center mb-4"><LogoIcon size="md" /></div>
+              {/* Golden Text */}
+              <h2 className="text-4xl font-display font-black text-gold-gradient mb-2 tracking-tight">Create Account</h2>
+              
+              {/* Hanging Balloons with 2026 */}
+              <div className="balloon-container justify-center">
+                  <div className="balloon" style={{ backgroundColor: '#F472B6', animationDelay: '0.1s' }}>2</div>
+                  <div className="balloon" style={{ backgroundColor: '#FACC15', animationDelay: '0.6s' }}>0</div>
+                  <div className="balloon" style={{ backgroundColor: '#60A5FA', animationDelay: '1.2s' }}>2</div>
+                  <div className="balloon" style={{ backgroundColor: '#34D399', animationDelay: '1.7s' }}>6</div>
+              </div>
+          </div>
+
           {error && <div className="p-4 mb-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-200 text-xs font-bold text-center">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-5">
             <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold placeholder-slate-600 focus:bg-white/10 transition-all" placeholder="Full Name" />

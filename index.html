@@ -68,7 +68,8 @@
               'slide-up': 'slideUp 0.5s ease-out forwards',
               'fade-in': 'fadeIn 0.5s ease-out forwards',
               'slide-in-right': 'slideInRight 0.3s ease-out forwards',
-              'firework': 'firework 2s infinite'
+              'firework': 'firework 2s infinite',
+              'balloon-sway': 'balloonSway 3s ease-in-out infinite alternate'
             },
             keyframes: {
               blob: {
@@ -105,6 +106,10 @@
                 '0%': { transform: 'translate(var(--x), var(--initialY))', width: 'var(--initialSize)', opacity: '1' },
                 '50%': { width: '0.5vmin', opacity: '1' },
                 '100%': { width: 'var(--finalSize)', opacity: '0' }
+              },
+              balloonSway: {
+                '0%': { transform: 'rotate(-6deg)' },
+                '100%': { transform: 'rotate(6deg)' }
               }
             }
           }
@@ -184,12 +189,14 @@
 
       /* Advanced Firework Particles */
       .firework-particle {
-        position: absolute;
+        position: fixed; /* FIXED allows full screen coverage regardless of scroll */
         width: 4px;
         height: 4px;
         border-radius: 50%;
         animation: firework-explode 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
         will-change: transform, opacity;
+        pointer-events: none;
+        z-index: 0;
       }
       
       @keyframes firework-explode {
@@ -199,10 +206,71 @@
         100% { transform: translate(var(--tx), var(--ty)) scale(0.2); opacity: 0; }
       }
 
+      /* Balloon Animation - HANGING Style */
+      .balloon-container {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 25px;
+        padding-top: 35px; /* Space for strings hanging down */
+      }
+      
+      .balloon {
+        width: 45px;
+        height: 55px;
+        background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0.1));
+        border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+        box-shadow: inset -5px -5px 10px rgba(0,0,0,0.1), 5px 5px 15px rgba(0,0,0,0.2);
+        position: relative;
+        animation: balloonSway 3s ease-in-out infinite alternate;
+        transform-origin: 50% -40px; /* Pivot point at top of string */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 900;
+        color: white;
+        font-size: 20px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      }
+      
+      /* The Hanging String (Thread) */
+      .balloon::before {
+         content: '';
+         position: absolute;
+         top: -40px; /* Extends UPWARDS */
+         left: 50%;
+         transform: translateX(-50%);
+         width: 1.5px;
+         height: 40px;
+         background: rgba(255,255,255,0.5);
+      }
+      
+      /* Knot at top of balloon */
+      .balloon::after {
+         content: '';
+         position: absolute;
+         top: -3px;
+         left: 50%;
+         transform: translateX(-50%);
+         width: 8px;
+         height: 5px;
+         background: inherit;
+         border-radius: 50%;
+      }
+
       .text-gold-gradient {
-        background: linear-gradient(to bottom, #FDE047, #EAB308, #CA8A04);
+        background: linear-gradient(to right, #FDE047, #EAB308, #CA8A04, #EAB308);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        background-size: 200% auto;
+        animation: shine 3s linear infinite;
+      }
+      
+      @keyframes shine {
+        to {
+          background-position: 200% center;
+        }
       }
     </style>
 
