@@ -5,7 +5,7 @@ import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
 import { 
   getUserPref, getStats, saveUserPref, updateStats, 
   saveUser, getUser, toggleBookmark, getExamConfig,
-  updateUserActivity, updateUserSession, getExamHistory, INITIAL_STATS
+  updateUserActivity, updateUserSession, getExamHistory, INITIAL_STATS, getSystemConfig
 } from '../services/storageService';
 import { generateExamQuestions, checkAIConnectivity } from '../services/geminiService';
 
@@ -192,12 +192,14 @@ const App: React.FC = () => {
 
   const loadUserData = useCallback(async (userId: string) => {
     try {
-      const [profile, prefs, statsData, config, history] = await Promise.all([
+      // Fetch system config along with user data to ensure 'Groq/Gemini' rule is applied immediately
+      const [profile, prefs, statsData, config, history, sysConfig] = await Promise.all([
         getUser(userId),
         getUserPref(userId),
         getStats(userId),
         getExamConfig(),
-        getExamHistory(userId)
+        getExamHistory(userId),
+        getSystemConfig() // Force sync from server
       ]);
       
       setExamHistory(history);
