@@ -122,17 +122,39 @@ const App: React.FC = () => {
     };
     window.addEventListener('beforeinstallprompt', pwaHandler);
     
-    // 4. Handle Share Target Data
+    // 4. Handle External Intent Data (Share Target, Protocol, Note Taking)
     const searchParams = new URLSearchParams(window.location.search);
+    
+    // Share Target
     const sharedText = searchParams.get('text');
     const sharedTitle = searchParams.get('title');
+    
+    // Note Taking Capability
+    const noteAction = searchParams.get('note');
+    
+    // Protocol Handler (web+pyq://action)
+    const protocolUrl = searchParams.get('action'); // e.g. web+pyq://practice
+
     if (sharedText || sharedTitle) {
         const textToUse = sharedText || sharedTitle;
-        if(textToUse) {
-            setInitialDoubtQuery(textToUse);
-            // If user logged in, will go to upload, else landing/login
+        if(textToUse) setInitialDoubtQuery(textToUse);
+        // Clean URL to prevent re-triggering on reload
+        window.history.replaceState({}, document.title, "/");
+    } else if (noteAction === 'new') {
+        // Launched via 'Create Note' system shortcut
+        // We will direct to Upload view after loading, let the view logic handle it via state
+        setInitialDoubtQuery(""); // Open blank doubt solver
+        window.history.replaceState({}, document.title, "/");
+    } else if (protocolUrl) {
+        // Handle custom protocols
+        // Example: web+pyq://practice or web+pyq://camera
+        const decodedAction = decodeURIComponent(protocolUrl).replace('web+pyq://', '');
+        
+        if (decodedAction.includes('practice')) {
+           setShowPracticeConfig(true);
+        } else if (decodedAction.includes('camera') || decodedAction.includes('doubts')) {
+           setInitialDoubtQuery(""); 
         }
-        // Clean URL
         window.history.replaceState({}, document.title, "/");
     }
 
@@ -183,6 +205,17 @@ const App: React.FC = () => {
 
       if (prefs.theme) applyTheme(prefs.theme);
 
+      // Determine initial view based on intent or history
+      let initialView = lastView;
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('note') === 'new' || searchParams.get('view') === 'upload') {
+          initialView = 'upload';
+      }
+      // If `initialDoubtQuery` was set by useEffect, we force upload view
+      if (initialDoubtQuery !== null) {
+          initialView = 'upload';
+      }
+
       setState(prev => ({
         ...prev,
         user: profile,
@@ -193,7 +226,7 @@ const App: React.FC = () => {
         language: prefs.language,
         theme: prefs.theme || 'PYQverse Prime',
         examConfig: config,
-        view: initialDoubtQuery ? 'upload' : (['landing', 'login', 'signup'].includes(lastView) ? 'dashboard' : lastView)
+        view: (['landing', 'login', 'signup'].includes(initialView) ? 'dashboard' : initialView) as ViewState
       }));
 
       updateUserActivity(userId);
