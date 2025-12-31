@@ -186,14 +186,20 @@ export const getSystemConfig = async (): Promise<{ aiProvider: 'gemini' | 'groq'
 
 // **NEW**: Subscribe to real-time config changes
 export const subscribeToSystemConfig = (callback: (config: any) => void) => {
-    return db.collection("settings").doc("system").onSnapshot((doc) => {
-        if (doc.exists) {
-            const data = doc.data();
-            console.log("Real-time Config Update:", data);
-            localStorage.setItem('system_config', JSON.stringify(data));
-            callback(data);
+    return db.collection("settings").doc("system").onSnapshot(
+        (doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                console.log("Real-time Config Update:", data);
+                localStorage.setItem('system_config', JSON.stringify(data));
+                callback(data);
+            }
+        },
+        (error) => {
+            // Gracefully handle permission errors or offline state
+            console.warn("System Config Subscription Error (using cached):", error.message);
         }
-    });
+    );
 };
 
 export const getExamConfig = async (): Promise<Record<string, string[]>> => {
