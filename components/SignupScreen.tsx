@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, ExamType } from '../types';
 import { Button } from './Button';
 import { auth, db } from '../src/firebaseConfig';
@@ -30,6 +30,40 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
   const [error, setError] = useState('');
   const [availableExams, setAvailableExams] = useState<string[]>(Object.keys(EXAM_SUBJECTS));
   const [isVerificationSent, setIsVerificationSent] = useState(false);
+
+  // Enhanced Firework Generation: Radial Bursts
+  const bursts = useMemo(() => {
+    const burstCount = 5; // More bursts for celebration feeling
+    const particlesPerBurst = 14; 
+    const allParticles = [];
+    const colors = ['#FDE047', '#3B82F6', '#EC4899', '#8B5CF6', '#10B981', '#F59E0B'];
+
+    for (let b = 0; b < burstCount; b++) {
+      const burstDelay = Math.random() * 2.5;
+      // Position spread across screen
+      const burstX = 10 + Math.random() * 80; 
+      const burstY = 10 + Math.random() * 70;
+
+      for (let p = 0; p < particlesPerBurst; p++) {
+        const angle = (Math.PI * 2 * p) / particlesPerBurst;
+        const velocity = 50 + Math.random() * 120;
+        const tx = Math.cos(angle) * velocity;
+        const ty = Math.sin(angle) * velocity + (Math.random() * 40); // Gravity
+
+        allParticles.push({
+          id: `s-b${b}-p${p}`,
+          top: `${burstY}%`,
+          left: `${burstX}%`,
+          tx: `${tx}px`,
+          ty: `${ty}px`,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          delay: `${burstDelay}s`,
+          size: Math.random() > 0.6 ? '4px' : '2px'
+        });
+      }
+    }
+    return allParticles;
+  }, []);
 
   useEffect(() => {
     getExamConfig().then(config => {
@@ -70,43 +104,84 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
 
   if (isVerificationSent) {
     return (
-      <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center p-4">
-         <div className="bg-slate-900/40 backdrop-blur-3xl p-10 rounded-[40px] max-w-md w-full text-center border border-white/5 shadow-2xl animate-pop-in">
-            <div className="mb-8 flex justify-center"><LogoIcon size="md" /></div>
-            <h2 className="text-3xl font-black text-white mb-3 font-display">Check Your Inbox!</h2>
-            <p className="text-slate-400 text-sm mb-8">Verification sent to: <span className="text-brand-400 font-black">{email}</span></p>
-            <Button onClick={onBackToLogin} className="w-full !py-4 !bg-white/10 !text-white !rounded-2xl border-0 font-black">Back to Login</Button>
+      <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center p-4 overflow-hidden relative">
+         <div className="absolute inset-0 pointer-events-none z-0">
+             {bursts.map(p => (
+                 <div 
+                   key={p.id} 
+                   className="firework-particle" 
+                   style={{ 
+                     top: p.top, 
+                     left: p.left,
+                     width: p.size,
+                     height: p.size,
+                     '--tx': p.tx, 
+                     '--ty': p.ty, 
+                     backgroundColor: p.color, 
+                     boxShadow: `0 0 8px ${p.color}`,
+                     animationDelay: p.delay 
+                   } as React.CSSProperties}
+                 ></div>
+             ))}
+         </div>
+
+         <div className="bg-slate-900/60 backdrop-blur-3xl p-10 rounded-[40px] max-w-md w-full text-center border border-white/5 shadow-2xl animate-pop-in relative overflow-hidden z-10">
+            <div className="mb-8 flex justify-center relative z-10"><LogoIcon size="md" /></div>
+            <h2 className="text-3xl font-black text-white mb-3 font-display relative z-10">Check Your Inbox!</h2>
+            <p className="text-slate-400 text-sm mb-8 relative z-10">Verification sent to: <span className="text-brand-400 font-black">{email}</span></p>
+            <Button onClick={onBackToLogin} className="w-full !py-4 !bg-white/10 !text-white !rounded-2xl border-0 font-black relative z-10 hover:!bg-white/20 transition-colors">Back to Login</Button>
          </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-slate-950 via-[#0a0814] to-black flex flex-col justify-between overflow-y-auto">
+    <div className="min-h-screen w-full bg-gradient-to-b from-slate-950 via-[#0a0814] to-black flex flex-col justify-between overflow-y-auto relative overflow-x-hidden">
       
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-slate-900/40 backdrop-blur-3xl border border-white/5 rounded-[40px] p-10 shadow-2xl relative z-10 animate-fade-in flex flex-col my-8">
+      {/* 2026 Improved Fireworks Container */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          {bursts.map(p => (
+              <div 
+                key={p.id} 
+                className="firework-particle" 
+                style={{ 
+                  top: p.top, 
+                  left: p.left,
+                  width: p.size,
+                  height: p.size,
+                  '--tx': p.tx, 
+                  '--ty': p.ty, 
+                  backgroundColor: p.color, 
+                  boxShadow: `0 0 6px ${p.color}`, // Glow
+                  animationDelay: p.delay 
+                } as React.CSSProperties}
+              ></div>
+          ))}
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
+        <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-3xl border border-white/5 rounded-[40px] p-10 shadow-2xl relative z-10 animate-fade-in flex flex-col my-8 ring-1 ring-white/10">
           <div className="text-center mb-10"><div className="flex justify-center mb-6"><LogoIcon size="md" /></div><h2 className="text-3xl font-display font-black text-white mb-1">Create Account</h2></div>
           {error && <div className="p-4 mb-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-200 text-xs font-bold text-center">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-5">
-            <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold" placeholder="Full Name" />
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold" placeholder="Email" />
+            <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold placeholder-slate-600 focus:bg-white/10 transition-all" placeholder="Full Name" />
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold placeholder-slate-600 focus:bg-white/10 transition-all" placeholder="Email" />
             <div className="grid grid-cols-2 gap-4">
-              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold" placeholder="Password" />
-              <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold" placeholder="Confirm" />
+              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold placeholder-slate-600 focus:bg-white/10 transition-all" placeholder="Password" />
+              <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold placeholder-slate-600 focus:bg-white/10 transition-all" placeholder="Confirm" />
             </div>
-            <select value={selectedExam} onChange={(e) => setSelectedExam(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold appearance-none cursor-pointer">
+            <select value={selectedExam} onChange={(e) => setSelectedExam(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold appearance-none cursor-pointer hover:bg-white/10 transition-colors">
                 {availableExams.map((exam) => (<option key={exam} value={exam} className="text-slate-900">{exam}</option>))}
             </select>
-            <Button type="submit" isLoading={isLoading} className="w-full py-5 mt-4 !rounded-2xl !bg-brand-600 !text-white !font-black !text-lg shadow-2xl">{isLoading ? loadingText : 'Launch Universe'}</Button>
+            <Button type="submit" isLoading={isLoading} className="w-full py-5 mt-4 !rounded-2xl !bg-gradient-to-r from-brand-600 to-brand-500 hover:!from-brand-500 hover:!to-brand-400 !text-white !font-black !text-lg shadow-[0_0_20px_rgba(91,46,255,0.3)] border border-white/10">{isLoading ? loadingText : 'Launch Universe'}</Button>
           </form>
-          <div className="mt-10 pt-6 border-t border-white/5 text-center"><p className="text-sm text-slate-500 font-bold">Have an account? <button onClick={onBackToLogin} className="text-brand-400">Log In</button></p></div>
+          <div className="mt-10 pt-6 border-t border-white/5 text-center"><p className="text-sm text-slate-500 font-bold">Have an account? <button onClick={onBackToLogin} className="text-brand-400 hover:text-brand-300 transition-colors">Log In</button></p></div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="w-full py-6 text-center border-t border-white/5">
-         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">© 2025 PYQverse AI</p>
+      <div className="w-full py-6 text-center border-t border-white/5 relative z-10 bg-slate-950/50 backdrop-blur-md">
+         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">© 2026 PYQverse AI</p>
          <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-500">
             <button onClick={onNavigateToPrivacy} className="hover:text-brand-400 transition-colors">Privacy Policy</button>
             <button onClick={onNavigateToTerms} className="hover:text-brand-400 transition-colors">Terms of Service</button>

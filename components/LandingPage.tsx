@@ -12,6 +12,15 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onNavigate }) => {
   const [query, setQuery] = useState('');
 
+  // Generate random particles for fireworks
+  const particles = Array.from({ length: 12 }).map((_, i) => ({
+    id: i,
+    tx: `${(Math.random() - 0.5) * 200}px`,
+    ty: `${(Math.random() - 0.5) * 200}px`,
+    color: ['#FDE047', '#EAB308', '#60A5FA', '#F472B6'][Math.floor(Math.random() * 4)],
+    delay: `${Math.random() * 2}s`
+  }));
+
   return (
     <div className="min-h-screen w-full bg-white dark:bg-slate-950 overflow-x-hidden text-slate-900 dark:text-white transition-colors flex flex-col">
       
@@ -42,16 +51,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
       </nav>
 
       {/* Hero Section */}
-      <div className="relative pt-28 pb-12 sm:pt-48 sm:pb-32 flex flex-col items-center text-center px-4 flex-1">
+      <div className="relative pt-28 pb-12 sm:pt-48 sm:pb-32 flex flex-col items-center text-center px-4 flex-1 overflow-hidden">
         
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800/30 text-brand-700 dark:text-brand-300 text-[11px] font-black uppercase tracking-widest mb-8 animate-slide-up">
-           <span className="text-yellow-500 dark:text-yellow-400">✨</span> NEXT-GEN AI EXAM PLATFORM
+        {/* Celebration Background Particles */}
+        <div className="absolute top-1/3 left-1/4 w-0 h-0">
+             {particles.map(p => (
+                 <div key={`l-${p.id}`} className="firework-particle" style={{ '--tx': p.tx, '--ty': p.ty, backgroundColor: p.color, animationDelay: p.delay } as React.CSSProperties}></div>
+             ))}
+        </div>
+        <div className="absolute top-1/4 right-1/4 w-0 h-0">
+             {particles.map(p => (
+                 <div key={`r-${p.id}`} className="firework-particle" style={{ '--tx': p.tx, '--ty': p.ty, backgroundColor: p.color, animationDelay: `${parseFloat(p.delay) + 1}s` } as React.CSSProperties}></div>
+             ))}
+        </div>
+
+        {/* 2026 Celebration Badge */}
+        <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-to-r from-yellow-900/30 to-brand-900/30 border border-yellow-500/30 text-yellow-400 text-xs font-black uppercase tracking-widest mb-8 animate-slide-up shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+           <span className="text-lg animate-bounce">🎉</span> HAPPY NEW YEAR 2026
         </div>
 
         {/* Massive Headline */}
-        <h1 className="max-w-5xl text-5xl sm:text-7xl lg:text-9xl font-display font-black text-slate-900 dark:text-white mb-6 leading-[0.95] tracking-tighter animate-slide-up">
-          Prepare Exams.<br/>
+        <h1 className="max-w-5xl text-5xl sm:text-7xl lg:text-9xl font-display font-black text-slate-900 dark:text-white mb-6 leading-[0.95] tracking-tighter animate-slide-up z-10">
+          Prepare <span className="text-gold-gradient drop-shadow-sm">2026 Exams.</span><br/>
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-500 dark:from-brand-400 dark:to-brand-600">Instantly. AI Only.</span>
         </h1>
         
@@ -67,15 +88,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
         {/* Primary CTA */}
         <button 
           onClick={() => onSignup()}
-          className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-10 py-5 rounded-full text-lg font-bold hover:scale-105 active:scale-95 transition-all shadow-2xl animate-slide-up mb-8"
+          className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-10 py-5 rounded-full text-lg font-bold hover:scale-105 active:scale-95 transition-all shadow-2xl animate-slide-up mb-8 z-10 relative overflow-hidden group"
           style={{ animationDelay: '0.2s' }}
         >
-           Launch Universe Free
+           <span className="relative z-10">Launch 2026 Universe 🚀</span>
+           <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/0 via-yellow-400/30 to-yellow-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
         </button>
 
         {/* Footer Note */}
         <p className="mt-4 text-sm font-medium text-slate-600 dark:text-slate-400 animate-slide-up" style={{ animationDelay: '0.3s' }}>
-           Built for UPSC, NEET, JEE & UP Board with the <br/> world's most accurate AI patterns.
+           Updated for UPSC, NEET, JEE & UP Board <span className="text-yellow-500 font-bold">2026 Patterns</span>.
         </p>
 
         {/* Bottom Glow Effect (Matching screenshot) */}
@@ -83,11 +105,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
       </div>
 
       {/* Official Footer */}
-      <footer className="w-full bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-12 px-6 mt-auto">
+      <footer className="w-full bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-12 px-6 mt-auto relative z-10">
          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2">
                <LogoIcon size="sm" className="scale-75" />
-               <span className="text-sm font-bold text-slate-900 dark:text-white">© 2025 PYQverse AI</span>
+               <span className="text-sm font-bold text-slate-900 dark:text-white">© 2026 PYQverse AI</span>
             </div>
             <div className="flex flex-wrap justify-center gap-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                <button onClick={() => onNavigate('privacy')} className="hover:text-brand-500 transition-colors">Privacy Policy</button>

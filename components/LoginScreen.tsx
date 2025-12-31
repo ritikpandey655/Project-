@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
 import { Button } from './Button';
@@ -28,6 +28,40 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Enhanced Firework Generation: Radial Bursts
+  const bursts = useMemo(() => {
+    const burstCount = 4; // Number of explosions
+    const particlesPerBurst = 12; // Particles per explosion
+    const allParticles = [];
+    const colors = ['#FDE047', '#60A5FA', '#F472B6', '#A855F7', '#34D399'];
+
+    for (let b = 0; b < burstCount; b++) {
+      const burstDelay = Math.random() * 2;
+      // Position each burst somewhat randomly but within view
+      const burstX = Math.random() * 100; // %
+      const burstY = Math.random() * 60;  // %
+
+      for (let p = 0; p < particlesPerBurst; p++) {
+        const angle = (Math.PI * 2 * p) / particlesPerBurst;
+        const velocity = 60 + Math.random() * 100; // Distance to travel
+        const tx = Math.cos(angle) * velocity;
+        const ty = Math.sin(angle) * velocity + (Math.random() * 50); // Add gravity to Y
+
+        allParticles.push({
+          id: `b${b}-p${p}`,
+          top: `${burstY}%`,
+          left: `${burstX}%`,
+          tx: `${tx}px`,
+          ty: `${ty}px`,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          delay: `${burstDelay}s`,
+          size: Math.random() > 0.5 ? '4px' : '2px'
+        });
+      }
+    }
+    return allParticles;
+  }, []);
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
@@ -91,21 +125,42 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 flex flex-col justify-between overflow-y-auto">
+    <div className="min-h-screen w-full bg-slate-950 flex flex-col justify-between overflow-y-auto relative overflow-x-hidden">
       
+      {/* 2026 Improved Fireworks Container */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          {bursts.map(p => (
+              <div 
+                key={p.id} 
+                className="firework-particle" 
+                style={{ 
+                  top: p.top, 
+                  left: p.left,
+                  width: p.size,
+                  height: p.size,
+                  '--tx': p.tx, 
+                  '--ty': p.ty, 
+                  backgroundColor: p.color, 
+                  boxShadow: `0 0 6px ${p.color}`, // Neon Glow
+                  animationDelay: p.delay 
+                } as React.CSSProperties}
+              ></div>
+          ))}
+      </div>
+
       {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-slate-900/50 backdrop-blur-xl rounded-[40px] shadow-2xl p-8 border border-white/5 flex flex-col items-center animate-fade-in relative overflow-hidden">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
+        <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl rounded-[40px] shadow-2xl p-8 border border-white/5 flex flex-col items-center animate-fade-in relative overflow-hidden ring-1 ring-white/10">
           
           {/* Glow Effects */}
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-500 to-transparent opacity-50"></div>
-          <div className="absolute bottom-[-20%] right-[-20%] w-40 h-40 bg-brand-500/20 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-[-20%] right-[-20%] w-60 h-60 bg-brand-500/20 rounded-full blur-[80px]"></div>
 
-          <div className="mb-6 relative z-10"><LogoIcon size="md" /></div>
+          <div className="mb-6 relative z-10 scale-110"><LogoIcon size="md" /></div>
           
           <div className="text-center mb-8 relative z-10">
               <h1 className="text-3xl font-display font-black text-white mb-2 tracking-tight">Welcome Back</h1>
-              <p className="text-slate-400 text-sm">Enter the exam universe.</p>
+              <p className="text-slate-400 text-sm font-medium">Enter the exam universe.</p>
           </div>
           
           <div className="w-full space-y-6 relative z-10">
@@ -114,7 +169,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               <form onSubmit={handleEmailLogin} className="space-y-4">
                   <div className="space-y-2">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Email Coordinates</label>
-                      <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border border-white/10 bg-white/5 text-white outline-none focus:border-brand-500 focus:bg-white/10 transition-all font-bold" placeholder="name@example.com" required />
+                      <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 rounded-2xl border border-white/10 bg-white/5 text-white outline-none focus:border-brand-500 focus:bg-white/10 transition-all font-bold placeholder-slate-600" placeholder="name@example.com" required />
                   </div>
                   <div className="space-y-2">
                       <div className="flex justify-between items-center">
@@ -122,20 +177,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                           <button 
                               type="button" 
                               onClick={onForgotPassword}
-                              className="text-[10px] font-bold text-brand-400 hover:underline"
+                              className="text-[10px] font-bold text-brand-400 hover:underline hover:text-brand-300 transition-colors"
                           >
                               Forgot?
                           </button>
                       </div>
-                      <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/10 bg-white/5 text-white outline-none focus:border-brand-500 focus:bg-white/10 transition-all font-bold" placeholder="••••••••" required />
+                      <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/10 bg-white/5 text-white outline-none focus:border-brand-500 focus:bg-white/10 transition-all font-bold placeholder-slate-600" placeholder="••••••••" required />
                   </div>
-                  <Button type="submit" isLoading={isLoading} className="w-full py-4 text-lg font-black shadow-lg shadow-brand-500/20 !rounded-2xl !bg-brand-600 hover:!bg-brand-500">Sign In</Button>
+                  <Button type="submit" isLoading={isLoading} className="w-full py-4 text-lg font-black shadow-[0_0_20px_rgba(91,46,255,0.3)] !rounded-2xl !bg-gradient-to-r from-brand-600 to-brand-500 hover:!from-brand-500 hover:!to-brand-400 border border-white/10">Sign In</Button>
               </form>
               
               <div className="flex items-center gap-4 py-2"><div className="h-px bg-white/5 flex-1"></div><span className="text-[10px] font-black text-slate-600 uppercase">Or Continue With</span><div className="h-px bg-white/5 flex-1"></div></div>
               
-              <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl border border-white/10 hover:bg-white/5 text-white font-bold transition-all group">
-                  <img src="https://www.google.com/favicon.ico" alt="G" className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl border border-white/10 hover:bg-white/5 text-white font-bold transition-all group bg-white/5">
+                  <img src="https://www.google.com/favicon.ico" alt="G" className="w-5 h-5 group-hover:scale-110 transition-transform grayscale group-hover:grayscale-0" />
                   <span>Google</span>
               </button>
           </div>
@@ -147,8 +202,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="w-full py-6 text-center border-t border-white/5">
-         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">© 2025 PYQverse AI</p>
+      <div className="w-full py-6 text-center border-t border-white/5 relative z-10 bg-slate-950/50 backdrop-blur-md">
+         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">© 2026 PYQverse AI</p>
          <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-500">
             <button onClick={onNavigateToPrivacy} className="hover:text-brand-400 transition-colors">Privacy Policy</button>
             <button onClick={onNavigateToTerms} className="hover:text-brand-400 transition-colors">Terms of Service</button>
