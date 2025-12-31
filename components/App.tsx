@@ -37,6 +37,7 @@ import { PWAInstallBanner } from './PWAInstallBanner';
 import { auth } from '../src/firebaseConfig';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
+const INSTALL_DISMISSED_KEY = 'pyqverse_install_dismissed_v2';
 
 interface PracticeConfig {
   mode: 'finite' | 'endless';
@@ -98,14 +99,43 @@ const App: React.FC = () => {
 
   // --- APP LIFECYCLE ---
   useEffect(() => {
+    // 1. Check Global Prompt (captured in index.html)
+    if ((window as any).deferredPrompt) {
+        setDeferredPrompt((window as any).deferredPrompt);
+        checkInstallDismissal();
+    }
+
+    // 2. Event Listener for PWA Ready (from index.html)
+    const pwaReadyHandler = () => {
+        if ((window as any).deferredPrompt) {
+            setDeferredPrompt((window as any).deferredPrompt);
+            checkInstallDismissal();
+        }
+    };
+    window.addEventListener('pwa-ready', pwaReadyHandler);
+
+    // 3. Fallback Event Listener (Standard)
     const pwaHandler = (e: any) => { 
       e.preventDefault(); 
       setDeferredPrompt(e); 
-      // Show banner only if user hasn't dismissed it recently (logic can be added)
-      setShowInstallBanner(true);
+      checkInstallDismissal();
     };
     window.addEventListener('beforeinstallprompt', pwaHandler);
     
+    // 4. Handle Share Target Data
+    const searchParams = new URLSearchParams(window.location.search);
+    const sharedText = searchParams.get('text');
+    const sharedTitle = searchParams.get('title');
+    if (sharedText || sharedTitle) {
+        const textToUse = sharedText || sharedTitle;
+        if(textToUse) {
+            setInitialDoubtQuery(textToUse);
+            // If user logged in, will go to upload, else landing/login
+        }
+        // Clean URL
+        window.history.replaceState({}, document.title, "/");
+    }
+
     const onlineHandler = () => setIsOnline(true);
     const offlineHandler = () => setIsOnline(false);
     window.addEventListener('online', onlineHandler);
@@ -115,10 +145,21 @@ const App: React.FC = () => {
 
     return () => {
       window.removeEventListener('beforeinstallprompt', pwaHandler);
+      window.removeEventListener('pwa-ready', pwaReadyHandler);
       window.removeEventListener('online', onlineHandler);
       window.removeEventListener('offline', offlineHandler);
     };
   }, []);
+
+  const checkInstallDismissal = () => {
+      const dismissed = localStorage.getItem(INSTALL_DISMISSED_KEY);
+      const lastDismissedTime = dismissed ? parseInt(dismissed) : 0;
+      const now = Date.now();
+      // Show again if dismissed more than 3 days ago
+      if (!dismissed || (now - lastDismissedTime > 3 * 24 * 60 * 60 * 1000)) {
+          setShowInstallBanner(true);
+      }
+  };
 
   const navigateTo = useCallback((newView: ViewState) => {
     setState(prev => ({ ...prev, view: newView }));
@@ -260,6 +301,11 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDismissInstall = () => {
+      setShowInstallBanner(false);
+      localStorage.setItem(INSTALL_DISMISSED_KEY, Date.now().toString());
+  };
+
   const isEntryView = ['landing', 'login', 'signup', 'forgotPassword', 'privacy', 'terms'].includes(state.view);
 
   return (
@@ -275,7 +321,7 @@ const App: React.FC = () => {
 
       {/* PWA Install Banner */}
       {showInstallBanner && deferredPrompt && (
-        <PWAInstallBanner onInstall={handleInstallApp} onDismiss={() => setShowInstallBanner(false)} />
+        <PWAInstallBanner onInstall={handleInstallApp} onDismiss={handleDismissInstall} />
       )}
 
       {isLoading && (
