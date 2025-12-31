@@ -103,9 +103,9 @@ app.post('/api/ai/generate', async (req, res) => {
     // Initialize SDK - The global.fetch override above handles the headers
     const ai = new GoogleGenAI({ apiKey });
     
-    // Switch to gemini-2.0-flash-exp which is a valid model
+    // Switch to gemini-3-flash-preview which is the latest valid model
     const response = await ai.models.generateContent({
-        model: model || 'gemini-2.0-flash-exp',
+        model: model || 'gemini-3-flash-preview',
         contents: contents,
         config: config || {}
     });

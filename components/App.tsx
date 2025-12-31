@@ -5,7 +5,7 @@ import { EXAM_SUBJECTS, THEME_PALETTES } from '../constants';
 import { 
   getUserPref, getStats, saveUserPref, updateStats, 
   saveUser, getUser, toggleBookmark, getExamConfig,
-  updateUserActivity, updateUserSession, getExamHistory, INITIAL_STATS, getSystemConfig
+  updateUserActivity, updateUserSession, getExamHistory, INITIAL_STATS, getSystemConfig, subscribeToSystemConfig
 } from '../services/storageService';
 import { generateExamQuestions, checkAIConnectivity } from '../services/geminiService';
 
@@ -163,6 +163,14 @@ const App: React.FC = () => {
     window.addEventListener('online', onlineHandler);
     window.addEventListener('offline', offlineHandler);
     
+    // --- REAL-TIME CONFIG SYNC ---
+    // This ensures that if Admin changes 'gemini' to 'groq', 
+    // ALL connected users update their local config instantly.
+    const unsubscribeConfig = subscribeToSystemConfig((newConfig) => {
+        // Log for debugging
+        console.log("System Config Synced:", newConfig);
+    });
+
     checkAIConnectivity();
 
     return () => {
@@ -170,6 +178,7 @@ const App: React.FC = () => {
       window.removeEventListener('pwa-ready', pwaReadyHandler);
       window.removeEventListener('online', onlineHandler);
       window.removeEventListener('offline', offlineHandler);
+      unsubscribeConfig();
     };
   }, []);
 

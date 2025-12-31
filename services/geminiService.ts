@@ -47,7 +47,7 @@ export const generateWithAI = async (
             } else {
                 // Call Gemini Endpoint
                 textOutput = await callBackend('/api/ai/generate', {
-                    model: 'gemini-2.0-flash-exp', // Updated model
+                    model: 'gemini-3-flash-preview', // Updated to Gemini 3.0
                     contents: [{ role: 'user', parts: [{ text: prompt }] }],
                     config: { temperature }
                 });
@@ -105,7 +105,7 @@ const callBackend = async (endpoint: string, payload: any) => {
 const callGeminiDirect = async (apiKey: string, prompt: string, temperature: number) => {
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-exp', // Updated model
+        model: 'gemini-3-flash-preview', // Updated to Gemini 3.0
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { temperature }
     });
@@ -219,7 +219,7 @@ export const generateQuestionFromImage = async (base64: string, mimeType: string
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'gemini-2.0-flash-exp', // Updated model
+                model: 'gemini-3-flash-preview', // Updated to Gemini 3.0
                 contents: [{ 
                     role: 'user', 
                     parts: [

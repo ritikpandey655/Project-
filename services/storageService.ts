@@ -14,7 +14,7 @@ export const INITIAL_STATS: UserStats = {
   examPerformance: {}
 };
 
-// --- SYSTEM LOGGING (NEW) ---
+// --- SYSTEM LOGGING ---
 
 export const logSystemError = async (type: 'ERROR' | 'API_FAIL' | 'INFO', message: string, details?: any) => {
   try {
@@ -52,7 +52,7 @@ export const clearSystemLogs = async () => {
   } catch (e) {}
 };
 
-// --- API KEY MANAGEMENT (NEW) ---
+// --- API KEY MANAGEMENT ---
 
 export const saveApiKeys = (keys: { gemini?: string; groq?: string }) => {
   if (keys.gemini) localStorage.setItem('custom_gemini_key', keys.gemini);
@@ -147,7 +147,10 @@ export const getOfficialQuestions = async (exam: string, subject: string, count:
 
 export const saveSystemConfig = async (config: { aiProvider: 'gemini' | 'groq', modelName?: string }): Promise<void> => {
   try {
+    // 1. Save to localStorage immediately for the admin
     localStorage.setItem('system_config', JSON.stringify(config));
+    
+    // 2. Persist to Firestore - This triggers the onSnapshot listeners for all users
     await db.collection("settings").doc("system").set(config, { merge: true });
   } catch (e) {}
 };
@@ -155,7 +158,6 @@ export const saveSystemConfig = async (config: { aiProvider: 'gemini' | 'groq', 
 export const getSystemConfig = async (): Promise<{ aiProvider: 'gemini' | 'groq', modelName?: string }> => {
   try {
     // FORCE RULE: Use { source: 'server' } to ignore stale local cache.
-    // This strictly enforces the Admin's selection (e.g. Groq) immediately for all online users.
     const docSnap = await db.collection("settings").doc("system").get({ source: 'server' });
     
     if (docSnap.exists) {
@@ -164,7 +166,7 @@ export const getSystemConfig = async (): Promise<{ aiProvider: 'gemini' | 'groq'
       return data;
     }
   } catch (e) {
-    // Fallback A: If server unreachable (offline), try standard get() which checks local Firestore persistence
+    // Fallback A: If server unreachable (offline), try standard get()
     try {
         const docSnap = await db.collection("settings").doc("system").get();
         if (docSnap.exists) {
@@ -180,6 +182,18 @@ export const getSystemConfig = async (): Promise<{ aiProvider: 'gemini' | 'groq'
   
   // Final Fallback
   return { aiProvider: 'gemini' };
+};
+
+// **NEW**: Subscribe to real-time config changes
+export const subscribeToSystemConfig = (callback: (config: any) => void) => {
+    return db.collection("settings").doc("system").onSnapshot((doc) => {
+        if (doc.exists) {
+            const data = doc.data();
+            console.log("Real-time Config Update:", data);
+            localStorage.setItem('system_config', JSON.stringify(data));
+            callback(data);
+        }
+    });
 };
 
 export const getExamConfig = async (): Promise<Record<string, string[]>> => {
