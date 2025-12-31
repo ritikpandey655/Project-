@@ -154,15 +154,22 @@ export const saveSystemConfig = async (config: { aiProvider: 'gemini' | 'groq', 
 
 export const getSystemConfig = async (): Promise<{ aiProvider: 'gemini' | 'groq', modelName?: string }> => {
   try {
-    const cached = localStorage.getItem('system_config');
-    if (cached) return JSON.parse(cached);
+    // CRITICAL FIX: Always try to fetch fresh config from Firestore first.
+    // This ensures that when Admin switches to 'groq', all users immediately get the new config.
+    // Previous behavior (cache-first) caused users to stay on 'gemini' indefinitely, causing 500 errors.
     const docSnap = await db.collection("settings").doc("system").get();
     if (docSnap.exists) {
       const data = docSnap.data() as any;
       localStorage.setItem('system_config', JSON.stringify(data));
       return data;
     }
-  } catch (e) {}
+  } catch (e) {
+    // Only use cache if network fails or Firestore is unreachable
+    console.warn("Config fetch failed, using cache", e);
+    const cached = localStorage.getItem('system_config');
+    if (cached) return JSON.parse(cached);
+  }
+  // Default fallback if everything fails
   return { aiProvider: 'gemini' };
 };
 

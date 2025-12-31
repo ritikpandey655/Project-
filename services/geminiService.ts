@@ -31,7 +31,8 @@ export const generateWithAI = async (
     try {
         const config = await getSystemConfig();
         const provider = config.aiProvider || 'gemini'; 
-        
+        console.log(`[AI Service] Active Provider: ${provider.toUpperCase()}`);
+
         let textOutput = "";
 
         // --- 1. Try Backend (Preferred) ---
