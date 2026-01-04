@@ -1,6 +1,6 @@
 
-const CACHE_NAME = 'pyqverse-v7-core';
-const DYNAMIC_CACHE = 'pyqverse-v7-dynamic';
+const CACHE_NAME = 'pyqverse-v8-core';
+const DYNAMIC_CACHE = 'pyqverse-v8-dynamic';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -53,11 +53,17 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .catch(() => {
-          // IMPORTANT: ignoreSearch: true ensures /?utm_source=pwa matches /
+          // Check cache for the page
           return caches.match(event.request, { ignoreSearch: true }).then((cachedRes) => {
             if (cachedRes) return cachedRes;
-            // Return index.html for SPA routes, also ignore search params
-            return caches.match('/index.html', { ignoreSearch: true }) || caches.match('/offline.html');
+            
+            // Fallback to SPA Index
+            return caches.match('/index.html', { ignoreSearch: true }).then((indexRes) => {
+               if (indexRes) return indexRes;
+               
+               // Final Fallback to Offline Page
+               return caches.match('/offline.html');
+            });
           });
         })
     );
