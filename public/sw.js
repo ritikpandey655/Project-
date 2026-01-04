@@ -1,14 +1,14 @@
-const CACHE_NAME = 'pyqverse-v14-core';
-const DYNAMIC_CACHE = 'pyqverse-v14-dynamic';
+const CACHE_NAME = 'pyqverse-pwa-v17';
+const DYNAMIC_CACHE = 'pyqverse-pwa-v17-dynamic';
 
 const ASSETS_TO_CACHE = [
-  './',
-  'index.html',
-  'manifest.json',
-  'icon-192x192.png',
-  'icon-512x512.png',
-  'logo.svg',
-  'offline.html'
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/icon-192x192.png',
+  '/icon-512x512.png',
+  '/logo.svg',
+  '/offline.html'
 ];
 
 // Install Event: Cache Core Assets
@@ -52,9 +52,9 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           return caches.match(event.request, { ignoreSearch: true }).then((cachedRes) => {
             if (cachedRes) return cachedRes;
-            return caches.match('index.html', { ignoreSearch: true }).then((indexRes) => {
+            return caches.match('/index.html', { ignoreSearch: true }).then((indexRes) => {
                if (indexRes) return indexRes;
-               return caches.match('offline.html');
+               return caches.match('/offline.html');
             });
           });
         })
