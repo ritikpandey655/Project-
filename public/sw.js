@@ -1,6 +1,5 @@
-
-const CACHE_NAME = 'pyqverse-v11-core';
-const DYNAMIC_CACHE = 'pyqverse-v11-dynamic';
+const CACHE_NAME = 'pyqverse-v14-core';
+const DYNAMIC_CACHE = 'pyqverse-v14-dynamic';
 
 const ASSETS_TO_CACHE = [
   './',
