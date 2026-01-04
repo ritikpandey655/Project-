@@ -3,6 +3,9 @@
   "version": 2,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { 
+      "source": "/((?!.*\\.(?:png|jpg|jpeg|gif|svg|ico|json|js|css|webp|txt|xml)$).*)$", 
+      "destination": "/index.html" 
+    }
   ]
 }

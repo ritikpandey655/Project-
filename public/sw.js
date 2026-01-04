@@ -1,14 +1,14 @@
 
-const CACHE_NAME = 'pyqverse-v9-core';
-const DYNAMIC_CACHE = 'pyqverse-v9-dynamic';
+const CACHE_NAME = 'pyqverse-v11-core';
+const DYNAMIC_CACHE = 'pyqverse-v11-dynamic';
 
 const ASSETS_TO_CACHE = [
   './',
   'index.html',
   'manifest.json',
-  'favicon.png',
-  'icon-192.png',
-  'icon-512.png',
+  'icon-192x192.png',
+  'icon-512x512.png',
+  'logo.svg',
   'offline.html'
 ];
 
@@ -42,26 +42,19 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 1. API Requests & Firebase: Network Only (Do not cache)
   if (url.pathname.startsWith('/api/') || url.hostname.includes('firebase') || url.hostname.includes('googleapis')) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // 2. Navigation Requests (HTML): Network First, Fallback to Cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .catch(() => {
-          // Check cache for the page
           return caches.match(event.request, { ignoreSearch: true }).then((cachedRes) => {
             if (cachedRes) return cachedRes;
-            
-            // Fallback to SPA Index (try relative)
             return caches.match('index.html', { ignoreSearch: true }).then((indexRes) => {
                if (indexRes) return indexRes;
-               
-               // Final Fallback to Offline Page
                return caches.match('offline.html');
             });
           });
@@ -70,11 +63,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Static Assets (Images, JS, CSS): Stale-While-Revalidate
   event.respondWith(
     caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
-        // Cache new assets dynamically
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
            const responseToCache = networkResponse.clone();
            caches.open(DYNAMIC_CACHE).then((cache) => {
@@ -82,9 +73,7 @@ self.addEventListener('fetch', (event) => {
            });
         }
         return networkResponse;
-      }).catch(() => {
-         // Network failed, nothing to do
-      });
+      }).catch(() => {});
       return cachedResponse || fetchPromise;
     })
   );
