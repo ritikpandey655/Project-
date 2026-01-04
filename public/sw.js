@@ -1,15 +1,15 @@
 
-const CACHE_NAME = 'pyqverse-v8-core';
-const DYNAMIC_CACHE = 'pyqverse-v8-dynamic';
+const CACHE_NAME = 'pyqverse-v9-core';
+const DYNAMIC_CACHE = 'pyqverse-v9-dynamic';
 
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/favicon.png',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/offline.html'
+  './',
+  'index.html',
+  'manifest.json',
+  'favicon.png',
+  'icon-192.png',
+  'icon-512.png',
+  'offline.html'
 ];
 
 // Install Event: Cache Core Assets
@@ -57,12 +57,12 @@ self.addEventListener('fetch', (event) => {
           return caches.match(event.request, { ignoreSearch: true }).then((cachedRes) => {
             if (cachedRes) return cachedRes;
             
-            // Fallback to SPA Index
-            return caches.match('/index.html', { ignoreSearch: true }).then((indexRes) => {
+            // Fallback to SPA Index (try relative)
+            return caches.match('index.html', { ignoreSearch: true }).then((indexRes) => {
                if (indexRes) return indexRes;
                
                // Final Fallback to Offline Page
-               return caches.match('/offline.html');
+               return caches.match('offline.html');
             });
           });
         })
