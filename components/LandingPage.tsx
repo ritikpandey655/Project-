@@ -13,10 +13,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
   const [query, setQuery] = useState('');
 
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-slate-950 overflow-x-hidden text-slate-900 dark:text-white transition-colors flex flex-col">
+    <div className="min-h-screen w-full bg-transparent overflow-x-hidden text-slate-900 dark:text-white transition-colors flex flex-col">
       
       {/* Modern Clean Navbar */}
-      <nav className="fixed w-full z-50 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-white/5">
+      <nav className="fixed w-full z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 supports-[backdrop-filter]:bg-white/60">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center gap-3">
@@ -79,7 +79,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
       </div>
 
       {/* Official Footer */}
-      <footer className="w-full bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-12 px-6 mt-auto relative z-10">
+      <footer className="w-full bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-800 py-12 px-6 mt-auto relative z-10 backdrop-blur-sm">
          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2">
                <LogoIcon size="sm" className="scale-75" />
