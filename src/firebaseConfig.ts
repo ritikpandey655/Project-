@@ -15,24 +15,22 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase (Singleton Pattern)
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
-
-const app = firebase.app();
+// We use the existing app if it exists to prevent 'Firebase App named [DEFAULT] already exists' errors
+const app = firebase.apps.length > 0 ? firebase.app() : firebase.initializeApp(firebaseConfig);
 
 // Services
-const auth = firebase.auth();
-const db = firebase.firestore();
+// Using app.auth() and app.firestore() is safer than firebase.auth() in modular/compat environments
+const auth = app.auth();
+const db = app.firestore();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
 // Analytics (Conditional for environment)
 let analytics: any = null;
 if (typeof window !== 'undefined') {
-  // Check if analytics is supported (e.g. not in SSR or some restricted environments)
+  // Safe check for analytics support
   firebase.analytics.isSupported().then((yes) => {
       if (yes) analytics = firebase.analytics();
-  });
+  }).catch(() => {});
 }
 
 export { app as firebase, auth, db, analytics, googleProvider };

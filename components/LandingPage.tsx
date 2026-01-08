@@ -12,15 +12,6 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onNavigate }) => {
   const [query, setQuery] = useState('');
 
-  // Generate random particles for fireworks
-  const particles = Array.from({ length: 12 }).map((_, i) => ({
-    id: i,
-    tx: `${(Math.random() - 0.5) * 200}px`,
-    ty: `${(Math.random() - 0.5) * 200}px`,
-    color: ['#FDE047', '#EAB308', '#60A5FA', '#F472B6'][Math.floor(Math.random() * 4)],
-    delay: `${Math.random() * 2}s`
-  }));
-
   return (
     <div className="min-h-screen w-full bg-white dark:bg-slate-950 overflow-x-hidden text-slate-900 dark:text-white transition-colors flex flex-col">
       
@@ -53,23 +44,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
       {/* Hero Section */}
       <div className="relative pt-28 pb-12 sm:pt-48 sm:pb-32 flex flex-col items-center text-center px-4 flex-1 overflow-hidden">
         
-        {/* Celebration Background Particles */}
-        <div className="absolute top-1/3 left-1/4 w-0 h-0">
-             {particles.map(p => (
-                 <div key={`l-${p.id}`} className="firework-particle" style={{ '--tx': p.tx, '--ty': p.ty, backgroundColor: p.color, animationDelay: p.delay } as React.CSSProperties}></div>
-             ))}
-        </div>
-        <div className="absolute top-1/4 right-1/4 w-0 h-0">
-             {particles.map(p => (
-                 <div key={`r-${p.id}`} className="firework-particle" style={{ '--tx': p.tx, '--ty': p.ty, backgroundColor: p.color, animationDelay: `${parseFloat(p.delay) + 1}s` } as React.CSSProperties}></div>
-             ))}
-        </div>
-
-        {/* 2026 Celebration Badge */}
-        <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-to-r from-yellow-900/30 to-brand-900/30 border border-yellow-500/30 text-yellow-400 text-xs font-black uppercase tracking-widest mb-8 animate-slide-up shadow-[0_0_20px_rgba(234,179,8,0.2)]">
-           <span className="text-lg animate-bounce">🎉</span> HAPPY NEW YEAR 2026
-        </div>
-
         {/* Massive Headline */}
         <h1 className="max-w-5xl text-5xl sm:text-7xl lg:text-9xl font-display font-black text-slate-900 dark:text-white mb-6 leading-[0.95] tracking-tighter animate-slide-up z-10">
           Prepare <span className="text-gold-gradient drop-shadow-sm">2026 Exams.</span><br/>
@@ -100,7 +74,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
            Updated for UPSC, NEET, JEE & UP Board <span className="text-yellow-500 font-bold">2026 Patterns</span>.
         </p>
 
-        {/* Bottom Glow Effect (Matching screenshot) */}
+        {/* Bottom Glow Effect */}
         <div className="absolute bottom-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-t from-brand-500/10 via-brand-500/5 to-transparent blur-[100px] rounded-full pointer-events-none -z-10"></div>
       </div>
 

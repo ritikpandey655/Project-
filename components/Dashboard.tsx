@@ -122,10 +122,10 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
               onClick={onUpload}
               className="bg-white dark:bg-slate-900/40 backdrop-blur-md p-8 rounded-[40px] border border-slate-200 dark:border-white/5 shadow-2xl hover:border-brand-500/50 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-8 group"
             >
-               <div className="w-20 h-20 bg-brand-50 dark:bg-brand-900/30 rounded-[28px] flex items-center justify-center text-4xl flex-shrink-0 shadow-inner group-hover:scale-110 transition-transform">📸</div>
+               <div className="w-20 h-20 bg-brand-50 dark:bg-brand-900/30 rounded-[28px] flex items-center justify-center text-4xl flex-shrink-0 shadow-inner group-hover:scale-110 transition-transform">💡</div>
                <div>
                   <h3 className="text-2xl font-display font-black text-slate-800 dark:text-white mb-2 tracking-tight">AI Doubt Solver</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Scan any question or type a topic for instant expert solution.</p>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Type any question or topic for instant expert solution.</p>
                </div>
             </div>
 
@@ -147,7 +147,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
          <div className="flex justify-between items-center mb-10">
             <div>
                <h3 className="font-display font-black text-2xl text-slate-800 dark:text-white tracking-tight">AI Intelligence Insight</h3>
-               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Based on last 30 sessions</p>
+               <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Based on last 30 sessions</p>
             </div>
             <button onClick={onOpenAnalytics} className="bg-brand-500/10 text-brand-500 px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-brand-500/20 hover:bg-brand-500 hover:text-white transition-all">Detailed Stats</button>
          </div>

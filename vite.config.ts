@@ -32,13 +32,11 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             vendor: ['react', 'react-dom'],
             charts: ['recharts'],
-            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore']
+            // Removed firebase manual chunk to allow correct dependency resolution order
           }
         }
       }
     },
-    // We strictly DO NOT define API keys here anymore.
-    // This forces the app to use the Backend for all AI operations.
     define: {
       'process.env.PHONEPE_MERCHANT_ID': JSON.stringify(env.PHONEPE_MERCHANT_ID || ""),
     },

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { User } from '../types';
 import { auth, googleProvider, db } from '../src/firebaseConfig';
 import { Button } from './Button';
@@ -28,39 +28,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // Enhanced Firework Generation: Radial Bursts
-  const bursts = useMemo(() => {
-    const burstCount = 6; 
-    const particlesPerBurst = 12; 
-    const allParticles = [];
-    const colors = ['#FDE047', '#60A5FA', '#F472B6', '#A855F7', '#34D399'];
-
-    for (let b = 0; b < burstCount; b++) {
-      const burstDelay = Math.random() * 2;
-      const burstX = Math.random() * 100; // %
-      const burstY = Math.random() * 100;  // Full Screen %
-
-      for (let p = 0; p < particlesPerBurst; p++) {
-        const angle = (Math.PI * 2 * p) / particlesPerBurst;
-        const velocity = 60 + Math.random() * 100;
-        const tx = Math.cos(angle) * velocity;
-        const ty = Math.sin(angle) * velocity + (Math.random() * 50);
-
-        allParticles.push({
-          id: `b${b}-p${p}`,
-          top: `${burstY}%`,
-          left: `${burstX}%`,
-          tx: `${tx}px`,
-          ty: `${ty}px`,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          delay: `${burstDelay}s`,
-          size: Math.random() > 0.5 ? '4px' : '2px'
-        });
-      }
-    }
-    return allParticles;
-  }, []);
 
   const syncUserToDB = async (firebaseUser: any) => {
     try {
@@ -126,27 +93,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   return (
     <div className="min-h-screen w-full bg-slate-950 flex flex-col justify-between overflow-y-auto relative overflow-x-hidden">
       
-      {/* FULL SCREEN FIXED Fireworks Container */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-          {bursts.map(p => (
-              <div 
-                key={p.id} 
-                className="firework-particle" 
-                style={{ 
-                  top: p.top, 
-                  left: p.left,
-                  width: p.size,
-                  height: p.size,
-                  '--tx': p.tx, 
-                  '--ty': p.ty, 
-                  backgroundColor: p.color, 
-                  boxShadow: `0 0 6px ${p.color}`,
-                  animationDelay: p.delay 
-                } as React.CSSProperties}
-              ></div>
-          ))}
-      </div>
-
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
         <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-xl rounded-[40px] shadow-2xl p-8 border border-white/5 flex flex-col items-center animate-fade-in relative overflow-hidden ring-1 ring-white/10">
@@ -160,15 +106,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <div className="text-center mb-6 relative z-10 w-full">
               {/* Golden Welcome Back */}
               <h1 className="text-4xl font-display font-black text-gold-gradient mb-2 tracking-tight drop-shadow-sm">Welcome Back</h1>
-              
-              {/* Hanging Balloons with 2026 */}
-              <div className="balloon-container">
-                  <div className="balloon" style={{ backgroundColor: '#F87171', animationDelay: '0s' }}>2</div>
-                  <div className="balloon" style={{ backgroundColor: '#FACC15', animationDelay: '0.5s' }}>0</div>
-                  <div className="balloon" style={{ backgroundColor: '#60A5FA', animationDelay: '1s' }}>2</div>
-                  <div className="balloon" style={{ backgroundColor: '#A78BFA', animationDelay: '1.5s' }}>6</div>
-              </div>
-
               <p className="text-slate-400 text-sm font-medium">Enter the exam universe.</p>
           </div>
           

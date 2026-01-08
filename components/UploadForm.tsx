@@ -1,10 +1,10 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExamType, QuestionSource, Question } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
 import { Button } from './Button';
 import { saveUserQuestion } from '../services/storageService';
-import { solveTextQuestion, generateQuestionFromImage } from '../services/geminiService';
+import { solveTextQuestion } from '../services/geminiService';
 
 interface UploadFormProps {
   userId: string;
@@ -25,8 +25,6 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSolution, setShowSolution] = useState(false); 
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   // Automatically solve initial query if passed
   useEffect(() => {
     if (initialQuery) {
@@ -73,43 +71,6 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const mimeType = file.type || 'image/jpeg';
-    setIsGenerating(true);
-    setShowSolution(false);
-    try {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = async () => {
-            const base64 = (reader.result as string).split(',')[1];
-            const aiQuestion = await generateQuestionFromImage(base64, mimeType, examType, subject);
-            
-            if (aiQuestion) {
-                await new Promise(r => setTimeout(r, 2000));
-                setText(aiQuestion.text || '');
-                if (aiQuestion.options && aiQuestion.options.length > 0) {
-                    const newOpts = [...aiQuestion.options];
-                    while(newOpts.length < 4) newOpts.push('');
-                    setOptions(newOpts.slice(0, 4));
-                }
-                setCorrectIndex(aiQuestion.correctIndex || 0);
-                setExplanation(aiQuestion.explanation || '');
-                setTags('Scanned Question');
-                setShowSolution(true); 
-            } else {
-                alert("Could not analyze image. Please ensure question is clearly visible.");
-            }
-            setIsGenerating(false);
-        };
-    } catch (err) {
-        alert("Error processing image.");
-        setIsGenerating(false);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!text || options.some(o => !o)) return;
@@ -150,7 +111,7 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
                {isSaving ? 'Saving to Universe...' : 'Analyzing Doubt...'}
             </h3>
             <p className="text-slate-400 text-sm font-medium tracking-wide">
-               {isSaving ? 'Updating your personal notebook archives.' : 'AI Vision and Logic engines are extracting patterns and calculating the solution.'}
+               {isSaving ? 'Updating your personal notebook archives.' : 'AI Logic engines are extracting patterns and calculating the solution.'}
             </p>
          </div>
       </div>
@@ -184,14 +145,6 @@ export const UploadForm: React.FC<UploadFormProps> = ({ userId, examType, onSucc
             <h2 className="text-3xl font-display font-black text-slate-900 dark:text-white tracking-tighter leading-none mb-3">AI Solution Hub</h2>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Solving for {examType} universe.</p>
           </div>
-          <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center text-2xl hover:scale-110 active:scale-95 transition-all border border-brand-100 dark:border-brand-900/30"
-              title="Scan Image"
-          >
-              <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageUpload} />
-              📸
-          </button>
         </div>
 
         {showSolution && (

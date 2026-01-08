@@ -208,31 +208,3 @@ export const generatePYQList = async (exam: string, subject: string, year: numbe
     const data = Array.isArray(items) ? items : (items.questions || []);
     return data.map((q: any) => ({ ...q, id: `pyq-${Math.random()}`, source: 'PYQ_AI', examType: exam, subject, pyqYear: year }));
 };
-
-export const generateQuestionFromImage = async (base64: string, mimeType: string, exam: string, subject: string) => {
-    // Note: Image processing is heavy, so we try backend first, but usually requires Gemini
-    // For this implementation, we use the generateWithAI wrapper but adapt payload for images if needed.
-    // However, the unified generateWithAI is text-only. 
-    // We implement a specific Image handler here that calls backend /api/ai/generate directly with image parts.
-    try {
-        const response = await fetch('/api/ai/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'gemini-3-flash-preview', // Updated to Gemini 3.0
-                contents: [{ 
-                    role: 'user', 
-                    parts: [
-                        { inlineData: { data: base64, mimeType } }, 
-                        { text: `Analyze image for ${exam}. Return JSON: {text, options[], correctIndex, explanation}` }
-                    ] 
-                }]
-            })
-        });
-        if(!response.ok) throw new Error("Backend Image Fail");
-        const res = await response.json();
-        return JSON.parse(cleanJson(res.data));
-    } catch(e) {
-        return null;
-    }
-};

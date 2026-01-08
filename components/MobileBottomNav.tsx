@@ -12,7 +12,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentView, o
   const navItems = [
     { id: 'dashboard', icon: '🏠', label: 'Home' },
     { id: 'practice-action', icon: '⚡', label: 'Start', isAction: true },
-    { id: 'upload', icon: '📸', label: 'Doubts' },
+    { id: 'upload', icon: '💡', label: 'Doubts' },
     { id: 'profile', icon: '👤', label: 'Profile' },
   ];
 
