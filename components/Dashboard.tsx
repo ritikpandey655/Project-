@@ -55,6 +55,12 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
     return THEME_PALETTES[currentTheme]?.[500] || '#5B2EFF';
   }, [currentTheme]);
 
+  // Get specific gradient colors for the AI Tile to ensure it works
+  const tileGradient = useMemo(() => {
+    const palette = THEME_PALETTES[currentTheme] || THEME_PALETTES['PYQverse Prime'];
+    return `linear-gradient(135deg, ${palette[600]}, ${palette[800]})`;
+  }, [currentTheme]);
+
   const chartData = useMemo(() => {
     return Object.keys(stats.subjectPerformance).map(subject => ({
       name: subject.length > 10 ? subject.substring(0, 10) + '...' : subject,
@@ -107,13 +113,14 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
          {/* AI Practice Tile */}
          <div 
            onClick={onStartPractice}
-           className="group bg-gradient-to-br from-brand-600 to-brand-800 p-10 rounded-[40px] text-white shadow-2xl shadow-brand-500/20 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-brand-500/40"
+           style={{ background: tileGradient }}
+           className="group p-10 rounded-[40px] text-white shadow-2xl shadow-brand-500/20 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-brand-500/40"
          >
-            <div className="absolute top-[-10%] right-[-10%] text-[180px] opacity-10 pointer-events-none transform rotate-12 font-black">AI</div>
+            <div className="absolute top-[-10%] right-[-10%] text-[180px] opacity-10 pointer-events-none transform rotate-12 font-black text-white">AI</div>
             <div className="relative z-10 flex flex-col h-full min-h-[220px]">
                <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full w-fit mb-6 border border-white/20">Recommended</span>
-               <h3 className="text-4xl font-display font-black leading-tight mb-4 tracking-tighter">AI Practice<br/>Universe</h3>
-               <p className="text-brand-100/70 text-sm max-w-sm mb-8 font-medium">Generate unlimited questions based on {selectedExam} 2024-25 patterns.</p>
+               <h3 className="text-4xl font-display font-black leading-tight mb-4 tracking-tighter text-white">AI Practice<br/>Universe</h3>
+               <p className="text-white/80 text-sm max-w-sm mb-8 font-medium">Generate unlimited questions based on {selectedExam} 2024-25 patterns.</p>
                <div className="mt-auto">
                   <span className="inline-flex items-center gap-3 bg-white text-brand-700 px-8 py-4 rounded-full font-black text-sm shadow-2xl hover:gap-6 transition-all">
                     LAUNCH SESSION <span className="text-xl">🚀</span>
