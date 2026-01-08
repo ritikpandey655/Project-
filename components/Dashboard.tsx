@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { UserStats, ExamType, User, ViewState } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { TRANSLATIONS } from '../constants';
+import { TRANSLATIONS, THEME_PALETTES } from '../constants';
 
 interface DashboardProps {
   stats: UserStats;
@@ -45,9 +45,15 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   onOpenAnalytics,
   onOpenLeaderboard,
   onOpenBookmarks,
-  onNavigate
+  onNavigate,
+  currentTheme = 'PYQverse Prime'
 }) => {
   const t = TRANSLATIONS[language];
+
+  // Get active theme color for charts
+  const activeThemeColor = useMemo(() => {
+    return THEME_PALETTES[currentTheme]?.[500] || '#5B2EFF';
+  }, [currentTheme]);
 
   const chartData = useMemo(() => {
     return Object.keys(stats.subjectPerformance).map(subject => ({
@@ -101,7 +107,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
          {/* AI Practice Tile */}
          <div 
            onClick={onStartPractice}
-           className="group bg-gradient-to-br from-brand-600 to-brand-800 p-10 rounded-[40px] text-white shadow-2xl shadow-brand-500/20 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-[0_20px_40px_-15px_rgba(91,46,255,0.4)]"
+           className="group bg-gradient-to-br from-brand-600 to-brand-800 p-10 rounded-[40px] text-white shadow-2xl shadow-brand-500/20 relative overflow-hidden cursor-pointer active:scale-[0.98] transition-all hover:shadow-brand-500/40"
          >
             <div className="absolute top-[-10%] right-[-10%] text-[180px] opacity-10 pointer-events-none transform rotate-12 font-black">AI</div>
             <div className="relative z-10 flex flex-col h-full min-h-[220px]">
@@ -157,7 +163,7 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
                    <BarChart data={chartData}>
                       <Bar dataKey="score" radius={[16, 16, 16, 16]}>
                          {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.score > 70 ? '#10B981' : '#5B2EFF'} fillOpacity={0.8} />
+                            <Cell key={`cell-${index}`} fill={entry.score > 70 ? '#10B981' : activeThemeColor} fillOpacity={0.8} />
                          ))}
                       </Bar>
                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 11, fontWeight: '700'}} />
