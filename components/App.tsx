@@ -87,9 +87,12 @@ const App: React.FC = () => {
     root.style.setProperty('--primary-50', palette[50]);
     root.style.setProperty('--primary-100', palette[100]);
     root.style.setProperty('--primary-200', palette[200]);
+    root.style.setProperty('--primary-300', palette[300]);
+    root.style.setProperty('--primary-400', palette[400]);
     root.style.setProperty('--primary-500', palette[500]);
     root.style.setProperty('--primary-600', palette[600]);
     root.style.setProperty('--primary-700', palette[700]);
+    root.style.setProperty('--primary-800', palette[800]);
     root.style.setProperty('--primary-900', palette[900]);
   };
 
