@@ -227,7 +227,14 @@ const sanitizePaper = (data: any, exam: string, subject: string, difficulty: str
 
 // --- Exported Generators ---
 
-export const generateExamQuestions = async (exam: string, subject: string, count: number, difficulty: string, topics: string[] = []) => {
+export const generateExamQuestions = async (
+    exam: string, 
+    subject: string, 
+    count: number, 
+    difficulty: string, 
+    topics: string[] = [],
+    language: 'en' | 'hi' = 'en' // New parameter
+) => {
   try {
       // 1. Get Manual Questions
       const manualQuestions = await getOfficialQuestions(exam, subject, count);
@@ -248,8 +255,14 @@ export const generateExamQuestions = async (exam: string, subject: string, count
       const config = await getSystemConfig();
       const currentProvider = config.aiProvider || 'gemini';
 
+      // Updated Prompt with Language Instruction
+      const langInstruction = language === 'hi' 
+        ? "OUTPUT LANGUAGE: HINDI (DEVANAGARI SCRIPT). Ensure question text, ALL options, and explanation are in Hindi." 
+        : "OUTPUT LANGUAGE: ENGLISH.";
+
       const prompt = `Generate ${remainingCount} MCQs for ${exam} (${subject}). Difficulty: ${difficulty}. 
       ${topics.length > 0 ? `Topics: ${topics.join(', ')}.` : ''} 
+      ${langInstruction}
       Strictly return a JSON Array of objects.
       Schema: [{"text": "Question Stem", "options": ["A", "B", "C", "D"], "correctIndex": 0 (0-3), "explanation": "Logic"}]`;
 
@@ -284,20 +297,27 @@ export const solveTextQuestion = async (text: string, exam: string, subject: str
     return await generateWithAI(prompt, true, 0.4);
 };
 
-export const analyzeImageForQuestion = async (base64Image: string, mimeType: string, exam: string, subject: string) => {
+export const analyzeImageForQuestion = async (base64Image: string, mimeType: string, exam: string, subject: string, languageMode: 'en' | 'hi' | 'both' = 'en') => {
+    let schemaStr = '';
+    let langInstruction = '';
+
+    if (languageMode === 'en') {
+        langInstruction = "Extract ONLY English content. If the image is Hindi, translate it to English.";
+        schemaStr = `{ "text": "...", "options": ["..."], "correctIndex": 0, "explanation": "..." }`;
+    } else if (languageMode === 'hi') {
+        langInstruction = "Extract ONLY Hindi content. Return text in Devanagari script. If image is English, translate to Hindi.";
+        schemaStr = `{ "textHindi": "...", "optionsHindi": ["..."], "correctIndex": 0, "explanationHindi": "..." }`;
+    } else {
+        langInstruction = "Extract BOTH English and Hindi content if present. If only one exists, translate to the other so BOTH sets of fields are populated.";
+        schemaStr = `{ "text": "...", "textHindi": "...", "options": ["..."], "optionsHindi": ["..."], "correctIndex": 0, "explanation": "...", "explanationHindi": "..." }`;
+    }
+
     const prompt = `Analyze this image. It contains a question (possibly handwritten).
-    Extract the text clearly. If there are options, list them. If no options are visible, generate 4 plausible options.
-    Solve the question and provide the correct index and explanation.
-    
     Context: ${exam} - ${subject}.
+    ${langInstruction}
     
     Return STRICT JSON:
-    {
-      "text": "The full question text extracted from image",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctIndex": 0, // Integer 0-3
-      "explanation": "Detailed solution logic"
-    }`;
+    ${schemaStr}`;
 
     const imagePart = {
         inlineData: {
@@ -309,30 +329,41 @@ export const analyzeImageForQuestion = async (base64Image: string, mimeType: str
     return await generateWithAI(prompt, true, 0.4, imagePart);
 };
 
-// **UPDATED**: Subject Classification Support
-export const extractQuestionsFromPaper = async (base64Image: string, mimeType: string, exam: string, validSubjects: string[]) => {
-    // We pass validSubjects so the AI can classify properly.
+// **UPDATED**: Subject Classification Support & Language
+export const extractQuestionsFromPaper = async (base64Image: string, mimeType: string, exam: string, validSubjects: string[], languageMode: 'en' | 'hi' | 'both' = 'en') => {
+    let langInstruction = '';
+    let schemaFields = '';
+
+    if (languageMode === 'en') {
+        langInstruction = "Extract in English.";
+        schemaFields = `"text": "...", "options": ["..."], "explanation": "..."`;
+    } else if (languageMode === 'hi') {
+        langInstruction = "Extract in Hindi (Devanagari).";
+        schemaFields = `"textHindi": "...", "optionsHindi": ["..."], "explanationHindi": "..."`;
+    } else {
+        langInstruction = "Extract in BOTH English and Hindi. Translate if needed.";
+        schemaFields = `"text": "...", "textHindi": "...", "options": ["..."], "optionsHindi": ["..."], "explanation": "...", "explanationHindi": "..."`;
+    }
+
     const prompt = `You are a professional Question Digitizer. 
-    Analyze this entire document/image (which may contain multiple questions from different subjects).
+    Analyze this entire document/image.
     
     Context: ${exam} Exam.
     Valid Subjects for Classification: ${validSubjects.join(', ')}.
+    ${langInstruction}
     
     Task:
     1. Identify all Multiple Choice Questions (MCQs) visible.
-    2. Extract the question text, options, and solve them.
+    2. Extract/Translate based on language instruction.
     3. **CRITICAL**: Classify the Subject of each question strictly from the provided 'Valid Subjects' list. 
        If a question fits multiple (e.g. Physics in Science), choose the most specific one. 
        If unsure, use "General".
-    4. Ignore headers, footers, or watermarks.
     
     Return STRICT JSON ARRAY:
     [
       {
-        "text": "Question 1 text...",
-        "options": ["A", "B", "C", "D"],
+        ${schemaFields},
         "correctIndex": 0,
-        "explanation": "Brief logic",
         "subject": "The_Classified_Subject" 
       },
       ...

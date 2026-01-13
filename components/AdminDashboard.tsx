@@ -77,6 +77,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [extractedQuestion, setExtractedQuestion] = useState<Partial<Question> | null>(null);
   const [fileSizeWarning, setFileSizeWarning] = useState<string | null>(null);
   
+  // Input Method State (File vs Manual Text)
+  const [inputType, setInputType] = useState<'file' | 'text'>('file');
+  const [uploadLanguage, setUploadLanguage] = useState<'en' | 'hi' | 'both'>('en'); // New Language State
+
+  const [manualEntry, setManualEntry] = useState<Partial<Question>>({
+      text: '',
+      textHindi: '',
+      options: ['', '', '', ''],
+      optionsHindi: ['', '', '', ''],
+      correctIndex: 0,
+      explanation: '',
+      explanationHindi: ''
+  });
+  
   // Bulk Upload State
   const [uploadMode, setUploadMode] = useState<'single' | 'bulk'>('single');
   const [bulkQuestions, setBulkQuestions] = useState<Partial<Question>[]>([]);
@@ -225,13 +239,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         const mimeType = selectedFile.type;
         
         if (uploadMode === 'single') {
-            const result = await analyzeImageForQuestion(base64, mimeType, uploadExam, uploadSubject);
+            const result = await analyzeImageForQuestion(base64, mimeType, uploadExam, uploadSubject, uploadLanguage);
             if (result) {
                 setExtractedQuestion({
-                    text: result.text,
-                    options: result.options,
-                    correctIndex: result.correctIndex,
-                    explanation: result.explanation,
+                    ...result,
                     examType: uploadExam,
                     subject: uploadSubject
                 });
@@ -239,13 +250,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         } else {
             // Bulk / Full Paper Mode
             const validSubjects = EXAM_SUBJECTS[uploadExam as ExamType] || [];
-            const results = await extractQuestionsFromPaper(base64, mimeType, uploadExam, validSubjects);
+            const results = await extractQuestionsFromPaper(base64, mimeType, uploadExam, validSubjects, uploadLanguage);
             if (results && results.length > 0) {
                 const mappedQs = results.map((q: any) => ({
-                    text: q.text,
-                    options: q.options,
-                    correctIndex: q.correctIndex,
-                    explanation: q.explanation,
+                    ...q,
                     examType: uploadExam,
                     subject: q.subject || 'General', 
                     source: QuestionSource.MANUAL,
@@ -287,13 +295,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const handleSaveQuestion = async () => {
     setIsProcessing(true);
     try {
-        if (uploadMode === 'single' && extractedQuestion) {
+        if (inputType === 'text') {
+            // Manual Text Entry Save
+            if((uploadLanguage === 'en' && !manualEntry.text) || (uploadLanguage === 'hi' && !manualEntry.textHindi)) { 
+                alert("Please enter question text"); 
+                setIsProcessing(false); 
+                return; 
+            }
+            
+            const finalQuestion: Question = {
+                id: `manual-text-${Date.now()}`,
+                text: manualEntry.text || manualEntry.textHindi || '',
+                textHindi: manualEntry.textHindi,
+                options: manualEntry.options || [],
+                optionsHindi: manualEntry.optionsHindi,
+                correctIndex: manualEntry.correctIndex || 0,
+                explanation: manualEntry.explanation || '',
+                explanationHindi: manualEntry.explanationHindi,
+                examType: uploadExam,
+                subject: uploadSubject,
+                source: QuestionSource.MANUAL,
+                isHandwritten: true, // Treated as manual/verified
+                createdAt: Date.now(),
+                moderationStatus: 'APPROVED'
+            };
+            await saveGlobalQuestion(finalQuestion);
+            // Clear form
+            setManualEntry({ 
+                text: '', textHindi: '', 
+                options: ['', '', '', ''], optionsHindi: ['', '', '', ''], 
+                correctIndex: 0, explanation: '', explanationHindi: '' 
+            });
+            alert("Manual Text Question Saved Successfully!");
+
+        } else if (uploadMode === 'single' && extractedQuestion) {
+            // AI Extracted Single Save
             const finalQuestion: Question = {
                 id: `manual-${Date.now()}`,
-                text: extractedQuestion.text || '',
+                text: extractedQuestion.text || extractedQuestion.textHindi || '',
+                textHindi: extractedQuestion.textHindi,
                 options: extractedQuestion.options || [],
+                optionsHindi: extractedQuestion.optionsHindi,
                 correctIndex: extractedQuestion.correctIndex || 0,
                 explanation: extractedQuestion.explanation || '',
+                explanationHindi: extractedQuestion.explanationHindi,
                 examType: uploadExam,
                 subject: uploadSubject,
                 source: QuestionSource.MANUAL,
@@ -303,13 +348,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             };
             await saveGlobalQuestion(finalQuestion);
             alert("Saved to Global Database! Available to all users.");
+            
+            // Reset
+            setSelectedFile(null);
+            setPreviewUrl(null);
+            setExtractedQuestion(null);
+            setFileSizeWarning(null);
+
         } else if (uploadMode === 'bulk' && bulkQuestions.length > 0) {
+            // AI Bulk Save
             const finalQuestions: Question[] = bulkQuestions.map((q, idx) => ({
                 id: `manual-bulk-${Date.now()}-${idx}`,
-                text: q.text || '',
+                text: q.text || q.textHindi || '',
+                textHindi: q.textHindi,
                 options: q.options || [],
+                optionsHindi: q.optionsHindi,
                 correctIndex: q.correctIndex || 0,
                 explanation: q.explanation || '',
+                explanationHindi: q.explanationHindi,
                 examType: uploadExam,
                 subject: q.subject || 'General', 
                 source: QuestionSource.MANUAL,
@@ -319,18 +375,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             }));
             await saveGlobalQuestionsBulk(finalQuestions);
             alert(`${finalQuestions.length} Questions Saved to Global Server Successfully!`);
+            
+            // Reset
+            setSelectedFile(null);
+            setPreviewUrl(null);
+            setBulkQuestions([]);
+            setFileSizeWarning(null);
         }
         
-        // Reset
-        setSelectedFile(null);
-        setPreviewUrl(null);
-        setExtractedQuestion(null);
-        setBulkQuestions([]);
-        setFileSizeWarning(null);
         // Refresh Stats
         getGlobalStats().then(setGlobalStats);
         
     } catch (e) {
+        console.error(e);
         alert("Save Failed");
     } finally {
         setIsProcessing(false);
@@ -345,15 +402,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       return 'text-red-400';
   };
 
-  // Visual Source Logic Helper
-  const getSourceBadge = (q: Question) => {
+  // Visual Source Logic Helper (Just Color Border)
+  const getSourceBorder = (q: Question) => {
       if (q.source === QuestionSource.MANUAL || q.isHandwritten) {
-          return { label: '📝 Manual', class: 'bg-indigo-500 text-white' };
+          return 'border-indigo-500'; // Manual (Purple)
       }
       if (q.aiProvider === 'groq') {
-          return { label: '⚡ Groq', class: 'bg-orange-500 text-white' };
+          return 'border-orange-500'; // Groq (Orange)
       }
-      return { label: '🧠 Gemini', class: 'bg-blue-500 text-white' };
+      return 'border-blue-500'; // Gemini (Blue)
   };
 
   const isSecureServer = diagnostics.secure;
@@ -490,26 +547,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         <div className="text-center py-10 text-slate-500">No questions found in global database.</div>
                     )}
                     {globalQuestions.map(q => {
-                        const badge = getSourceBadge(q);
+                        const borderClass = getSourceBorder(q);
+                        const displayTitle = q.text || q.textHindi;
+                        const isHindiAvailable = !!q.textHindi;
+                        const isEngAvailable = !!q.text;
+
                         return (
-                            <div key={q.id} className="bg-white/5 border border-white/5 p-4 rounded-xl flex gap-4 hover:bg-white/10 transition-colors group">
+                            <div key={q.id} className={`bg-white/5 border border-white/5 p-4 rounded-xl flex gap-4 hover:bg-white/10 transition-colors group border-l-4 ${borderClass}`}>
                                 <div className="flex-1">
                                     <div className="flex gap-2 mb-2 items-center">
-                                        {/* Source Badge */}
-                                        <span className={`text-[10px] px-2 py-1 rounded uppercase font-bold ${badge.class}`}>{badge.label}</span>
-                                        
                                         <span className="text-[10px] bg-slate-700 text-slate-300 px-2 py-1 rounded uppercase font-bold">{q.examType}</span>
                                         <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded uppercase font-bold">{q.subject || 'General'}</span>
+                                        {isEngAvailable && <span className="text-[9px] bg-blue-900/50 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800">EN</span>}
+                                        {isHindiAvailable && <span className="text-[9px] bg-orange-900/50 text-orange-300 px-1.5 py-0.5 rounded border border-orange-800">HI</span>}
                                         <span className="text-[10px] text-slate-500 ml-auto">{new Date(q.createdAt).toLocaleDateString()}</span>
                                     </div>
-                                    <p className="text-sm font-bold text-white/90 line-clamp-2 mb-2">{q.text}</p>
-                                    <div className="text-xs text-slate-500 grid grid-cols-2 gap-2">
-                                        {q.options?.map((o, i) => (
-                                            <span key={i} className={i === q.correctIndex ? "text-green-400 font-bold" : ""}>
-                                                {String.fromCharCode(65+i)}. {o}
-                                            </span>
-                                        ))}
-                                    </div>
+                                    <p className="text-sm font-bold text-white/90 line-clamp-2 mb-2">{displayTitle}</p>
                                 </div>
                                 <button 
                                     onClick={() => handleDeleteGlobalQuestion(q.id)}
@@ -544,25 +597,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 <div className="bg-[#121026] p-8 rounded-[32px] border border-white/5 shadow-2xl space-y-6">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h2 className="text-2xl font-black mb-1">Digitize Handwritten Questions</h2>
-                            <p className="text-sm text-slate-500">Upload handwritten notes, PDFs or paper images.</p>
+                            <h2 className="text-2xl font-black mb-1">Add Question Data</h2>
+                            <p className="text-sm text-slate-500">Use AI Extraction or Manual Entry if API Limit Exceeded.</p>
                         </div>
-                        
-                        {/* Mode Toggle */}
-                        <div className="flex bg-white/5 rounded-xl p-1">
-                            <button 
-                                onClick={() => setUploadMode('single')}
-                                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${uploadMode === 'single' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white'}`}
-                            >
-                                Single Question
-                            </button>
-                            <button 
-                                onClick={() => setUploadMode('bulk')}
-                                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${uploadMode === 'bulk' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white'}`}
-                            >
-                                Full Paper (Bulk)
-                            </button>
-                        </div>
+                    </div>
+
+                    {/* Input Method Toggle */}
+                    <div className="flex bg-black/20 p-1 rounded-xl mb-2">
+                        <button 
+                            onClick={() => setInputType('file')}
+                            className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${inputType === 'file' ? 'bg-brand-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            📸 Upload File (AI)
+                        </button>
+                        <button 
+                            onClick={() => setInputType('text')}
+                            className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${inputType === 'text' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            ✍️ Manual Entry (Text)
+                        </button>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -576,8 +629,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 {Object.keys(EXAM_SUBJECTS).map(e => <option key={e} value={e} className="text-black">{e}</option>)}
                             </select>
                         </div>
-                        {/* Hide Subject selection in Bulk Mode as it is auto-detected */}
-                        {uploadMode === 'single' && (
+                        {/* Hide Subject selection in Bulk Mode as it is auto-detected, show always in Text mode */}
+                        {(inputType === 'text' || uploadMode === 'single') && (
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Subject</label>
                                 <select 
@@ -589,171 +642,337 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 </select>
                             </div>
                         )}
-                        {uploadMode === 'bulk' && (
-                            <div className="flex flex-col justify-center">
-                                <p className="text-xs text-brand-400 font-bold bg-brand-500/10 p-2 rounded-lg border border-brand-500/20">
-                                    ✨ Auto-Subject Classification Active
-                                </p>
+                    </div>
+
+                    {/* Language Selector */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Content Language</label>
+                        <div className="flex bg-white/5 rounded-xl p-1">
+                            <button 
+                                onClick={() => setUploadLanguage('en')}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${uploadLanguage === 'en' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                English
+                            </button>
+                            <button 
+                                onClick={() => setUploadLanguage('hi')}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${uploadLanguage === 'hi' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                Hindi
+                            </button>
+                            <button 
+                                onClick={() => setUploadLanguage('both')}
+                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${uploadLanguage === 'both' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                Bilingual (Both)
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* --- MANUAL TEXT ENTRY MODE --- */}
+                    {inputType === 'text' && (
+                        <div className="space-y-6 animate-fade-in bg-white/5 p-6 rounded-2xl border border-indigo-500/30">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-xs font-black uppercase text-indigo-400 tracking-widest">Manual Question Editor</h3>
+                                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded">No AI Usage</span>
                             </div>
-                        )}
-                    </div>
 
-                    {fileSizeWarning && (
-                        <div className="bg-orange-500/10 border border-orange-500/30 p-4 rounded-xl text-orange-200 text-xs font-bold animate-fade-in">
-                            ⚠️ {fileSizeWarning}
-                            <input 
-                                type="text" 
-                                value={apiKeys.gemini} 
-                                onChange={e => setApiKeys({ ...apiKeys, gemini: e.target.value })}
-                                placeholder="Paste Google Gemini API Key here"
-                                className="w-full mt-2 p-3 rounded-lg bg-black/30 border border-orange-500/30 text-white outline-none focus:border-orange-500"
-                            />
-                        </div>
-                    )}
-
-                    <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-brand-500/50 transition-colors relative">
-                        <input 
-                            type="file" 
-                            accept="image/*,application/pdf" 
-                            onChange={handleFileSelect}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                            id="fileUpload"
-                        />
-                        <div className="pointer-events-none">
-                            <span className="text-4xl mb-2 block">📸</span>
-                            <span className="font-bold text-brand-400">Click to Upload Image / PDF</span>
-                            <span className="text-xs text-slate-500 mt-2 block">Images are auto-compressed. Large PDFs require Client Key.</span>
-                        </div>
-                    </div>
-
-                    {previewUrl && (
-                        <div className="animate-fade-in space-y-6">
-                            <div className="p-2 bg-white/5 rounded-xl border border-white/5">
-                                {selectedFile?.type.includes('image') ? (
-                                    <img src={previewUrl} alt="Preview" className="max-h-64 mx-auto rounded-lg" />
-                                ) : (
-                                    <div className="text-center py-10">
-                                        <span className="text-4xl">📄</span>
-                                        <p className="mt-2 font-bold text-white">{selectedFile?.name}</p>
-                                        <p className="text-xs text-slate-500">{(selectedFile?.size || 0) / 1024 / 1024 > 4 ? 'Large File' : 'Ready'}</p>
+                            {/* English Fields */}
+                            {(uploadLanguage === 'en' || uploadLanguage === 'both') && (
+                                <div className="space-y-4 border-l-2 border-blue-500/50 pl-4">
+                                    <h4 className="text-[10px] font-bold text-blue-400 uppercase">English Content</h4>
+                                    <textarea 
+                                        value={manualEntry.text} 
+                                        onChange={e => setManualEntry({...manualEntry, text: e.target.value})}
+                                        placeholder="Question in English..."
+                                        className="w-full p-3 bg-black/20 rounded-xl text-sm border border-white/10 h-20 focus:border-blue-500 outline-none transition-colors"
+                                    />
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {manualEntry.options?.map((opt, i) => (
+                                            <input 
+                                                key={i}
+                                                value={opt}
+                                                onChange={e => {
+                                                    const newOpts = [...(manualEntry.options || [])];
+                                                    newOpts[i] = e.target.value;
+                                                    setManualEntry({...manualEntry, options: newOpts});
+                                                }}
+                                                placeholder={`Option ${String.fromCharCode(65+i)} (EN)`}
+                                                className={`flex-1 p-2 rounded-lg text-sm bg-black/20 border border-white/10 focus:border-blue-500 outline-none`}
+                                            />
+                                        ))}
                                     </div>
-                                )}
+                                    <textarea 
+                                        value={manualEntry.explanation}
+                                        onChange={e => setManualEntry({...manualEntry, explanation: e.target.value})}
+                                        placeholder="Explanation (EN)..."
+                                        className="w-full p-2 bg-black/20 rounded-lg text-sm border border-white/10 h-16 focus:border-blue-500 outline-none transition-colors"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Hindi Fields */}
+                            {(uploadLanguage === 'hi' || uploadLanguage === 'both') && (
+                                <div className="space-y-4 border-l-2 border-orange-500/50 pl-4">
+                                    <h4 className="text-[10px] font-bold text-orange-400 uppercase">Hindi Content</h4>
+                                    <textarea 
+                                        value={manualEntry.textHindi} 
+                                        onChange={e => setManualEntry({...manualEntry, textHindi: e.target.value})}
+                                        placeholder="प्रश्न हिंदी में..."
+                                        className="w-full p-3 bg-black/20 rounded-xl text-sm border border-white/10 h-20 focus:border-orange-500 outline-none transition-colors"
+                                    />
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {manualEntry.optionsHindi?.map((opt, i) => (
+                                            <input 
+                                                key={i}
+                                                value={opt}
+                                                onChange={e => {
+                                                    const newOpts = [...(manualEntry.optionsHindi || [])];
+                                                    newOpts[i] = e.target.value;
+                                                    setManualEntry({...manualEntry, optionsHindi: newOpts});
+                                                }}
+                                                placeholder={`विकल्प ${String.fromCharCode(65+i)} (HI)`}
+                                                className={`flex-1 p-2 rounded-lg text-sm bg-black/20 border border-white/10 focus:border-orange-500 outline-none`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <textarea 
+                                        value={manualEntry.explanationHindi}
+                                        onChange={e => setManualEntry({...manualEntry, explanationHindi: e.target.value})}
+                                        placeholder="व्याख्या (HI)..."
+                                        className="w-full p-2 bg-black/20 rounded-lg text-sm border border-white/10 h-16 focus:border-orange-500 outline-none transition-colors"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Correct Option Selector */}
+                            <div className="pt-2">
+                                <label className="text-[10px] text-slate-500 uppercase font-bold mb-2 block">Correct Answer Index</label>
+                                <div className="flex gap-4">
+                                    {[0, 1, 2, 3].map(i => (
+                                        <label key={i} className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer ${manualEntry.correctIndex === i ? 'bg-green-500/20 border-green-500 text-green-300' : 'border-white/10 hover:bg-white/5'}`}>
+                                            <input 
+                                                type="radio" 
+                                                name="manualCorrect"
+                                                checked={manualEntry.correctIndex === i}
+                                                onChange={() => setManualEntry({...manualEntry, correctIndex: i})}
+                                                className="accent-green-500"
+                                            />
+                                            <span className="font-bold">{String.fromCharCode(65+i)}</span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
-                            
-                            <Button onClick={handleExtract} isLoading={isProcessing} className="w-full">
-                                {isProcessing ? 'AI Processing...' : `✨ Extract ${uploadMode === 'bulk' ? 'All Questions' : 'Question'}`}
+
+                            <Button onClick={handleSaveQuestion} isLoading={isProcessing} className="w-full bg-indigo-600 hover:bg-indigo-500">
+                                💾 Save Manual Question
                             </Button>
                         </div>
                     )}
 
-                    {/* Single Question Editor */}
-                    {uploadMode === 'single' && extractedQuestion && (
-                        <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-4 animate-slide-up">
-                            <h3 className="font-black text-brand-400 uppercase tracking-widest text-xs">AI Extraction Result</h3>
-                            
-                            <div>
-                                <label className="text-[10px] text-slate-500 uppercase font-bold">Question Text</label>
-                                <textarea 
-                                    value={extractedQuestion.text} 
-                                    onChange={e => setExtractedQuestion({...extractedQuestion, text: e.target.value})}
-                                    className="w-full p-3 bg-black/20 rounded-xl text-sm border border-white/10 h-24"
-                                />
+                    {/* --- FILE UPLOAD MODE (AI) --- */}
+                    {inputType === 'file' && (
+                        <>
+                            {/* Mode Toggle for Bulk */}
+                            <div className="flex bg-white/5 rounded-xl p-1 mb-4">
+                                <button 
+                                    onClick={() => setUploadMode('single')}
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex-1 ${uploadMode === 'single' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    Single Question
+                                </button>
+                                <button 
+                                    onClick={() => setUploadMode('bulk')}
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex-1 ${uploadMode === 'bulk' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    Full Paper (Bulk)
+                                </button>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2">
-                                {extractedQuestion.options?.map((opt, i) => (
+                            {fileSizeWarning && (
+                                <div className="bg-orange-500/10 border border-orange-500/30 p-4 rounded-xl text-orange-200 text-xs font-bold animate-fade-in mb-4">
+                                    ⚠️ {fileSizeWarning}
                                     <input 
-                                        key={i}
-                                        value={opt}
-                                        onChange={e => {
-                                            const newOpts = [...(extractedQuestion.options || [])];
-                                            newOpts[i] = e.target.value;
-                                            setExtractedQuestion({...extractedQuestion, options: newOpts});
-                                        }}
-                                        className={`w-full p-2 rounded-lg text-sm bg-black/20 border ${extractedQuestion.correctIndex === i ? 'border-green-500' : 'border-white/10'}`}
+                                        type="text" 
+                                        value={apiKeys.gemini} 
+                                        onChange={e => setApiKeys({ ...apiKeys, gemini: e.target.value })}
+                                        placeholder="Paste Google Gemini API Key here"
+                                        className="w-full mt-2 p-3 rounded-lg bg-black/30 border border-orange-500/30 text-white outline-none focus:border-orange-500"
                                     />
-                                ))}
-                            </div>
+                                </div>
+                            )}
 
-                            <div>
-                                <label className="text-[10px] text-slate-500 uppercase font-bold">Explanation</label>
-                                <textarea 
-                                    value={extractedQuestion.explanation}
-                                    onChange={e => setExtractedQuestion({...extractedQuestion, explanation: e.target.value})}
-                                    className="w-full p-3 bg-black/20 rounded-xl text-sm border border-white/10 h-20"
+                            <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-brand-500/50 transition-colors relative mb-6">
+                                <input 
+                                    type="file" 
+                                    accept="image/*,application/pdf" 
+                                    onChange={handleFileSelect}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                    id="fileUpload"
                                 />
+                                <div className="pointer-events-none">
+                                    <span className="text-4xl mb-2 block">📸</span>
+                                    <span className="font-bold text-brand-400">Click to Upload Image / PDF</span>
+                                    <span className="text-xs text-slate-500 mt-2 block">Images are auto-compressed. Large PDFs require Client Key.</span>
+                                </div>
                             </div>
 
-                            <div className="flex gap-4 pt-4">
-                                <Button variant="secondary" onClick={() => setExtractedQuestion(null)} className="flex-1">Discard</Button>
-                                <Button onClick={handleSaveQuestion} isLoading={isProcessing} className="flex-1 bg-green-600 hover:bg-green-500">
-                                    💾 Save to Global DB
-                                </Button>
-                            </div>
-                        </div>
-                    )}
+                            {previewUrl && (
+                                <div className="animate-fade-in space-y-6">
+                                    <div className="p-2 bg-white/5 rounded-xl border border-white/5">
+                                        {selectedFile?.type.includes('image') ? (
+                                            <img src={previewUrl} alt="Preview" className="max-h-64 mx-auto rounded-lg" />
+                                        ) : (
+                                            <div className="text-center py-10">
+                                                <span className="text-4xl">📄</span>
+                                                <p className="mt-2 font-bold text-white">{selectedFile?.name}</p>
+                                                <p className="text-xs text-slate-500">{(selectedFile?.size || 0) / 1024 / 1024 > 4 ? 'Large File' : 'Ready'}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <Button onClick={handleExtract} isLoading={isProcessing} className="w-full">
+                                        {isProcessing ? 'AI Processing...' : `✨ Extract ${uploadMode === 'bulk' ? 'All Questions' : 'Question'}`}
+                                    </Button>
+                                </div>
+                            )}
 
-                    {/* Bulk Questions Editor (Preview List) */}
-                    {uploadMode === 'bulk' && bulkQuestions.length > 0 && (
-                        <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-4 animate-slide-up">
-                            <div className="flex justify-between items-center">
-                                <h3 className="font-black text-brand-400 uppercase tracking-widest text-xs">
-                                    Found {bulkQuestions.length} Questions
-                                </h3>
-                                <Button onClick={handleSaveQuestion} isLoading={isProcessing} size="sm" className="bg-green-600 hover:bg-green-500">
-                                    💾 Save All to Cloud ({bulkQuestions.length})
-                                </Button>
-                            </div>
-
-                            <div className="max-h-96 overflow-y-auto space-y-4 pr-2 scrollbar-hide">
-                                {bulkQuestions.map((q, idx) => (
-                                    <div key={idx} className="p-4 bg-black/30 rounded-xl border border-white/5 hover:border-brand-500/30 transition-colors">
-                                        {/* Subject Selector Header */}
-                                        <div className="flex justify-between items-center mb-3">
-                                            <span className="text-xs font-bold text-slate-500">Q{idx+1}</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] text-slate-400">Subject:</span>
-                                                <select 
-                                                    value={q.subject || 'General'} 
-                                                    onChange={(e) => {
-                                                        const newBulk = [...bulkQuestions];
-                                                        newBulk[idx].subject = e.target.value;
-                                                        setBulkQuestions(newBulk);
-                                                    }}
-                                                    className="bg-white/10 border border-white/10 text-xs rounded-lg px-2 py-1 outline-none focus:border-brand-500 text-white"
-                                                >
-                                                    {availableSubjects.map(s => (
-                                                        <option key={s} value={s} className="text-black">{s}</option>
-                                                    ))}
-                                                    <option value="General" className="text-black">General</option>
-                                                </select>
-                                                <button 
-                                                    onClick={() => {
-                                                        const newBulk = bulkQuestions.filter((_, i) => i !== idx);
-                                                        setBulkQuestions(newBulk);
-                                                    }}
-                                                    className="text-red-400 hover:text-red-300 ml-2"
-                                                    title="Delete Question"
-                                                >
-                                                    ✕
-                                                </button>
+                            {/* Single Question Editor (AI Result) */}
+                            {uploadMode === 'single' && extractedQuestion && (
+                                <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-6 animate-slide-up">
+                                    <h3 className="font-black text-brand-400 uppercase tracking-widest text-xs">AI Extraction Result</h3>
+                                    
+                                    {/* English View */}
+                                    {(uploadLanguage === 'en' || uploadLanguage === 'both') && (
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between"><span className="text-[10px] text-blue-400 font-bold uppercase">English Text</span></div>
+                                            <textarea 
+                                                value={extractedQuestion.text || ''} 
+                                                onChange={e => setExtractedQuestion({...extractedQuestion, text: e.target.value})}
+                                                className="w-full p-3 bg-black/20 rounded-xl text-sm border border-white/10 h-24"
+                                            />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {extractedQuestion.options?.map((opt, i) => (
+                                                    <input 
+                                                        key={i} value={opt}
+                                                        onChange={e => {
+                                                            const newOpts = [...(extractedQuestion.options || [])];
+                                                            newOpts[i] = e.target.value;
+                                                            setExtractedQuestion({...extractedQuestion, options: newOpts});
+                                                        }}
+                                                        className={`w-full p-2 rounded-lg text-sm bg-black/20 border ${extractedQuestion.correctIndex === i ? 'border-green-500' : 'border-white/10'}`}
+                                                    />
+                                                ))}
                                             </div>
                                         </div>
+                                    )}
 
-                                        <p className="text-sm font-bold mb-2 text-white/90">{q.text}</p>
-                                        <div className="grid grid-cols-2 gap-2 mb-2">
-                                            {q.options?.map((o, i) => (
-                                                <div key={i} className={`text-xs px-2 py-1 rounded bg-white/5 ${i === q.correctIndex ? 'text-green-400 border border-green-500/30' : 'text-slate-400'}`}>
-                                                    {o}
-                                                </div>
-                                            ))}
+                                    {/* Hindi View */}
+                                    {(uploadLanguage === 'hi' || uploadLanguage === 'both') && (
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between"><span className="text-[10px] text-orange-400 font-bold uppercase">Hindi Text</span></div>
+                                            <textarea 
+                                                value={extractedQuestion.textHindi || ''} 
+                                                onChange={e => setExtractedQuestion({...extractedQuestion, textHindi: e.target.value})}
+                                                className="w-full p-3 bg-black/20 rounded-xl text-sm border border-white/10 h-24"
+                                            />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {extractedQuestion.optionsHindi?.map((opt, i) => (
+                                                    <input 
+                                                        key={i} value={opt}
+                                                        onChange={e => {
+                                                            const newOpts = [...(extractedQuestion.optionsHindi || [])];
+                                                            newOpts[i] = e.target.value;
+                                                            setExtractedQuestion({...extractedQuestion, optionsHindi: newOpts});
+                                                        }}
+                                                        className={`w-full p-2 rounded-lg text-sm bg-black/20 border ${extractedQuestion.correctIndex === i ? 'border-green-500' : 'border-white/10'}`}
+                                                    />
+                                                ))}
+                                            </div>
                                         </div>
+                                    )}
+
+                                    <div className="flex gap-4 pt-4">
+                                        <Button variant="secondary" onClick={() => setExtractedQuestion(null)} className="flex-1">Discard</Button>
+                                        <Button onClick={handleSaveQuestion} isLoading={isProcessing} className="flex-1 bg-green-600 hover:bg-green-500">
+                                            💾 Save to Global DB
+                                        </Button>
                                     </div>
-                                ))}
-                            </div>
-                            
-                            <Button variant="secondary" onClick={() => setBulkQuestions([])} className="w-full">Discard All</Button>
-                        </div>
+                                </div>
+                            )}
+
+                            {/* Bulk Questions Editor (Preview List) */}
+                            {uploadMode === 'bulk' && bulkQuestions.length > 0 && (
+                                <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-4 animate-slide-up">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="font-black text-brand-400 uppercase tracking-widest text-xs">
+                                            Found {bulkQuestions.length} Questions
+                                        </h3>
+                                        <Button onClick={handleSaveQuestion} isLoading={isProcessing} size="sm" className="bg-green-600 hover:bg-green-500">
+                                            💾 Save All to Cloud ({bulkQuestions.length})
+                                        </Button>
+                                    </div>
+
+                                    <div className="max-h-96 overflow-y-auto space-y-4 pr-2 scrollbar-hide">
+                                        {bulkQuestions.map((q, idx) => (
+                                            <div key={idx} className="p-4 bg-black/30 rounded-xl border border-white/5 hover:border-brand-500/30 transition-colors">
+                                                {/* Subject Selector Header */}
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <span className="text-xs font-bold text-slate-500">Q{idx+1}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] text-slate-400">Subject:</span>
+                                                        <select 
+                                                            value={q.subject || 'General'} 
+                                                            onChange={(e) => {
+                                                                const newBulk = [...bulkQuestions];
+                                                                newBulk[idx].subject = e.target.value;
+                                                                setBulkQuestions(newBulk);
+                                                            }}
+                                                            className="bg-white/10 border border-white/10 text-xs rounded-lg px-2 py-1 outline-none focus:border-brand-500 text-white"
+                                                        >
+                                                            {availableSubjects.map(s => (
+                                                                <option key={s} value={s} className="text-black">{s}</option>
+                                                            ))}
+                                                            <option value="General" className="text-black">General</option>
+                                                        </select>
+                                                        <button 
+                                                            onClick={() => {
+                                                                const newBulk = bulkQuestions.filter((_, i) => i !== idx);
+                                                                setBulkQuestions(newBulk);
+                                                            }}
+                                                            className="text-red-400 hover:text-red-300 ml-2"
+                                                            title="Delete Question"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    {/* Show title based on language preference availability */}
+                                                    {(uploadLanguage === 'en' || uploadLanguage === 'both') && q.text && (
+                                                        <p className="text-sm font-bold text-blue-200">{q.text}</p>
+                                                    )}
+                                                    {(uploadLanguage === 'hi' || uploadLanguage === 'both') && q.textHindi && (
+                                                        <p className="text-sm font-bold text-orange-200">{q.textHindi}</p>
+                                                    )}
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                                    {((uploadLanguage === 'hi' ? q.optionsHindi : q.options) || []).map((o, i) => (
+                                                        <div key={i} className={`text-xs px-2 py-1 rounded bg-white/5 ${i === q.correctIndex ? 'text-green-400 border border-green-500/30' : 'text-slate-400'}`}>
+                                                            {o}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    <Button variant="secondary" onClick={() => setBulkQuestions([])} className="w-full">Discard All</Button>
+                                </div>
+                            )}
+                        </>
                     )}
 
                 </div>

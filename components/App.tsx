@@ -307,7 +307,15 @@ const App: React.FC = () => {
     setSessionWrong(0);
     
     try {
-      const qs = await generateExamQuestions(state.selectedExam, configToUse.subject, configToUse.count, 'Medium', configToUse.topic ? [configToUse.topic] : []);
+      // Pass the current language state to the generator
+      const qs = await generateExamQuestions(
+          state.selectedExam, 
+          configToUse.subject, 
+          configToUse.count, 
+          'Medium', 
+          configToUse.topic ? [configToUse.topic] : [],
+          state.language // Passing language ('en' | 'hi')
+      );
       setPracticeQueue(qs);
       setCurrentQIndex(0);
       navigateTo('practice');
@@ -316,7 +324,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [state.selectedExam, practiceConfig, navigateTo]);
+  }, [state.selectedExam, practiceConfig, navigateTo, state.language]);
 
   const handleAnswer = useCallback((isCorrect: boolean) => {
       if (isCorrect) setSessionCorrect(prev => prev + 1);
@@ -331,7 +339,14 @@ const App: React.FC = () => {
       if (currentQIndex >= practiceQueue.length - 2) {
         setIsFetchingMore(true);
         try {
-          const moreQs = await generateExamQuestions(state.selectedExam!, practiceConfig.subject, 5, 'Medium');
+          const moreQs = await generateExamQuestions(
+              state.selectedExam!, 
+              practiceConfig.subject, 
+              5, 
+              'Medium', 
+              [], 
+              state.language
+          );
           setPracticeQueue(prev => [...prev, ...moreQs]);
         } catch (e) {}
         setIsFetchingMore(false);
@@ -341,7 +356,7 @@ const App: React.FC = () => {
       if (currentQIndex < practiceQueue.length - 1) setCurrentQIndex(prev => prev + 1);
       else navigateTo('dashboard');
     }
-  }, [practiceConfig, currentQIndex, practiceQueue, state.selectedExam, navigateTo]);
+  }, [practiceConfig, currentQIndex, practiceQueue, state.selectedExam, navigateTo, state.language]);
 
   const handleInstallApp = async () => {
     if (deferredPrompt) {

@@ -109,19 +109,19 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     ? question.explanationHindi 
     : question.explanation;
 
-  // Visual Source Logic
-  const getSourceBadge = () => {
+  // Visual Source Logic (Just Color)
+  const getSourceIndicator = () => {
       if (question.source === QuestionSource.MANUAL || question.isHandwritten) {
-          return { label: '📝 Manual Upload', class: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-100 dark:border-indigo-800' };
+          return 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.6)]'; // Purple for Manual
       }
       if (question.aiProvider === 'groq') {
-          return { label: '⚡ Groq AI', class: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-100 dark:border-orange-800' };
+          return 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]'; // Orange for Groq
       }
-      // Default to Gemini for standard AI
-      return { label: '🧠 Gemini AI', class: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-100 dark:border-blue-800' };
+      // Default to Gemini (Blue)
+      return 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]'; 
   };
 
-  const badge = getSourceBadge();
+  const sourceClass = getSourceIndicator();
 
   if (showReport) {
     return (
@@ -194,10 +194,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                {question.subject || 'General'}
             </span>
             
-            {/* Source Badge */}
-            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badge.class}`}>
-               {badge.label}
-            </span>
+            {/* Color Dot Only - No Text */}
+            <div className={`w-3 h-3 rounded-full ${sourceClass}`} title="Source Indicator (Blue: Gemini, Orange: Groq, Purple: Manual)"></div>
 
             {latency > 0 && question.aiProvider === 'groq' && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
