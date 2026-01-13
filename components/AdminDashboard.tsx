@@ -217,6 +217,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     }
 
     setIsProcessing(true);
+    setFileSizeWarning(null);
+    
     try {
         // Strip prefix for API
         const base64 = previewUrl.split(',')[1];
@@ -256,10 +258,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         }
         
     } catch (e: any) {
-        if (e.message.includes("Backend failed")) {
-            setFileSizeWarning("Server upload limit exceeded. Please enter a Client API Key below.");
+        console.error(e);
+        let errorMsg = e.message || String(e);
+        
+        // Attempt to parse JSON error message if present (Google often returns JSON inside message)
+        try {
+            const jsonMatch = errorMsg.match(/\{.*\}/);
+            if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (parsed.error && parsed.error.message) {
+                    errorMsg = parsed.error.message;
+                }
+            }
+        } catch (parseErr) { /* ignore */ }
+
+        if (errorMsg.includes("Backend failed")) {
+            setFileSizeWarning("Server upload limit exceeded or Backend failed. Please enter a Client API Key below.");
+        } else if (errorMsg.includes("API key expired") || errorMsg.includes("API_KEY_INVALID")) {
+            setFileSizeWarning("❌ The entered API Key is expired. Please generate a new key from Google AI Studio.");
         } else {
-            alert("Extraction Failed: " + e.message);
+            alert("Extraction Failed: " + errorMsg);
         }
     } finally {
         setIsProcessing(false);
@@ -564,7 +582,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     </div>
 
                     {fileSizeWarning && (
-                        <div className="bg-orange-500/10 border border-orange-500/30 p-4 rounded-xl text-orange-200 text-xs font-bold">
+                        <div className="bg-orange-500/10 border border-orange-500/30 p-4 rounded-xl text-orange-200 text-xs font-bold animate-fade-in">
                             ⚠️ {fileSizeWarning}
                             <input 
                                 type="text" 
