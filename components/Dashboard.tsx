@@ -62,10 +62,13 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   }, [currentTheme]);
 
   const chartData = useMemo(() => {
-    return Object.keys(stats.subjectPerformance).map(subject => ({
+    // SAFEGUARD: Ensure subjectPerformance exists and is an object
+    const perf = stats.subjectPerformance || {};
+    
+    return Object.keys(perf).map(subject => ({
       name: subject.length > 10 ? subject.substring(0, 10) + '...' : subject,
-      score: stats.subjectPerformance[subject].total > 0 
-        ? Math.round((stats.subjectPerformance[subject].correct / stats.subjectPerformance[subject].total) * 100)
+      score: perf[subject].total > 0 
+        ? Math.round((perf[subject].correct / perf[subject].total) * 100)
         : 0
     })).sort((a, b) => b.score - a.score).slice(0, 5);
   }, [stats]);

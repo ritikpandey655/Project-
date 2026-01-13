@@ -39,6 +39,13 @@ import { auth } from '../src/firebaseConfig';
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 const INSTALL_DISMISSED_KEY = 'pyqverse_install_dismissed_v2';
 
+// Valid views list for sanitization
+const VALID_VIEWS: ViewState[] = [
+  'landing', 'login', 'signup', 'forgotPassword', 'dashboard', 'practice', 
+  'upload', 'profile', 'admin', 'analytics', 'leaderboard', 'bookmarks', 
+  'privacy', 'terms', 'paperGenerator', 'paperView'
+];
+
 interface PracticeConfig {
   mode: 'finite' | 'endless';
   subject: string;
@@ -167,10 +174,7 @@ const App: React.FC = () => {
     window.addEventListener('offline', offlineHandler);
     
     // --- REAL-TIME CONFIG SYNC ---
-    // This ensures that if Admin changes 'gemini' to 'groq', 
-    // ALL connected users update their local config instantly.
     const unsubscribeConfig = subscribeToSystemConfig((newConfig) => {
-        // Log for debugging
         console.log("System Config Synced:", newConfig);
     });
 
@@ -215,12 +219,15 @@ const App: React.FC = () => {
       ]);
       
       setExamHistory(history);
-      const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState || 'dashboard';
+      const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
+      
+      // Sanitization: Ensure lastView is a valid view, otherwise default to dashboard
+      const sanitizedView = (lastView && VALID_VIEWS.includes(lastView)) ? lastView : 'dashboard';
 
       if (prefs.theme) applyTheme(prefs.theme);
 
       // Determine initial view based on intent or history
-      let initialView = lastView;
+      let initialView = sanitizedView;
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get('note') === 'new' || searchParams.get('view') === 'upload') {
           initialView = 'upload';
@@ -234,7 +241,7 @@ const App: React.FC = () => {
         ...prev,
         user: profile,
         selectedExam: prefs.selectedExam,
-        stats: statsData,
+        stats: statsData || INITIAL_STATS, // Fallback to avoid crash
         showTimer: prefs.showTimer,
         darkMode: prefs.darkMode ?? true,
         language: prefs.language,
@@ -246,6 +253,7 @@ const App: React.FC = () => {
       updateUserActivity(userId);
       updateUserSession(userId, currentSessionId.current);
     } catch (e) {
+      console.error("Failed to load user data:", e);
       navigateTo('dashboard');
     }
   }, [navigateTo, initialDoubtQuery]);

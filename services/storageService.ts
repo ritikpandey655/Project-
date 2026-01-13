@@ -232,7 +232,16 @@ export const getStats = async (userId: string): Promise<UserStats> => {
   try {
     const docRef = db.collection("users").doc(userId).collection("data").doc("stats");
     const docSnap = await docRef.get();
-    if (docSnap.exists) return docSnap.data() as UserStats;
+    if (docSnap.exists) {
+      // Merge with INITIAL_STATS to ensure no keys are missing if the schema evolves
+      const data = docSnap.data();
+      return { 
+        ...INITIAL_STATS, 
+        ...data,
+        subjectPerformance: data.subjectPerformance || {},
+        examPerformance: data.examPerformance || {}
+      } as UserStats;
+    }
     return { ...INITIAL_STATS };
   } catch (e) { return { ...INITIAL_STATS }; }
 };

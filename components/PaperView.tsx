@@ -96,7 +96,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
     let calculatedScore = 0;
     paper.sections.forEach(section => {
       section.questions.forEach(q => {
-        if (Array.isArray(q.options)) {
+        if (Array.isArray(q.options) && q.options.length > q.correctIndex) {
           const userAns = answers[q.id];
           if (userAns && userAns === q.options[q.correctIndex]) {
             calculatedScore += (q.marks || section.marksPerQuestion || 4);
@@ -141,7 +141,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
         const userAns = answers[q.id];
         if (userAns) attemptedCount++;
 
-        if (Array.isArray(q.options)) {
+        if (Array.isArray(q.options) && q.options.length > q.correctIndex) {
           const isCorrect = userAns === q.options[q.correctIndex];
           if (isCorrect) {
             correctCount++;
@@ -257,15 +257,19 @@ export const PaperView: React.FC<PaperViewProps> = ({
                       <div key={section.id} className="space-y-6">
                          {section.questions.map((q, idx) => {
                             const userAns = answers[q.id];
-                            const isCorrect = userAns === q.options[q.correctIndex];
+                            // SAFEGUARD: Ensure options exist before accessing index
+                            const validOptions = Array.isArray(q.options) ? q.options : [];
+                            const correctOption = validOptions[q.correctIndex];
+                            const isCorrect = userAns === correctOption;
+
                             return (
                                <div key={q.id} className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-100 dark:border-white/5">
                                   <div className="flex gap-4 mb-4">
                                      <span className="font-black text-slate-300 dark:text-slate-600 text-lg">{idx + 1}.</span>
-                                     <p className="font-bold text-slate-800 dark:text-white leading-relaxed">{q.text}</p>
+                                     <p className="font-bold text-slate-800 dark:text-white leading-relaxed">{q.text || "Question text unavailable"}</p>
                                   </div>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                                     {q.options.map((opt, i) => (
+                                     {validOptions.map((opt, i) => (
                                         <div key={i} className={`p-3 rounded-xl text-sm font-medium border-2 flex items-center gap-3 ${
                                             i === q.correctIndex ? 'bg-green-50 border-green-500 text-green-800 dark:bg-green-900/20 dark:text-green-300' :
                                             userAns === opt ? 'bg-red-50 border-red-500 text-red-800 dark:bg-red-900/20 dark:text-red-300' :
@@ -283,7 +287,7 @@ export const PaperView: React.FC<PaperViewProps> = ({
                                         <span className="text-base">💡</span> AI Explanation
                                      </p>
                                      <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-                                        {q.explanation}
+                                        {q.explanation || "No explanation provided."}
                                      </p>
                                   </div>
                                </div>
