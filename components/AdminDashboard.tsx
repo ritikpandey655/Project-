@@ -5,9 +5,9 @@ import { EXAM_SUBJECTS } from '../constants';
 import { 
   getAllUsers, removeUser, toggleUserPro,
   getSystemLogs, clearSystemLogs, saveSystemConfig, getSystemConfig,
-  saveApiKeys, getApiKeys, saveGlobalQuestion
+  saveApiKeys, getApiKeys, saveGlobalQuestion, saveGlobalQuestionsBulk
 } from '../services/storageService';
-import { checkAIConnectivity, generateWithAI, analyzeImageForQuestion } from '../services/geminiService';
+import { checkAIConnectivity, generateWithAI, analyzeImageForQuestion, extractQuestionsFromPaper } from '../services/geminiService';
 import { Button } from './Button';
 
 interface AdminDashboardProps {
@@ -30,6 +30,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [extractedQuestion, setExtractedQuestion] = useState<Partial<Question> | null>(null);
+  
+  // Bulk Upload State
+  const [uploadMode, setUploadMode] = useState<'single' | 'bulk'>('single');
+  const [bulkQuestions, setBulkQuestions] = useState<Partial<Question>[]>([]);
+  
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
@@ -85,7 +90,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       const reader = new FileReader();
       reader.onloadend = () => setPreviewUrl(reader.result as string);
       reader.readAsDataURL(file);
+      
+      // Reset logic
       setExtractedQuestion(null);
+      setBulkQuestions([]);
     }
   };
 
@@ -97,18 +105,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         const base64 = previewUrl.split(',')[1];
         const mimeType = selectedFile.type;
         
-        const result = await analyzeImageForQuestion(base64, mimeType, uploadExam, uploadSubject);
-        
-        if (result) {
-            setExtractedQuestion({
-                text: result.text,
-                options: result.options,
-                correctIndex: result.correctIndex,
-                explanation: result.explanation,
-                examType: uploadExam,
-                subject: uploadSubject
-            });
+        if (uploadMode === 'single') {
+            const result = await analyzeImageForQuestion(base64, mimeType, uploadExam, uploadSubject);
+            if (result) {
+                setExtractedQuestion({
+                    text: result.text,
+                    options: result.options,
+                    correctIndex: result.correctIndex,
+                    explanation: result.explanation,
+                    examType: uploadExam,
+                    subject: uploadSubject
+                });
+            }
+        } else {
+            // Bulk / Full Paper Mode
+            // Get valid subjects for this exam to pass to AI for classification
+            const validSubjects = EXAM_SUBJECTS[uploadExam as ExamType] || [];
+            
+            const results = await extractQuestionsFromPaper(base64, mimeType, uploadExam, validSubjects);
+            if (results && results.length > 0) {
+                const mappedQs = results.map((q: any) => ({
+                    text: q.text,
+                    options: q.options,
+                    correctIndex: q.correctIndex,
+                    explanation: q.explanation,
+                    examType: uploadExam,
+                    subject: q.subject || 'General', // AI auto-classified subject
+                    source: QuestionSource.MANUAL,
+                    isHandwritten: true
+                }));
+                setBulkQuestions(mappedQs);
+            } else {
+                alert("AI couldn't find distinct questions. Try 'Single Question' mode.");
+            }
         }
+        
     } catch (e: any) {
         alert("Extraction Failed: " + e.message);
     } finally {
@@ -117,30 +148,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   };
 
   const handleSaveQuestion = async () => {
-    if (!extractedQuestion) return;
     setIsProcessing(true);
     try {
-        const finalQuestion: Question = {
-            id: `manual-${Date.now()}`,
-            text: extractedQuestion.text || '',
-            options: extractedQuestion.options || [],
-            correctIndex: extractedQuestion.correctIndex || 0,
-            explanation: extractedQuestion.explanation || '',
-            examType: uploadExam,
-            subject: uploadSubject,
-            source: QuestionSource.MANUAL,
-            isHandwritten: true,
-            createdAt: Date.now(),
-            moderationStatus: 'APPROVED'
-        };
+        if (uploadMode === 'single' && extractedQuestion) {
+            const finalQuestion: Question = {
+                id: `manual-${Date.now()}`,
+                text: extractedQuestion.text || '',
+                options: extractedQuestion.options || [],
+                correctIndex: extractedQuestion.correctIndex || 0,
+                explanation: extractedQuestion.explanation || '',
+                examType: uploadExam,
+                subject: uploadSubject,
+                source: QuestionSource.MANUAL,
+                isHandwritten: true,
+                createdAt: Date.now(),
+                moderationStatus: 'APPROVED'
+            };
+            await saveGlobalQuestion(finalQuestion);
+            alert("Question Saved!");
+        } else if (uploadMode === 'bulk' && bulkQuestions.length > 0) {
+            const finalQuestions: Question[] = bulkQuestions.map((q, idx) => ({
+                id: `manual-bulk-${Date.now()}-${idx}`,
+                text: q.text || '',
+                options: q.options || [],
+                correctIndex: q.correctIndex || 0,
+                explanation: q.explanation || '',
+                examType: uploadExam,
+                subject: q.subject || 'General', // Use the specific subject
+                source: QuestionSource.MANUAL,
+                isHandwritten: true,
+                createdAt: Date.now(),
+                moderationStatus: 'APPROVED'
+            }));
+            await saveGlobalQuestionsBulk(finalQuestions);
+            alert(`${finalQuestions.length} Questions Saved Successfully!`);
+        }
         
-        await saveGlobalQuestion(finalQuestion);
-        
-        alert("Question Saved! The image has been discarded to save storage.");
         // Reset
         setSelectedFile(null);
         setPreviewUrl(null);
         setExtractedQuestion(null);
+        setBulkQuestions([]);
+        
     } catch (e) {
         alert("Save Failed");
     } finally {
@@ -181,6 +230,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       statusDesc = 'Using Manual Browser Keys (Fallback)';
       cardBorder = 'bg-yellow-500/10 border-yellow-500/30';
   }
+
+  const availableSubjects = EXAM_SUBJECTS[uploadExam as ExamType] || [];
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#0a0814] text-white font-sans overflow-hidden flex flex-col animate-fade-in">
@@ -270,13 +321,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           </div>
         )}
 
-        {/* Upload Tab - NEW */}
+        {/* Upload Tab - UPDATED */}
         {activeTab === 'upload' && (
             <div className="max-w-3xl mx-auto">
                 <div className="bg-[#121026] p-8 rounded-[32px] border border-white/5 shadow-2xl space-y-6">
-                    <div>
-                        <h2 className="text-2xl font-black mb-1">Digitize Handwritten Questions</h2>
-                        <p className="text-sm text-slate-500">Upload a photo. AI will extract text. We save the text and discard the image.</p>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h2 className="text-2xl font-black mb-1">Digitize Handwritten Questions</h2>
+                            <p className="text-sm text-slate-500">Upload handwritten notes, PDFs or paper images.</p>
+                        </div>
+                        
+                        {/* Mode Toggle */}
+                        <div className="flex bg-white/5 rounded-xl p-1">
+                            <button 
+                                onClick={() => setUploadMode('single')}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${uploadMode === 'single' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                Single Question
+                            </button>
+                            <button 
+                                onClick={() => setUploadMode('bulk')}
+                                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${uploadMode === 'bulk' ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-white'}`}
+                            >
+                                Full Paper (Bulk)
+                            </button>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -290,16 +359,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 {Object.keys(EXAM_SUBJECTS).map(e => <option key={e} value={e} className="text-black">{e}</option>)}
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Subject</label>
-                            <select 
-                                value={uploadSubject} 
-                                onChange={e => setUploadSubject(e.target.value)}
-                                className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none"
-                            >
-                                {EXAM_SUBJECTS[uploadExam as ExamType]?.map(s => <option key={s} value={s} className="text-black">{s}</option>)}
-                            </select>
-                        </div>
+                        {/* Hide Subject selection in Bulk Mode as it is auto-detected */}
+                        {uploadMode === 'single' && (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Subject</label>
+                                <select 
+                                    value={uploadSubject} 
+                                    onChange={e => setUploadSubject(e.target.value)}
+                                    className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none"
+                                >
+                                    {availableSubjects.map(s => <option key={s} value={s} className="text-black">{s}</option>)}
+                                </select>
+                            </div>
+                        )}
+                        {uploadMode === 'bulk' && (
+                            <div className="flex flex-col justify-center">
+                                <p className="text-xs text-brand-400 font-bold bg-brand-500/10 p-2 rounded-lg border border-brand-500/20">
+                                    ✨ Auto-Subject Classification Active
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-brand-500/50 transition-colors">
@@ -324,12 +403,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             </div>
                             
                             <Button onClick={handleExtract} isLoading={isProcessing} className="w-full">
-                                {isProcessing ? 'AI Processing...' : '✨ Extract Text & Verify'}
+                                {isProcessing ? 'AI Processing...' : `✨ Extract ${uploadMode === 'bulk' ? 'All Questions' : 'Question'}`}
                             </Button>
                         </div>
                     )}
 
-                    {extractedQuestion && (
+                    {/* Single Question Editor */}
+                    {uploadMode === 'single' && extractedQuestion && (
                         <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-4 animate-slide-up">
                             <h3 className="font-black text-brand-400 uppercase tracking-widest text-xs">AI Extraction Result</h3>
                             
@@ -374,6 +454,70 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             </div>
                         </div>
                     )}
+
+                    {/* Bulk Questions Editor (Preview List) */}
+                    {uploadMode === 'bulk' && bulkQuestions.length > 0 && (
+                        <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-4 animate-slide-up">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-black text-brand-400 uppercase tracking-widest text-xs">
+                                    Found {bulkQuestions.length} Questions
+                                </h3>
+                                <Button onClick={handleSaveQuestion} isLoading={isProcessing} size="sm" className="bg-green-600 hover:bg-green-500">
+                                    💾 Save All ({bulkQuestions.length})
+                                </Button>
+                            </div>
+
+                            <div className="max-h-96 overflow-y-auto space-y-4 pr-2 scrollbar-hide">
+                                {bulkQuestions.map((q, idx) => (
+                                    <div key={idx} className="p-4 bg-black/30 rounded-xl border border-white/5 hover:border-brand-500/30 transition-colors">
+                                        {/* Subject Selector Header */}
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="text-xs font-bold text-slate-500">Q{idx+1}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-slate-400">Subject:</span>
+                                                <select 
+                                                    value={q.subject || 'General'} 
+                                                    onChange={(e) => {
+                                                        const newBulk = [...bulkQuestions];
+                                                        newBulk[idx].subject = e.target.value;
+                                                        setBulkQuestions(newBulk);
+                                                    }}
+                                                    className="bg-white/10 border border-white/10 text-xs rounded-lg px-2 py-1 outline-none focus:border-brand-500 text-white"
+                                                >
+                                                    {availableSubjects.map(s => (
+                                                        <option key={s} value={s} className="text-black">{s}</option>
+                                                    ))}
+                                                    <option value="General" className="text-black">General</option>
+                                                </select>
+                                                <button 
+                                                    onClick={() => {
+                                                        const newBulk = bulkQuestions.filter((_, i) => i !== idx);
+                                                        setBulkQuestions(newBulk);
+                                                    }}
+                                                    className="text-red-400 hover:text-red-300 ml-2"
+                                                    title="Delete Question"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-sm font-bold mb-2 text-white/90">{q.text}</p>
+                                        <div className="grid grid-cols-2 gap-2 mb-2">
+                                            {q.options?.map((o, i) => (
+                                                <div key={i} className={`text-xs px-2 py-1 rounded bg-white/5 ${i === q.correctIndex ? 'text-green-400 border border-green-500/30' : 'text-slate-400'}`}>
+                                                    {o}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <Button variant="secondary" onClick={() => setBulkQuestions([])} className="w-full">Discard All</Button>
+                        </div>
+                    )}
+
                 </div>
             </div>
         )}

@@ -140,6 +140,21 @@ export const saveGlobalQuestion = async (question: Question): Promise<void> => {
   }
 };
 
+// **NEW**: Save multiple questions at once (Batch Write)
+export const saveGlobalQuestionsBulk = async (questions: Question[]): Promise<void> => {
+  try {
+    const batch = db.batch();
+    questions.forEach((q) => {
+      const docRef = db.collection("global_questions").doc(q.id);
+      batch.set(docRef, q);
+    });
+    await batch.commit();
+  } catch (e) {
+    console.error("Error bulk saving questions:", e);
+    throw e;
+  }
+};
+
 export const getOfficialQuestions = async (exam: string, subject: string, count: number): Promise<Question[]> => {
   try {
     let q = db.collection("global_questions")

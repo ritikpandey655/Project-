@@ -227,19 +227,15 @@ const sanitizePaper = (data: any, exam: string, subject: string, difficulty: str
 
 // --- Exported Generators ---
 
-// **UPDATED**: Logic to mix manual questions with AI
 export const generateExamQuestions = async (exam: string, subject: string, count: number, difficulty: string, topics: string[] = []) => {
   try {
-      // 1. Fetch Manual Questions first
       const manualQuestions = await getOfficialQuestions(exam, subject, count);
       const remainingCount = count - manualQuestions.length;
 
-      // 2. If we have enough manual questions, return them
       if (remainingCount <= 0) {
           return manualQuestions.slice(0, count);
       }
 
-      // 3. Generate remaining via AI
       const prompt = `Generate ${remainingCount} MCQs for ${exam} (${subject}). Difficulty: ${difficulty}. 
       ${topics.length > 0 ? `Topics: ${topics.join(', ')}.` : ''} 
       Strictly return a JSON Array of objects.
@@ -260,9 +256,8 @@ export const generateExamQuestions = async (exam: string, subject: string, count
           createdAt: Date.now()
       }));
 
-      // 4. Merge and Shuffle
       const mixed = [...manualQuestions, ...aiQuestions];
-      return mixed.sort(() => 0.5 - Math.random()); // Shuffle
+      return mixed.sort(() => 0.5 - Math.random());
 
   } catch (e) {
       console.warn("Generation failed, using mock data.", e);
@@ -276,7 +271,6 @@ export const solveTextQuestion = async (text: string, exam: string, subject: str
     return await generateWithAI(prompt, true, 0.4);
 };
 
-// **NEW**: Extract question from Image (OCR)
 export const analyzeImageForQuestion = async (base64Image: string, mimeType: string, exam: string, subject: string) => {
     const prompt = `Analyze this image. It contains a question (possibly handwritten).
     Extract the text clearly. If there are options, list them. If no options are visible, generate 4 plausible options.
@@ -302,37 +296,56 @@ export const analyzeImageForQuestion = async (base64Image: string, mimeType: str
     return await generateWithAI(prompt, true, 0.4, imagePart);
 };
 
+// **UPDATED**: Subject Classification Support
+export const extractQuestionsFromPaper = async (base64Image: string, mimeType: string, exam: string, validSubjects: string[]) => {
+    // We pass validSubjects so the AI can classify properly.
+    const prompt = `You are a professional Question Digitizer. 
+    Analyze this entire document/image (which may contain multiple questions from different subjects).
+    
+    Context: ${exam} Exam.
+    Valid Subjects for Classification: ${validSubjects.join(', ')}.
+    
+    Task:
+    1. Identify all Multiple Choice Questions (MCQs) visible.
+    2. Extract the question text, options, and solve them.
+    3. **CRITICAL**: Classify the Subject of each question strictly from the provided 'Valid Subjects' list. 
+       If a question fits multiple (e.g. Physics in Science), choose the most specific one. 
+       If unsure, use "General".
+    4. Ignore headers, footers, or watermarks.
+    
+    Return STRICT JSON ARRAY:
+    [
+      {
+        "text": "Question 1 text...",
+        "options": ["A", "B", "C", "D"],
+        "correctIndex": 0,
+        "explanation": "Brief logic",
+        "subject": "The_Classified_Subject" 
+      },
+      ...
+    ]`;
+
+    const imagePart = {
+        inlineData: {
+            data: base64Image,
+            mimeType: mimeType
+        }
+    };
+
+    // Use a slightly lower temperature for consistent classification
+    const result = await generateWithAI(prompt, true, 0.3, imagePart);
+    
+    if (Array.isArray(result)) return result;
+    if (result.questions && Array.isArray(result.questions)) return result.questions;
+    
+    return [];
+};
+
 export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any) => {
     const prompt = `Generate a Full Mock Exam Paper for ${exam} (${subject}). Difficulty: ${difficulty}.
     Context/Hints: ${seed}.
-    
-    Structure Required:
-    {
-      "title": "${exam} Mock Test",
-      "totalMarks": 100,
-      "durationMinutes": 60,
-      "sections": [
-        {
-          "title": "Section Name",
-          "marksPerQuestion": 4,
-          "questions": [
-             {
-               "text": "Full question string",
-               "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
-               "correctIndex": 0,
-               "explanation": "Detailed solution"
-             }
-          ]
-        }
-      ]
-    }
-    
-    Requirements:
-    1. Generate ${config.mcqCount || 20} Questions total.
-    2. Divide into logical sections if applicable for ${exam}.
-    3. Ensure 'options' is always an array of 4 strings.
-    4. Ensure 'correctIndex' is a number 0-3.
-    5. Return ONLY Valid JSON.`;
+    Structure Required: { "title": "...", "totalMarks": 100, "durationMinutes": 60, "sections": [...] }
+    Requirements: Generate ${config.mcqCount || 20} Questions total. Return ONLY Valid JSON.`;
 
     try {
         const rawData = await generateWithAI(prompt, true, 0.7);
