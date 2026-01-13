@@ -221,9 +221,13 @@ export const deleteGlobalQuestion = async (questionId: string): Promise<void> =>
 
 // --- CONFIG ---
 
+// In-memory cache for instant switching
+let globalConfigCache: { aiProvider: 'gemini' | 'groq', modelName?: string } | null = null;
+
 export const saveSystemConfig = async (config: { aiProvider: 'gemini' | 'groq', modelName?: string }): Promise<void> => {
   try {
     // 1. Save to localStorage immediately for the admin
+    globalConfigCache = config;
     localStorage.setItem('system_config', JSON.stringify(config));
     
     // 2. Persist to Firestore - This triggers the onSnapshot listeners for all users
@@ -232,28 +236,30 @@ export const saveSystemConfig = async (config: { aiProvider: 'gemini' | 'groq', 
 };
 
 export const getSystemConfig = async (): Promise<{ aiProvider: 'gemini' | 'groq', modelName?: string }> => {
+  // 1. Return in-memory cache if available (synced via subscription)
+  if (globalConfigCache) return globalConfigCache;
+
+  // 2. Return local storage if available (fast)
   try {
-    // FORCE RULE: Use { source: 'server' } to ignore stale local cache.
-    const docSnap = await db.collection("settings").doc("system").get({ source: 'server' });
-    
+    const cached = localStorage.getItem('system_config');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      globalConfigCache = parsed;
+      return parsed;
+    }
+  } catch (e) {}
+
+  // 3. Fallback: Fetch from server if cold start
+  try {
+    const docSnap = await db.collection("settings").doc("system").get();
     if (docSnap.exists) {
       const data = docSnap.data() as any;
+      globalConfigCache = data;
       localStorage.setItem('system_config', JSON.stringify(data));
       return data;
     }
   } catch (e) {
-    // Fallback A: If server unreachable (offline), try standard get()
-    try {
-        const docSnap = await db.collection("settings").doc("system").get();
-        if (docSnap.exists) {
-            const data = docSnap.data() as any;
-            return data;
-        }
-    } catch (innerE) {}
-
-    // Fallback B: Use localStorage (last known good config)
-    const cached = localStorage.getItem('system_config');
-    if (cached) return JSON.parse(cached);
+    console.warn("Config fetch failed, using default", e);
   }
   
   // Final Fallback
@@ -265,14 +271,15 @@ export const subscribeToSystemConfig = (callback: (config: any) => void) => {
     return db.collection("settings").doc("system").onSnapshot(
         (doc) => {
             if (doc.exists) {
-                const data = doc.data();
-                console.log("Real-time Config Update:", data);
+                const data = doc.data() as any;
+                // Update caches immediately
+                globalConfigCache = data;
                 localStorage.setItem('system_config', JSON.stringify(data));
+                console.log("🔥 Config Synced from Cloud:", data.aiProvider);
                 callback(data);
             }
         },
         (error) => {
-            // Gracefully handle permission errors or offline state
             console.warn("System Config Subscription Error (using cached):", error.message);
         }
     );

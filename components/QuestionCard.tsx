@@ -109,6 +109,20 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     ? question.explanationHindi 
     : question.explanation;
 
+  // Visual Source Logic
+  const getSourceBadge = () => {
+      if (question.source === QuestionSource.MANUAL || question.isHandwritten) {
+          return { label: '📝 Manual Upload', class: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-100 dark:border-indigo-800' };
+      }
+      if (question.aiProvider === 'groq') {
+          return { label: '⚡ Groq AI', class: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-100 dark:border-orange-800' };
+      }
+      // Default to Gemini for standard AI
+      return { label: '🧠 Gemini AI', class: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-100 dark:border-blue-800' };
+  };
+
+  const badge = getSourceBadge();
+
   if (showReport) {
     return (
       <div className="w-full max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-100 dark:border-slate-700 flex flex-col h-full max-h-[80vh] relative transition-colors animate-pop-in">
@@ -175,13 +189,19 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         
         {/* Meta Bar */}
         <div className="px-6 pt-6 pb-2 flex justify-between items-center">
-          <div className="flex gap-2 items-center">
-            <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
+          <div className="flex gap-2 items-center flex-wrap">
+            <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                {question.subject || 'General'}
             </span>
-            {latency > 0 && (
+            
+            {/* Source Badge */}
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badge.class}`}>
+               {badge.label}
+            </span>
+
+            {latency > 0 && question.aiProvider === 'groq' && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
-                   ⚡ {(latency / 1000).toFixed(2)}s
+                   {(latency / 1000).toFixed(2)}s
                 </span>
             )}
           </div>

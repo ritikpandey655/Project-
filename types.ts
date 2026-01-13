@@ -44,6 +44,7 @@ export interface Question {
   explanation?: string;
   explanationHindi?: string;
   source: QuestionSource | string;
+  aiProvider?: 'gemini' | 'groq'; // New field to track specific AI model
   examType: ExamType | string;
   subject?: string;
   createdAt: number;

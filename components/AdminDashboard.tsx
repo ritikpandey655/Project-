@@ -145,7 +145,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setIsLoading(true);
     await saveSystemConfig(config);
     saveApiKeys(apiKeys);
-    alert(`System Updated: Provider set to ${config.aiProvider.toUpperCase()}`);
+    alert(`System Updated: Provider switched to ${config.aiProvider.toUpperCase()}.\nUsers will update instantly.`);
     setIsLoading(false);
     loadData(); 
   };
@@ -345,6 +345,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       return 'text-red-400';
   };
 
+  // Visual Source Logic Helper
+  const getSourceBadge = (q: Question) => {
+      if (q.source === QuestionSource.MANUAL || q.isHandwritten) {
+          return { label: '📝 Manual', class: 'bg-indigo-500 text-white' };
+      }
+      if (q.aiProvider === 'groq') {
+          return { label: '⚡ Groq', class: 'bg-orange-500 text-white' };
+      }
+      return { label: '🧠 Gemini', class: 'bg-blue-500 text-white' };
+  };
+
   const isSecureServer = diagnostics.secure;
   const isServerReachable = diagnostics.status !== 'Disconnected';
   const hasClientKeys = !!(apiKeys.gemini || apiKeys.groq);
@@ -478,32 +489,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     {globalQuestions.length === 0 && !isLoadingQuestions && (
                         <div className="text-center py-10 text-slate-500">No questions found in global database.</div>
                     )}
-                    {globalQuestions.map(q => (
-                        <div key={q.id} className="bg-white/5 border border-white/5 p-4 rounded-xl flex gap-4 hover:bg-white/10 transition-colors group">
-                            <div className="flex-1">
-                                <div className="flex gap-2 mb-2">
-                                    <span className="text-[10px] bg-brand-500/20 text-brand-400 px-2 py-1 rounded uppercase font-bold">{q.examType}</span>
-                                    <span className="text-[10px] bg-slate-700 text-slate-300 px-2 py-1 rounded uppercase font-bold">{q.subject || 'General'}</span>
-                                    <span className="text-[10px] text-slate-500">{new Date(q.createdAt).toLocaleDateString()}</span>
+                    {globalQuestions.map(q => {
+                        const badge = getSourceBadge(q);
+                        return (
+                            <div key={q.id} className="bg-white/5 border border-white/5 p-4 rounded-xl flex gap-4 hover:bg-white/10 transition-colors group">
+                                <div className="flex-1">
+                                    <div className="flex gap-2 mb-2 items-center">
+                                        {/* Source Badge */}
+                                        <span className={`text-[10px] px-2 py-1 rounded uppercase font-bold ${badge.class}`}>{badge.label}</span>
+                                        
+                                        <span className="text-[10px] bg-slate-700 text-slate-300 px-2 py-1 rounded uppercase font-bold">{q.examType}</span>
+                                        <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded uppercase font-bold">{q.subject || 'General'}</span>
+                                        <span className="text-[10px] text-slate-500 ml-auto">{new Date(q.createdAt).toLocaleDateString()}</span>
+                                    </div>
+                                    <p className="text-sm font-bold text-white/90 line-clamp-2 mb-2">{q.text}</p>
+                                    <div className="text-xs text-slate-500 grid grid-cols-2 gap-2">
+                                        {q.options?.map((o, i) => (
+                                            <span key={i} className={i === q.correctIndex ? "text-green-400 font-bold" : ""}>
+                                                {String.fromCharCode(65+i)}. {o}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
-                                <p className="text-sm font-bold text-white/90 line-clamp-2 mb-2">{q.text}</p>
-                                <div className="text-xs text-slate-500 grid grid-cols-2 gap-2">
-                                    {q.options?.map((o, i) => (
-                                        <span key={i} className={i === q.correctIndex ? "text-green-400 font-bold" : ""}>
-                                            {String.fromCharCode(65+i)}. {o}
-                                        </span>
-                                    ))}
-                                </div>
+                                <button 
+                                    onClick={() => handleDeleteGlobalQuestion(q.id)}
+                                    className="self-start text-red-400 hover:text-red-300 p-2 bg-red-500/10 rounded-lg hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Delete Permanently"
+                                >
+                                    🗑️
+                                </button>
                             </div>
-                            <button 
-                                onClick={() => handleDeleteGlobalQuestion(q.id)}
-                                className="self-start text-red-400 hover:text-red-300 p-2 bg-red-500/10 rounded-lg hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Delete Permanently"
-                            >
-                                🗑️
-                            </button>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
                 
                 {(lastQuestionDoc || isLoadingQuestions) && (
