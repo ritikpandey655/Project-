@@ -5,7 +5,8 @@ import { EXAM_SUBJECTS } from '../constants';
 import { 
   getAllUsers, removeUser, toggleUserPro,
   getSystemLogs, clearSystemLogs, saveSystemConfig, getSystemConfig,
-  saveApiKeys, getApiKeys, saveGlobalQuestion, saveGlobalQuestionsBulk, getGlobalStats
+  saveApiKeys, getApiKeys, saveGlobalQuestion, saveGlobalQuestionsBulk, getGlobalStats,
+  getAllGlobalQuestions, deleteGlobalQuestion
 } from '../services/storageService';
 import { checkAIConnectivity, generateWithAI, analyzeImageForQuestion, extractQuestionsFromPaper } from '../services/geminiService';
 import { Button } from './Button';
@@ -51,7 +52,7 @@ const compressImage = async (file: File): Promise<string> => {
 };
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'status' | 'upload' | 'keys' | 'users' | 'logs'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'upload' | 'keys' | 'users' | 'logs' | 'database'>('status');
   const [diagnostics, setDiagnostics] = useState<any>({ status: 'Connecting...', latency: 0, secure: false });
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -62,6 +63,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   
   // New: Global Stats
   const [globalStats, setGlobalStats] = useState<{ totalQuestions: number }>({ totalQuestions: 0 });
+
+  // Database Tab
+  const [globalQuestions, setGlobalQuestions] = useState<Question[]>([]);
+  const [lastQuestionDoc, setLastQuestionDoc] = useState<any>(null);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
 
   // Upload State
   const [uploadExam, setUploadExam] = useState<string>('UPSC');
@@ -83,6 +89,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setApiKeys(storedKeys);
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'database') {
+        loadGlobalQuestions(true);
+    }
+  }, [activeTab]);
+
   const loadData = async () => {
     setIsLoading(true);
     const [u, l, c, d, g] = await Promise.all([
@@ -98,6 +110,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setDiagnostics(d);
     setGlobalStats(g);
     setIsLoading(false);
+  };
+
+  const loadGlobalQuestions = async (reset = true) => {
+    setIsLoadingQuestions(true);
+    try {
+        const { questions, lastDoc } = await getAllGlobalQuestions(20, reset ? undefined : lastQuestionDoc);
+        if (reset) {
+            setGlobalQuestions(questions);
+        } else {
+            setGlobalQuestions(prev => [...prev, ...questions]);
+        }
+        setLastQuestionDoc(lastDoc);
+    } catch (e) {
+        alert("Failed to load questions");
+    } finally {
+        setIsLoadingQuestions(false);
+    }
+  };
+
+  const handleDeleteGlobalQuestion = async (id: string) => {
+    if(!confirm("Are you sure you want to delete this question? This affects all users globally.")) return;
+    try {
+        await deleteGlobalQuestion(id);
+        setGlobalQuestions(prev => prev.filter(q => q.id !== id));
+        // Update stats
+        getGlobalStats().then(setGlobalStats);
+    } catch(e) {
+        alert("Delete failed");
+    }
   };
 
   const handleSaveConfig = async () => {
@@ -336,6 +377,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         {[
             {id: 'status', label: 'Dashboard'},
             {id: 'upload', label: 'Upload Manual'},
+            {id: 'database', label: 'Global DB'},
             {id: 'keys', label: 'Keys & Security'}, 
             {id: 'users', label: 'User Base'}, 
             {id: 'logs', label: 'Event Logs'}
@@ -401,6 +443,64 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                  </div>
              )}
           </div>
+        )}
+
+        {/* Global Questions Database Tab */}
+        {activeTab === 'database' && (
+            <div className="max-w-5xl mx-auto space-y-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h2 className="text-2xl font-black">Global Question Bank</h2>
+                        <p className="text-sm text-slate-500">Manage all uploaded questions visible to users.</p>
+                    </div>
+                    <Button onClick={() => loadGlobalQuestions(true)} size="sm">Refresh</Button>
+                </div>
+                
+                <div className="grid gap-4">
+                    {globalQuestions.length === 0 && !isLoadingQuestions && (
+                        <div className="text-center py-10 text-slate-500">No questions found in global database.</div>
+                    )}
+                    {globalQuestions.map(q => (
+                        <div key={q.id} className="bg-white/5 border border-white/5 p-4 rounded-xl flex gap-4 hover:bg-white/10 transition-colors group">
+                            <div className="flex-1">
+                                <div className="flex gap-2 mb-2">
+                                    <span className="text-[10px] bg-brand-500/20 text-brand-400 px-2 py-1 rounded uppercase font-bold">{q.examType}</span>
+                                    <span className="text-[10px] bg-slate-700 text-slate-300 px-2 py-1 rounded uppercase font-bold">{q.subject || 'General'}</span>
+                                    <span className="text-[10px] text-slate-500">{new Date(q.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                <p className="text-sm font-bold text-white/90 line-clamp-2 mb-2">{q.text}</p>
+                                <div className="text-xs text-slate-500 grid grid-cols-2 gap-2">
+                                    {q.options?.map((o, i) => (
+                                        <span key={i} className={i === q.correctIndex ? "text-green-400 font-bold" : ""}>
+                                            {String.fromCharCode(65+i)}. {o}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => handleDeleteGlobalQuestion(q.id)}
+                                className="self-start text-red-400 hover:text-red-300 p-2 bg-red-500/10 rounded-lg hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Delete Permanently"
+                            >
+                                🗑️
+                            </button>
+                        </div>
+                    ))}
+                </div>
+                
+                {(lastQuestionDoc || isLoadingQuestions) && (
+                    <div className="text-center pt-4">
+                        <Button 
+                            onClick={() => loadGlobalQuestions(false)} 
+                            variant="secondary" 
+                            isLoading={isLoadingQuestions}
+                            disabled={!lastQuestionDoc}
+                        >
+                            {isLoadingQuestions ? 'Loading...' : 'Load More'}
+                        </Button>
+                    </div>
+                )}
+            </div>
         )}
 
         {/* Upload Tab - UPDATED */}

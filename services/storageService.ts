@@ -184,9 +184,6 @@ export const getOfficialQuestions = async (exam: string, subject: string, count:
 // **NEW**: Get stats for Admin Dashboard (Total Questions Count)
 export const getGlobalStats = async () => {
     try {
-        // Count documents (using aggregation query if available, or snapshot size for small scale)
-        // For standard Firestore (client SDK), getting size of full collection is expensive.
-        // We will fetch metadata doc if exists, otherwise fallback to a limited check
         const snapshot = await db.collection("global_questions").get();
         return {
             totalQuestions: snapshot.size
@@ -194,6 +191,32 @@ export const getGlobalStats = async () => {
     } catch (e) {
         return { totalQuestions: 0 };
     }
+};
+
+// **NEW**: Fetch all global questions for Admin View
+export const getAllGlobalQuestions = async (limitCount: number = 20, lastDoc?: any): Promise<{ questions: Question[], lastDoc: any }> => {
+  try {
+    let q = db.collection("global_questions").orderBy("createdAt", "desc").limit(limitCount);
+    if (lastDoc) {
+      q = q.startAfter(lastDoc);
+    }
+    const snapshot = await q.get();
+    const questions = snapshot.docs.map(doc => doc.data() as Question);
+    return { questions, lastDoc: snapshot.docs[snapshot.docs.length - 1] };
+  } catch (e) {
+    console.error("Failed to fetch global questions", e);
+    return { questions: [], lastDoc: null };
+  }
+};
+
+// **NEW**: Delete global question
+export const deleteGlobalQuestion = async (questionId: string): Promise<void> => {
+  try {
+    await db.collection("global_questions").doc(questionId).delete();
+  } catch (e) {
+    console.error("Failed to delete global question", e);
+    throw e;
+  }
 };
 
 // --- CONFIG ---
