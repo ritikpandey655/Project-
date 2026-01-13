@@ -1,19 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, SystemLog } from '../types';
+import { User, SystemLog, ExamType, Question, QuestionSource } from '../types';
+import { EXAM_SUBJECTS } from '../constants';
 import { 
   getAllUsers, removeUser, toggleUserPro,
   getSystemLogs, clearSystemLogs, saveSystemConfig, getSystemConfig,
-  saveApiKeys, getApiKeys
+  saveApiKeys, getApiKeys, saveGlobalQuestion
 } from '../services/storageService';
-import { checkAIConnectivity, generateWithAI } from '../services/geminiService';
+import { checkAIConnectivity, generateWithAI, analyzeImageForQuestion } from '../services/geminiService';
+import { Button } from './Button';
 
 interface AdminDashboardProps {
   onBack: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'status' | 'keys' | 'users' | 'logs'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'upload' | 'keys' | 'users' | 'logs'>('status');
   const [diagnostics, setDiagnostics] = useState<any>({ status: 'Connecting...', latency: 0, secure: false });
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -21,6 +23,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [apiKeys, setApiKeys] = useState({ gemini: '', groq: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<string>('');
+
+  // Upload State
+  const [uploadExam, setUploadExam] = useState<string>('UPSC');
+  const [uploadSubject, setUploadSubject] = useState<string>('General');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [extractedQuestion, setExtractedQuestion] = useState<Partial<Question> | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -49,14 +59,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     saveApiKeys(apiKeys);
     alert(`System Updated: Provider set to ${config.aiProvider.toUpperCase()}`);
     setIsLoading(false);
-    loadData(); // Reload to update status
+    loadData(); 
   };
 
   const runLatencyTest = async () => {
     setTestResult('Running test...');
     const start = Date.now();
     try {
-        // Simple test prompt
         await generateWithAI("Test OK", false, 0.7); 
         const duration = Date.now() - start;
         setTestResult(`✅ Response received in ${duration}ms via ${config.aiProvider}`);
@@ -66,7 +75,80 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     }
   };
 
-  // Latency Color Helper
+  // --- UPLOAD LOGIC ---
+  
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => setPreviewUrl(reader.result as string);
+      reader.readAsDataURL(file);
+      setExtractedQuestion(null);
+    }
+  };
+
+  const handleExtract = async () => {
+    if (!selectedFile || !previewUrl) return;
+    setIsProcessing(true);
+    try {
+        // Strip prefix for API
+        const base64 = previewUrl.split(',')[1];
+        const mimeType = selectedFile.type;
+        
+        const result = await analyzeImageForQuestion(base64, mimeType, uploadExam, uploadSubject);
+        
+        if (result) {
+            setExtractedQuestion({
+                text: result.text,
+                options: result.options,
+                correctIndex: result.correctIndex,
+                explanation: result.explanation,
+                examType: uploadExam,
+                subject: uploadSubject
+            });
+        }
+    } catch (e: any) {
+        alert("Extraction Failed: " + e.message);
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  const handleSaveQuestion = async () => {
+    if (!extractedQuestion) return;
+    setIsProcessing(true);
+    try {
+        const finalQuestion: Question = {
+            id: `manual-${Date.now()}`,
+            text: extractedQuestion.text || '',
+            options: extractedQuestion.options || [],
+            correctIndex: extractedQuestion.correctIndex || 0,
+            explanation: extractedQuestion.explanation || '',
+            examType: uploadExam,
+            subject: uploadSubject,
+            source: QuestionSource.MANUAL,
+            isHandwritten: true,
+            createdAt: Date.now(),
+            moderationStatus: 'APPROVED'
+        };
+        
+        await saveGlobalQuestion(finalQuestion);
+        
+        alert("Question Saved! The image has been discarded to save storage.");
+        // Reset
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        setExtractedQuestion(null);
+    } catch (e) {
+        alert("Save Failed");
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  // Helper colors
   const getLatencyColor = (ms: number) => {
       if (ms === 0) return 'text-slate-500';
       if (ms < 800) return 'text-brand-green'; 
@@ -74,10 +156,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       return 'text-red-400';
   };
 
-  // Determine Overall Status
-  const hasClientKeys = !!(apiKeys.gemini || apiKeys.groq);
   const isSecureServer = diagnostics.secure;
   const isServerReachable = diagnostics.status !== 'Disconnected';
+  const hasClientKeys = !!(apiKeys.gemini || apiKeys.groq);
   
   let statusColor = 'text-red-400';
   let statusText = 'Disconnected';
@@ -122,6 +203,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       <div className="flex bg-[#121026]/50 border-b border-white/5 p-1 gap-1">
         {[
             {id: 'status', label: 'Dashboard'},
+            {id: 'upload', label: 'Upload Manual'},
             {id: 'keys', label: 'Keys & Security'}, 
             {id: 'users', label: 'User Base'}, 
             {id: 'logs', label: 'Event Logs'}
@@ -176,7 +258,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             PING SERVER
                         </button>
                     </div>
-                    {/* Visual Indicator */}
                     <div className={`absolute bottom-0 left-0 h-1 transition-all duration-500 ${diagnostics.latency > 0 && diagnostics.latency < 500 ? 'w-full bg-green-500' : diagnostics.latency > 2000 ? 'w-full bg-red-500' : 'w-1/2 bg-yellow-500'}`}></div>
                  </div>
              </div>
@@ -189,12 +270,120 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           </div>
         )}
 
+        {/* Upload Tab - NEW */}
+        {activeTab === 'upload' && (
+            <div className="max-w-3xl mx-auto">
+                <div className="bg-[#121026] p-8 rounded-[32px] border border-white/5 shadow-2xl space-y-6">
+                    <div>
+                        <h2 className="text-2xl font-black mb-1">Digitize Handwritten Questions</h2>
+                        <p className="text-sm text-slate-500">Upload a photo. AI will extract text. We save the text and discard the image.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Exam</label>
+                            <select 
+                                value={uploadExam} 
+                                onChange={e => setUploadExam(e.target.value)}
+                                className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none"
+                            >
+                                {Object.keys(EXAM_SUBJECTS).map(e => <option key={e} value={e} className="text-black">{e}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Subject</label>
+                            <select 
+                                value={uploadSubject} 
+                                onChange={e => setUploadSubject(e.target.value)}
+                                className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none"
+                            >
+                                {EXAM_SUBJECTS[uploadExam as ExamType]?.map(s => <option key={s} value={s} className="text-black">{s}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-brand-500/50 transition-colors">
+                        <input 
+                            type="file" 
+                            accept="image/*,application/pdf" 
+                            onChange={handleFileSelect}
+                            className="hidden" 
+                            id="fileUpload"
+                        />
+                        <label htmlFor="fileUpload" className="cursor-pointer flex flex-col items-center">
+                            <span className="text-4xl mb-2">📸</span>
+                            <span className="font-bold text-brand-400">Click to Upload Image / PDF</span>
+                            <span className="text-xs text-slate-500 mt-2">Max 50MB (Automatically deleted after processing)</span>
+                        </label>
+                    </div>
+
+                    {previewUrl && (
+                        <div className="animate-fade-in space-y-6">
+                            <div className="p-2 bg-white/5 rounded-xl border border-white/5">
+                                <img src={previewUrl} alt="Preview" className="max-h-64 mx-auto rounded-lg" />
+                            </div>
+                            
+                            <Button onClick={handleExtract} isLoading={isProcessing} className="w-full">
+                                {isProcessing ? 'AI Processing...' : '✨ Extract Text & Verify'}
+                            </Button>
+                        </div>
+                    )}
+
+                    {extractedQuestion && (
+                        <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-4 animate-slide-up">
+                            <h3 className="font-black text-brand-400 uppercase tracking-widest text-xs">AI Extraction Result</h3>
+                            
+                            <div>
+                                <label className="text-[10px] text-slate-500 uppercase font-bold">Question Text</label>
+                                <textarea 
+                                    value={extractedQuestion.text} 
+                                    onChange={e => setExtractedQuestion({...extractedQuestion, text: e.target.value})}
+                                    className="w-full p-3 bg-black/20 rounded-xl text-sm border border-white/10 h-24"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                {extractedQuestion.options?.map((opt, i) => (
+                                    <input 
+                                        key={i}
+                                        value={opt}
+                                        onChange={e => {
+                                            const newOpts = [...(extractedQuestion.options || [])];
+                                            newOpts[i] = e.target.value;
+                                            setExtractedQuestion({...extractedQuestion, options: newOpts});
+                                        }}
+                                        className={`w-full p-2 rounded-lg text-sm bg-black/20 border ${extractedQuestion.correctIndex === i ? 'border-green-500' : 'border-white/10'}`}
+                                    />
+                                ))}
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] text-slate-500 uppercase font-bold">Explanation</label>
+                                <textarea 
+                                    value={extractedQuestion.explanation}
+                                    onChange={e => setExtractedQuestion({...extractedQuestion, explanation: e.target.value})}
+                                    className="w-full p-3 bg-black/20 rounded-xl text-sm border border-white/10 h-20"
+                                />
+                            </div>
+
+                            <div className="flex gap-4 pt-4">
+                                <Button variant="secondary" onClick={() => setExtractedQuestion(null)} className="flex-1">Discard</Button>
+                                <Button onClick={handleSaveQuestion} isLoading={isProcessing} className="flex-1 bg-green-600 hover:bg-green-500">
+                                    💾 Save to Database
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
+        {/* Existing Tabs */}
         {activeTab === 'keys' && (
           <div className="max-w-2xl mx-auto space-y-8">
              <div className="bg-[#121026] p-8 rounded-[32px] border border-white/5 shadow-2xl">
                  <h2 className="text-2xl font-black mb-1">Provider Config</h2>
                  <p className="text-sm text-slate-500 mb-8">Switch between AI models instantly.</p>
-                 
                  <div className="space-y-6">
                     <div>
                        <label className="block text-xs font-black uppercase text-slate-500 mb-3 tracking-widest">Select Engine</label>
@@ -215,48 +404,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                           </button>
                        </div>
                     </div>
-
                     <hr className="border-white/5" />
-
                     <div className="space-y-4">
                         <div className={`p-4 border rounded-xl ${isSecureServer ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
                             <p className={`text-xs ${isSecureServer ? 'text-green-200' : 'text-red-200'}`}>
                                 {isSecureServer 
                                     ? "✅ Server Environment Keys are Active." 
-                                    : "⚠️ Server Keys Missing. Please create a .env file in the root folder with API_KEY=..."}
+                                    : "⚠️ Server Keys Missing. Please create a .env file."}
                             </p>
                         </div>
-
-                        {/* ADDED: Visual Reminder for Google Console Whitelist */}
                         {config.aiProvider === 'gemini' && (
                             <div className="p-4 bg-brand-500/10 border border-brand-500/20 rounded-xl">
                                 <p className="text-[10px] font-black uppercase text-brand-400 mb-1">Google Console Requirement</p>
-                                <p className="text-xs text-slate-300 leading-relaxed">
-                                    Since "Website Restrictions" are enabled on your API Key, ensure these are allowed in Google Cloud Console:
-                                </p>
-                                <ul className="text-xs text-slate-400 mt-2 list-disc list-inside space-y-1 font-mono">
-                                    <li>https://pyqverse.in/* (Required for Server)</li>
-                                    <li>http://localhost:3000/* (For Localhost)</li>
-                                </ul>
+                                <p className="text-xs text-slate-300 leading-relaxed">Ensure 'https://pyqverse.in/' is allowed in Google Cloud Console.</p>
                             </div>
                         )}
-                        
                         {!isSecureServer && (
                             <div className="opacity-50 pointer-events-none">
-                                <div>
-                                    <label className="block text-xs font-black uppercase text-slate-500 mb-2 ml-1 tracking-widest">Gemini API Key (Manual Override)</label>
-                                    <input 
-                                        type="text" 
-                                        value={apiKeys.gemini} 
-                                        onChange={e => setApiKeys({ ...apiKeys, gemini: e.target.value })}
-                                        placeholder="Use .env file instead"
-                                        className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white font-mono text-xs focus:border-brand-500 outline-none transition-colors"
-                                    />
-                                </div>
+                                <label className="block text-xs font-black uppercase text-slate-500 mb-2 ml-1 tracking-widest">Gemini API Key</label>
+                                <input 
+                                    type="text" 
+                                    value={apiKeys.gemini} 
+                                    onChange={e => setApiKeys({ ...apiKeys, gemini: e.target.value })}
+                                    className="w-full p-4 rounded-xl bg-black/30 border border-white/10 text-white font-mono text-xs focus:border-brand-500 outline-none"
+                                />
                             </div>
                         )}
                     </div>
-
                     <button 
                       onClick={handleSaveConfig} 
                       disabled={isLoading}

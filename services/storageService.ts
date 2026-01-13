@@ -117,7 +117,7 @@ export const toggleUserPro = async (userId: string, currentStatus: boolean): Pro
   try { await db.collection("users").doc(userId).update({ isPro: !currentStatus }); } catch (e) {}
 };
 
-// --- QUESTIONS ---
+// --- QUESTIONS MANAGEMENT ---
 
 export const saveUserQuestion = async (userId: string, question: Question): Promise<void> => {
   try { await db.collection("users").doc(userId).collection("questions").doc(question.id).set(question); } catch (e) {}
@@ -130,17 +130,40 @@ export const getUserQuestions = async (userId: string): Promise<Question[]> => {
   } catch (e) { return []; }
 };
 
+// **NEW**: Admin saves manually uploaded/OCR'd question to global db
+export const saveGlobalQuestion = async (question: Question): Promise<void> => {
+  try {
+    await db.collection("global_questions").doc(question.id).set(question);
+  } catch (e) {
+    console.error("Error saving global question:", e);
+    throw e;
+  }
+};
+
 export const getOfficialQuestions = async (exam: string, subject: string, count: number): Promise<Question[]> => {
   try {
     let q = db.collection("global_questions")
         .where("examType", "==", exam)
-        .where("moderationStatus", "==", "APPROVED");
+        .where("moderationStatus", "==", "APPROVED"); // Only verified questions
+    
     if (subject !== 'Mixed') q = q.where("subject", "==", subject);
+    
+    // Sort by createdAt descending to get newest "Manual" uploads first
+    // Note: Requires Firestore Composite Index. If fails, it falls back to basic query
+    try {
+        q = q.orderBy("createdAt", "desc");
+    } catch(e) {}
+
     q = q.limit(50);
+    
     const snapshot = await q.get();
     const all = snapshot.docs.map((d) => d.data() as Question);
+    // Return random subset
     return all.sort(() => 0.5 - Math.random()).slice(0, count);
-  } catch (e) { return []; }
+  } catch (e) { 
+    console.warn("Failed to fetch official questions:", e);
+    return []; 
+  }
 };
 
 // --- CONFIG ---

@@ -22,7 +22,8 @@ export enum ExamType {
 export enum QuestionSource {
   PYQ_AI = 'PYQ_AI',
   USER = 'USER',
-  OFFICIAL = 'OFFICIAL'
+  OFFICIAL = 'OFFICIAL',
+  MANUAL = 'MANUAL' 
 }
 
 export enum QuestionType {
@@ -42,7 +43,7 @@ export interface Question {
   correctIndex: number;
   explanation?: string;
   explanationHindi?: string;
-  source: QuestionSource;
+  source: QuestionSource | string;
   examType: ExamType | string;
   subject?: string;
   createdAt: number;
@@ -55,6 +56,7 @@ export interface Question {
   isBookmarked?: boolean;
   pyqYear?: number;
   moderationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  isHandwritten?: boolean; // Flag for manually uploaded handwritten questions
 }
 
 export interface SystemLog {

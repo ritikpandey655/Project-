@@ -26,7 +26,8 @@ const cleanJson = (text: string) => {
 export const generateWithAI = async (
     prompt: string, 
     isJson: boolean = true, 
-    temperature: number = 0.7
+    temperature: number = 0.7,
+    imagePart?: any 
 ): Promise<any> => {
     try {
         const config = await getSystemConfig();
@@ -37,18 +38,23 @@ export const generateWithAI = async (
 
         // --- 1. Try Backend (Preferred) ---
         try {
-            if (provider === 'groq') {
-                // Call Groq Endpoint
+            if (provider === 'groq' && !imagePart) {
+                // Call Groq Endpoint (Text Only)
                 textOutput = await callBackend('/api/ai/groq', {
                     model: config.modelName || 'llama-3.3-70b-versatile',
                     messages: [{ role: "user", content: prompt }],
                     jsonMode: isJson
                 });
             } else {
-                // Call Gemini Endpoint
+                // Call Gemini Endpoint (Handles Text + Image)
+                const contents = [{ 
+                    role: 'user', 
+                    parts: imagePart ? [imagePart, { text: prompt }] : [{ text: prompt }] 
+                }];
+
                 textOutput = await callBackend('/api/ai/generate', {
-                    model: 'gemini-3-flash-preview', // Updated to Gemini 3.0
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    model: 'gemini-3-flash-preview', 
+                    contents: contents,
                     config: { temperature }
                 });
             }
@@ -56,15 +62,14 @@ export const generateWithAI = async (
             console.warn(`Backend (${provider}) unreachable. Attempting Client Fallback... Error: ${backendError.message}`);
             
             // --- 2. Client-Side Fallback (If Backend Fails) ---
-            // If user strictly does not want client mode, this will throw eventually
             const localKeys = getApiKeys();
             
-            if (provider === 'groq') {
+            if (provider === 'groq' && !imagePart) {
                 if (!localKeys.groq) throw new Error("Backend failed. Please ensure Server is running or add Client Key.");
                 textOutput = await callGroqDirect(localKeys.groq, prompt, isJson);
             } else {
                 if (!localKeys.gemini) throw new Error("Backend failed. Please ensure Server is running or add Client Key.");
-                textOutput = await callGeminiDirect(localKeys.gemini, prompt, temperature);
+                textOutput = await callGeminiDirect(localKeys.gemini, prompt, temperature, imagePart);
             }
         }
 
@@ -102,11 +107,15 @@ const callBackend = async (endpoint: string, payload: any) => {
     return result.data;
 };
 
-const callGeminiDirect = async (apiKey: string, prompt: string, temperature: number) => {
+const callGeminiDirect = async (apiKey: string, prompt: string, temperature: number, imagePart?: any) => {
     const ai = new GoogleGenAI({ apiKey });
+    const contents = [{ 
+        role: 'user', 
+        parts: imagePart ? [imagePart, { text: prompt }] : [{ text: prompt }] 
+    }];
     const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview', // Updated to Gemini 3.0
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        model: 'gemini-3-flash-preview', 
+        contents: contents,
         config: { temperature }
     });
     return response.text;
@@ -136,16 +145,11 @@ const callGroqDirect = async (apiKey: string, prompt: string, isJson: boolean) =
 export const checkAIConnectivity = async () => {
     const start = Date.now();
     try {
-        // Attempt to hit the backend health check
         const res = await fetch('/api/health');
-        
         if (res.ok) {
             const data = await res.json();
             const latency = Date.now() - start;
-            
-            // Check if environment variables are active on the server
             const secure = data.env?.gemini === 'Active' || data.env?.groq === 'Active';
-            
             if (secure) {
                 return { status: 'Online (Server)', latency, secure: true };
             } else {
@@ -154,7 +158,6 @@ export const checkAIConnectivity = async () => {
         }
         throw new Error("Backend Offline");
     } catch (e) {
-        // Backend is completely unreachable
         const keys = getApiKeys();
         if (keys.gemini || keys.groq) {
             return { status: 'Client Mode', latency: 1, secure: true };
@@ -166,7 +169,6 @@ export const checkAIConnectivity = async () => {
 // --- Helper for Paper Sanitization ---
 
 const sanitizePaper = (data: any, exam: string, subject: string, difficulty: string) => {
-    // 1. Sanitize Basic Metadata
     const safeData = {
         id: `paper-${Date.now()}`,
         title: data.title || `${exam} Mock Paper`,
@@ -179,22 +181,17 @@ const sanitizePaper = (data: any, exam: string, subject: string, difficulty: str
         createdAt: Date.now()
     };
 
-    // 2. Sanitize Sections & Questions
     safeData.sections = safeData.sections.map((sec: any, sIdx: number) => {
-        // Normalize Questions
         const rawQuestions = Array.isArray(sec.questions) ? sec.questions : [];
         const validQuestions = rawQuestions.map((q: any, qIdx: number) => {
-            // Fix Options: Ensure it is an array of strings
             let options = ["Yes", "No"];
             if (Array.isArray(q.options) && q.options.length > 0) options = q.options.map(String);
-            else if (Array.isArray(q.choices) && q.choices.length > 0) options = q.choices.map(String); // Handle 'choices' alias
+            else if (Array.isArray(q.choices) && q.choices.length > 0) options = q.choices.map(String); 
             
-            // Fix Correct Index
             let correctIndex = 0;
             if (typeof q.correctIndex === 'number' && q.correctIndex >= 0 && q.correctIndex < options.length) {
                 correctIndex = q.correctIndex;
             } else if (typeof q.answer === 'string') {
-                // Try to map "Option A" or "A" to index
                 const idx = options.findIndex(o => o === q.answer || o.startsWith(q.answer));
                 if (idx !== -1) correctIndex = idx;
             }
@@ -223,20 +220,27 @@ const sanitizePaper = (data: any, exam: string, subject: string, difficulty: str
         };
     });
 
-    // Remove empty sections
     safeData.sections = safeData.sections.filter((s: any) => s.questions.length > 0);
-    
-    // Fallback if paper is empty
     if (safeData.sections.length === 0) return null;
-
     return safeData;
 };
 
 // --- Exported Generators ---
 
+// **UPDATED**: Logic to mix manual questions with AI
 export const generateExamQuestions = async (exam: string, subject: string, count: number, difficulty: string, topics: string[] = []) => {
   try {
-      const prompt = `Generate ${count} MCQs for ${exam} (${subject}). Difficulty: ${difficulty}. 
+      // 1. Fetch Manual Questions first
+      const manualQuestions = await getOfficialQuestions(exam, subject, count);
+      const remainingCount = count - manualQuestions.length;
+
+      // 2. If we have enough manual questions, return them
+      if (remainingCount <= 0) {
+          return manualQuestions.slice(0, count);
+      }
+
+      // 3. Generate remaining via AI
+      const prompt = `Generate ${remainingCount} MCQs for ${exam} (${subject}). Difficulty: ${difficulty}. 
       ${topics.length > 0 ? `Topics: ${topics.join(', ')}.` : ''} 
       Strictly return a JSON Array of objects.
       Schema: [{"text": "Question Stem", "options": ["A", "B", "C", "D"], "correctIndex": 0 (0-3), "explanation": "Logic"}]`;
@@ -244,7 +248,7 @@ export const generateExamQuestions = async (exam: string, subject: string, count
       const items = await generateWithAI(prompt, true, 0.7);
       const data = Array.isArray(items) ? items : (items.questions || []);
 
-      return data.map((q: any) => ({
+      const aiQuestions = data.map((q: any) => ({
           id: `ai-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           text: q.text || q.question || "Question unavailable",
           options: (Array.isArray(q.options) && q.options.length >= 2) ? q.options.map(String) : ["Option A", "Option B", "Option C", "Option D"],
@@ -255,6 +259,11 @@ export const generateExamQuestions = async (exam: string, subject: string, count
           subject: subject,
           createdAt: Date.now()
       }));
+
+      // 4. Merge and Shuffle
+      const mixed = [...manualQuestions, ...aiQuestions];
+      return mixed.sort(() => 0.5 - Math.random()); // Shuffle
+
   } catch (e) {
       console.warn("Generation failed, using mock data.", e);
       return MOCK_QUESTIONS_FALLBACK as any;
@@ -265,6 +274,32 @@ export const solveTextQuestion = async (text: string, exam: string, subject: str
     const prompt = `Expert Solver: Analyze this ${exam} (${subject}) query: "${text}". 
     Solve it and Return JSON: {"text": "Restated Question", "options": ["A","B","C","D"], "correctIndex": 0, "explanation": "Step-by-step logic."}`;
     return await generateWithAI(prompt, true, 0.4);
+};
+
+// **NEW**: Extract question from Image (OCR)
+export const analyzeImageForQuestion = async (base64Image: string, mimeType: string, exam: string, subject: string) => {
+    const prompt = `Analyze this image. It contains a question (possibly handwritten).
+    Extract the text clearly. If there are options, list them. If no options are visible, generate 4 plausible options.
+    Solve the question and provide the correct index and explanation.
+    
+    Context: ${exam} - ${subject}.
+    
+    Return STRICT JSON:
+    {
+      "text": "The full question text extracted from image",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": 0, // Integer 0-3
+      "explanation": "Detailed solution logic"
+    }`;
+
+    const imagePart = {
+        inlineData: {
+            data: base64Image,
+            mimeType: mimeType
+        }
+    };
+
+    return await generateWithAI(prompt, true, 0.4, imagePart);
 };
 
 export const generateFullPaper = async (exam: string, subject: string, difficulty: string, seed: string, config: any) => {
@@ -301,7 +336,6 @@ export const generateFullPaper = async (exam: string, subject: string, difficult
 
     try {
         const rawData = await generateWithAI(prompt, true, 0.7);
-        // Sanitize the raw AI response to prevent crashes
         const sanitizedPaper = sanitizePaper(rawData, exam, subject, difficulty);
         return sanitizedPaper;
     } catch (error) {

@@ -14,17 +14,11 @@ if (fs.existsSync(rootEnvPath)) {
 }
 
 // --- CRITICAL FIX FOR GOOGLE API KEY REFERRER RESTRICTION ---
-// Google's backend requires a 'Referer' header if you enabled "Website Restrictions".
-// Node.js environments don't send this by default. We must intercept the fetch call.
 const originalFetch = global.fetch;
 global.fetch = async (url, options = {}) => {
     const urlStr = url.toString();
-    
-    // Only modify requests going to Google's Generative Language API
     if (urlStr.includes('generativelanguage.googleapis.com')) {
         const newOptions = { ...options };
-        
-        // Normalize headers to a plain object to ensure we can overwrite 'Referer'
         let headers = {};
         if (newOptions.headers) {
             if (newOptions.headers instanceof Headers) {
@@ -35,21 +29,11 @@ global.fetch = async (url, options = {}) => {
                 headers = { ...newOptions.headers };
             }
         }
-
-        // INJECT THE REFERER
-        // This must match one of the domains you allowed in Google Cloud Console.
-        // We use the production domain so it works on Vercel. 
-        // If you are on localhost, this "spoofing" usually allows it to work too 
-        // if the key allows 'https://pyqverse.in/'.
         headers['Referer'] = 'https://pyqverse.in/';
-        
-        // Also add User-Agent just in case
         headers['User-Agent'] = 'PYQverse-Server/1.0';
-
         newOptions.headers = headers;
         return originalFetch(url, newOptions);
     }
-    
     return originalFetch(url, options);
 };
 // -----------------------------------------------------------
@@ -65,8 +49,9 @@ app.use(cors({
     methods: ['GET', 'POST', 'OPTIONS'] 
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// INCREASED LIMIT FOR IMAGE/PDF UPLOADS
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const getGeminiKey = () => {
     return process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_API_KEY;
@@ -100,10 +85,9 @@ app.post('/api/ai/generate', async (req, res) => {
         });
     }
 
-    // Initialize SDK - The global.fetch override above handles the headers
     const ai = new GoogleGenAI({ apiKey });
     
-    // Switch to gemini-3-flash-preview which is the latest valid model
+    // Switch to gemini-3-flash-preview which supports text and images
     const response = await ai.models.generateContent({
         model: model || 'gemini-3-flash-preview',
         contents: contents,
@@ -121,15 +105,12 @@ app.post('/api/ai/generate', async (req, res) => {
 
   } catch (error) {
     console.error("Gemini Error:", error);
-    
-    // Provide a clear error message for 403 Forbidden related to API Key
     if (error.status === 403 || (error.message && error.message.includes('blocked'))) {
         return res.status(403).json({ 
             success: false, 
-            error: `Google API Error: Access Blocked. Ensure 'https://pyqverse.in/' is in the allowed referrers list in Google Cloud Console. Details: ${error.message}`
+            error: `Google API Error: Access Blocked. Ensure 'https://pyqverse.in/' is in the allowed referrers list.`
         });
     }
-
     res.status(500).json({ success: false, error: error.message || "AI Generation Failed" });
   }
 });
