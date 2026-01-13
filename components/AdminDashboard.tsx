@@ -5,7 +5,7 @@ import { EXAM_SUBJECTS } from '../constants';
 import { 
   getAllUsers, removeUser, toggleUserPro,
   getSystemLogs, clearSystemLogs, saveSystemConfig, getSystemConfig,
-  saveApiKeys, getApiKeys, saveGlobalQuestion, saveGlobalQuestionsBulk
+  saveApiKeys, getApiKeys, saveGlobalQuestion, saveGlobalQuestionsBulk, getGlobalStats
 } from '../services/storageService';
 import { checkAIConnectivity, generateWithAI, analyzeImageForQuestion, extractQuestionsFromPaper } from '../services/geminiService';
 import { Button } from './Button';
@@ -13,6 +13,42 @@ import { Button } from './Button';
 interface AdminDashboardProps {
   onBack: () => void;
 }
+
+// --- UTILS ---
+const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // Max dimension 1500px is sufficient for OCR
+                const MAX_DIM = 1500;
+                if (width > height && width > MAX_DIM) {
+                    height *= MAX_DIM / width;
+                    width = MAX_DIM;
+                } else if (height > MAX_DIM) {
+                    width *= MAX_DIM / height;
+                    height = MAX_DIM;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                // Compress to JPEG 0.7 quality
+                resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
+};
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'status' | 'upload' | 'keys' | 'users' | 'logs'>('status');
@@ -23,6 +59,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [apiKeys, setApiKeys] = useState({ gemini: '', groq: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<string>('');
+  
+  // New: Global Stats
+  const [globalStats, setGlobalStats] = useState<{ totalQuestions: number }>({ totalQuestions: 0 });
 
   // Upload State
   const [uploadExam, setUploadExam] = useState<string>('UPSC');
@@ -30,6 +69,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [extractedQuestion, setExtractedQuestion] = useState<Partial<Question> | null>(null);
+  const [fileSizeWarning, setFileSizeWarning] = useState<string | null>(null);
   
   // Bulk Upload State
   const [uploadMode, setUploadMode] = useState<'single' | 'bulk'>('single');
@@ -45,16 +85,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   const loadData = async () => {
     setIsLoading(true);
-    const [u, l, c, d] = await Promise.all([
+    const [u, l, c, d, g] = await Promise.all([
         getAllUsers(), 
         getSystemLogs(), 
         getSystemConfig(),
-        checkAIConnectivity()
+        checkAIConnectivity(),
+        getGlobalStats()
     ]);
     setUsers(u);
     setLogs(l);
     if(c.aiProvider) setConfig(c);
     setDiagnostics(d);
+    setGlobalStats(g);
     setIsLoading(false);
   };
 
@@ -82,23 +124,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   // --- UPLOAD LOGIC ---
   
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => setPreviewUrl(reader.result as string);
-      reader.readAsDataURL(file);
-      
-      // Reset logic
       setExtractedQuestion(null);
       setBulkQuestions([]);
+      setFileSizeWarning(null);
+
+      // Check File Size (Limit for Vercel Serverless Body is ~4.5MB)
+      const isLarge = file.size > 4 * 1024 * 1024; 
+
+      if (file.type.startsWith('image/')) {
+          // Auto-Compress Image
+          try {
+              const compressedUrl = await compressImage(file);
+              setPreviewUrl(compressedUrl);
+              // Calculate rough size of base64
+              const sizeInBytes = 4 * Math.ceil((compressedUrl.length / 3)) * 0.5624896334383491;
+              if (sizeInBytes > 4 * 1024 * 1024 && !apiKeys.gemini) {
+                  setFileSizeWarning("Large Image detected. Please enter Client API Key below to bypass server limit.");
+              }
+          } catch (err) {
+              console.error("Compression failed", err);
+              // Fallback
+              const reader = new FileReader();
+              reader.onloadend = () => setPreviewUrl(reader.result as string);
+              reader.readAsDataURL(file);
+          }
+      } else {
+          // PDF or other - Cannot compress client side easily
+          if (isLarge && !apiKeys.gemini) {
+              setFileSizeWarning("Large PDF detected (>4MB). You MUST add a Client API Key below to bypass server limits.");
+          }
+          const reader = new FileReader();
+          reader.onloadend = () => setPreviewUrl(reader.result as string);
+          reader.readAsDataURL(file);
+      }
     }
   };
 
   const handleExtract = async () => {
     if (!selectedFile || !previewUrl) return;
+    
+    // Save key if entered in the inline input
+    if (apiKeys.gemini) {
+        saveApiKeys(apiKeys);
+    } else if (fileSizeWarning) {
+        alert("Please enter a Client API Key to upload this large file.");
+        return;
+    }
+
     setIsProcessing(true);
     try {
         // Strip prefix for API
@@ -119,9 +195,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             }
         } else {
             // Bulk / Full Paper Mode
-            // Get valid subjects for this exam to pass to AI for classification
             const validSubjects = EXAM_SUBJECTS[uploadExam as ExamType] || [];
-            
             const results = await extractQuestionsFromPaper(base64, mimeType, uploadExam, validSubjects);
             if (results && results.length > 0) {
                 const mappedQs = results.map((q: any) => ({
@@ -130,7 +204,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     correctIndex: q.correctIndex,
                     explanation: q.explanation,
                     examType: uploadExam,
-                    subject: q.subject || 'General', // AI auto-classified subject
+                    subject: q.subject || 'General', 
                     source: QuestionSource.MANUAL,
                     isHandwritten: true
                 }));
@@ -141,7 +215,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         }
         
     } catch (e: any) {
-        alert("Extraction Failed: " + e.message);
+        if (e.message.includes("Backend failed")) {
+            setFileSizeWarning("Server upload limit exceeded. Please enter a Client API Key below.");
+        } else {
+            alert("Extraction Failed: " + e.message);
+        }
     } finally {
         setIsProcessing(false);
     }
@@ -165,7 +243,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 moderationStatus: 'APPROVED'
             };
             await saveGlobalQuestion(finalQuestion);
-            alert("Question Saved!");
+            alert("Saved to Global Database! Available to all users.");
         } else if (uploadMode === 'bulk' && bulkQuestions.length > 0) {
             const finalQuestions: Question[] = bulkQuestions.map((q, idx) => ({
                 id: `manual-bulk-${Date.now()}-${idx}`,
@@ -174,14 +252,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 correctIndex: q.correctIndex || 0,
                 explanation: q.explanation || '',
                 examType: uploadExam,
-                subject: q.subject || 'General', // Use the specific subject
+                subject: q.subject || 'General', 
                 source: QuestionSource.MANUAL,
                 isHandwritten: true,
                 createdAt: Date.now(),
                 moderationStatus: 'APPROVED'
             }));
             await saveGlobalQuestionsBulk(finalQuestions);
-            alert(`${finalQuestions.length} Questions Saved Successfully!`);
+            alert(`${finalQuestions.length} Questions Saved to Global Server Successfully!`);
         }
         
         // Reset
@@ -189,6 +267,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         setPreviewUrl(null);
         setExtractedQuestion(null);
         setBulkQuestions([]);
+        setFileSizeWarning(null);
+        // Refresh Stats
+        getGlobalStats().then(setGlobalStats);
         
     } catch (e) {
         alert("Save Failed");
@@ -286,14 +367,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     </p>
                  </div>
                  
+                 {/* Global Database Count */}
                  <div className="p-8 rounded-[32px] bg-slate-800/30 border border-white/10">
-                    <h3 className="text-xs font-black uppercase text-slate-400 mb-2 tracking-widest">Active Provider</h3>
+                    <h3 className="text-xs font-black uppercase text-slate-400 mb-2 tracking-widest">Live Questions</h3>
                     <div className="flex items-center gap-3">
-                        <span className="text-3xl font-black text-brand-400">
-                            {config.aiProvider === 'groq' ? 'GROQ CLOUD' : 'GOOGLE GEMINI'}
+                        <span className="text-4xl font-black text-brand-400">
+                            {globalStats.totalQuestions}
                         </span>
                     </div>
-                    <p className="text-[10px] mt-2 text-slate-500 font-medium">Model: {config.modelName || 'Default'}</p>
+                    <p className="text-[10px] mt-2 text-slate-500 font-medium">Synced on Cloud</p>
                  </div>
 
                  <div className="p-8 rounded-[32px] bg-slate-800/30 border border-white/10 relative overflow-hidden">
@@ -381,25 +463,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         )}
                     </div>
 
-                    <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-brand-500/50 transition-colors">
+                    {fileSizeWarning && (
+                        <div className="bg-orange-500/10 border border-orange-500/30 p-4 rounded-xl text-orange-200 text-xs font-bold">
+                            ⚠️ {fileSizeWarning}
+                            <input 
+                                type="text" 
+                                value={apiKeys.gemini} 
+                                onChange={e => setApiKeys({ ...apiKeys, gemini: e.target.value })}
+                                placeholder="Paste Google Gemini API Key here"
+                                className="w-full mt-2 p-3 rounded-lg bg-black/30 border border-orange-500/30 text-white outline-none focus:border-orange-500"
+                            />
+                        </div>
+                    )}
+
+                    <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-brand-500/50 transition-colors relative">
                         <input 
                             type="file" 
                             accept="image/*,application/pdf" 
                             onChange={handleFileSelect}
-                            className="hidden" 
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
                             id="fileUpload"
                         />
-                        <label htmlFor="fileUpload" className="cursor-pointer flex flex-col items-center">
-                            <span className="text-4xl mb-2">📸</span>
+                        <div className="pointer-events-none">
+                            <span className="text-4xl mb-2 block">📸</span>
                             <span className="font-bold text-brand-400">Click to Upload Image / PDF</span>
-                            <span className="text-xs text-slate-500 mt-2">Max 50MB (Automatically deleted after processing)</span>
-                        </label>
+                            <span className="text-xs text-slate-500 mt-2 block">Images are auto-compressed. Large PDFs require Client Key.</span>
+                        </div>
                     </div>
 
                     {previewUrl && (
                         <div className="animate-fade-in space-y-6">
                             <div className="p-2 bg-white/5 rounded-xl border border-white/5">
-                                <img src={previewUrl} alt="Preview" className="max-h-64 mx-auto rounded-lg" />
+                                {selectedFile?.type.includes('image') ? (
+                                    <img src={previewUrl} alt="Preview" className="max-h-64 mx-auto rounded-lg" />
+                                ) : (
+                                    <div className="text-center py-10">
+                                        <span className="text-4xl">📄</span>
+                                        <p className="mt-2 font-bold text-white">{selectedFile?.name}</p>
+                                        <p className="text-xs text-slate-500">{(selectedFile?.size || 0) / 1024 / 1024 > 4 ? 'Large File' : 'Ready'}</p>
+                                    </div>
+                                )}
                             </div>
                             
                             <Button onClick={handleExtract} isLoading={isProcessing} className="w-full">
@@ -449,7 +552,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             <div className="flex gap-4 pt-4">
                                 <Button variant="secondary" onClick={() => setExtractedQuestion(null)} className="flex-1">Discard</Button>
                                 <Button onClick={handleSaveQuestion} isLoading={isProcessing} className="flex-1 bg-green-600 hover:bg-green-500">
-                                    💾 Save to Database
+                                    💾 Save to Global DB
                                 </Button>
                             </div>
                         </div>
@@ -463,7 +566,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                     Found {bulkQuestions.length} Questions
                                 </h3>
                                 <Button onClick={handleSaveQuestion} isLoading={isProcessing} size="sm" className="bg-green-600 hover:bg-green-500">
-                                    💾 Save All ({bulkQuestions.length})
+                                    💾 Save All to Cloud ({bulkQuestions.length})
                                 </Button>
                             </div>
 

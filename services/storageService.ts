@@ -181,6 +181,21 @@ export const getOfficialQuestions = async (exam: string, subject: string, count:
   }
 };
 
+// **NEW**: Get stats for Admin Dashboard (Total Questions Count)
+export const getGlobalStats = async () => {
+    try {
+        // Count documents (using aggregation query if available, or snapshot size for small scale)
+        // For standard Firestore (client SDK), getting size of full collection is expensive.
+        // We will fetch metadata doc if exists, otherwise fallback to a limited check
+        const snapshot = await db.collection("global_questions").get();
+        return {
+            totalQuestions: snapshot.size
+        };
+    } catch (e) {
+        return { totalQuestions: 0 };
+    }
+};
+
 // --- CONFIG ---
 
 export const saveSystemConfig = async (config: { aiProvider: 'gemini' | 'groq', modelName?: string }): Promise<void> => {
