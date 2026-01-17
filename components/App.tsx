@@ -98,6 +98,8 @@ export const App: React.FC = () => {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   
   const [generationLatency, setGenerationLatency] = useState<number>(0);
+  
+  // Session Management
   const currentSessionId = useRef<string>(Date.now().toString());
   const sessionListenerRef = useRef<() => void>();
 
@@ -176,24 +178,37 @@ export const App: React.FC = () => {
             
             setExamHistory(history);
             
-            // --- ONE DEVICE LOGIN LOGIC ---
-            // 1. Generate new session ID for THIS device/tab
+            // --- ONE DEVICE LOGIN LOGIC (ROBUST) ---
+            
+            // 1. Clean up any existing listeners first
+            if (sessionListenerRef.current) {
+                sessionListenerRef.current();
+                sessionListenerRef.current = undefined;
+            }
+
+            // 2. Generate new session ID for THIS device/tab
             const newSessionId = Date.now().toString() + "-" + Math.random().toString(36).substring(2);
             currentSessionId.current = newSessionId;
             
-            // 2. Update DB with this new ID
+            // 3. Update DB with this new ID
             await updateUserSession(userId, newSessionId);
             updateUserActivity(userId);
 
-            // 3. Listen for changes. If DB changes to a DIFF session ID, it means another device logged in.
-            if (sessionListenerRef.current) sessionListenerRef.current(); // Unsub prev
+            // 4. Listen for changes. If DB changes to a DIFF session ID, it means another device logged in.
             sessionListenerRef.current = db.collection("users").doc(userId).onSnapshot((doc) => {
                 const data = doc.data();
+                // Check if sessionId exists in DB and is DIFFERENT from what we set locally
                 if (data && data.sessionId && data.sessionId !== currentSessionId.current) {
-                    // Session Mismatch detected!
-                    console.warn("Session mismatch! Logging out.");
+                    console.warn("Session mismatch! Logging out to prevent concurrent access.");
+                    
+                    // Kill listener immediately
+                    if (sessionListenerRef.current) {
+                        sessionListenerRef.current();
+                        sessionListenerRef.current = undefined;
+                    }
+
                     alert("You have been logged out because your account was accessed from another device.");
-                    handleLogout();
+                    auth.signOut();
                 }
             });
 
@@ -255,13 +270,14 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    // Unsubscribe session listener first to prevent loop
+    // Unsubscribe session listener first to prevent loops or errors
     if (sessionListenerRef.current) {
         sessionListenerRef.current();
         sessionListenerRef.current = undefined;
     }
     await auth.signOut();
     localStorage.removeItem(LAST_VIEW_KEY);
+    // State update is handled by onAuthStateChanged, but explicit update helps UI snap faster
     setState(s => ({ ...s, user: null, view: 'landing' }));
   };
 
