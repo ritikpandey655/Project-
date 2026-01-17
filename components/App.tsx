@@ -98,22 +98,18 @@ const App: React.FC = () => {
   const [generationLatency, setGenerationLatency] = useState<number>(0);
   const currentSessionId = useRef<string>(Date.now().toString());
 
-  // --- SEO: DYNAMIC TITLES, DESCRIPTIONS, KEYWORDS & ROBOTS ---
+  // --- SEO: DYNAMIC TITLES & META ---
   useEffect(() => {
     let title = "PYQverse - India's Best AI Exam Prep App";
     let desc = "Practice unlimited Previous Year Questions (PYQ) for UPSC, SSC CGL, JEE Mains, NEET & UP Board. Features Instant AI Doubt Solving, Mock Tests, and Analytics.";
     let keywords = "PYQverse, Exam Prep, AI Doubt Solver, Previous Year Questions, Mock Tests, Online Test Series, Free Mock Test";
     let robotsContent = "index, follow";
 
-    // 1. Dynamic Logic based on View & Exam
     if (state.view === 'practice' && state.selectedExam) {
         title = `Practice ${state.selectedExam} Questions 2025 | PYQverse`;
         desc = `Attempt ${state.selectedExam} Previous Year Questions (PYQ) and Mock Tests with instant AI explanations. Improve your accuracy for ${state.selectedExam} 2025.`;
-        
-        // Add Specific Keywords
         const richKeywords = SEO_RICH_KEYWORDS[state.selectedExam] || `${state.selectedExam} Syllabus, ${state.selectedExam} Preparation`;
         keywords += `, ${state.selectedExam} PYQ, ${state.selectedExam} Mock Test, ${richKeywords}`;
-
     } else if (state.view === 'dashboard') {
         title = "My Dashboard | PYQverse";
         desc = "Track your exam preparation progress, daily streaks, and subject-wise performance analytics on PYQverse.";
@@ -132,19 +128,14 @@ const App: React.FC = () => {
         title = "PYQverse - AI Exam Preparation for UPSC, JEE, NEET";
         keywords += ", UPSC, JEE, NEET, SSC, UP Board, Best Exam App";
     } else if (['profile', 'admin', 'bookmarks', 'paperView'].includes(state.view)) {
-        // Private pages: Tell Google NOT to index these to save crawl budget
         robotsContent = "noindex, nofollow";
     }
     
-    // 2. Apply to DOM
     document.title = title;
-    
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) metaDesc.setAttribute('content', desc);
-
     const metaKeywords = document.querySelector('meta[name="keywords"]');
     if (metaKeywords) metaKeywords.setAttribute('content', keywords);
-
     const metaRobots = document.querySelector('meta[name="robots"]');
     if (metaRobots) metaRobots.setAttribute('content', robotsContent);
 
@@ -173,13 +164,12 @@ const App: React.FC = () => {
 
   // --- APP LIFECYCLE ---
   useEffect(() => {
-    // 1. Check Global Prompt (captured in index.html)
+    // 1. Check Global Prompt
     if ((window as any).deferredPrompt) {
         setDeferredPrompt((window as any).deferredPrompt);
         checkInstallDismissal();
     }
 
-    // 2. Event Listener for PWA Ready (from index.html)
     const pwaReadyHandler = () => {
         if ((window as any).deferredPrompt) {
             setDeferredPrompt((window as any).deferredPrompt);
@@ -188,7 +178,6 @@ const App: React.FC = () => {
     };
     window.addEventListener('pwa-ready', pwaReadyHandler);
 
-    // 3. Fallback Event Listener (Standard)
     const pwaHandler = (e: any) => { 
       e.preventDefault(); 
       setDeferredPrompt(e); 
@@ -196,39 +185,33 @@ const App: React.FC = () => {
     };
     window.addEventListener('beforeinstallprompt', pwaHandler);
     
-    // 4. Handle External Intent Data (Share Target, Protocol, Note Taking)
+    // --- SEO: HANDLE QUERY PARAMETERS ---
     const searchParams = new URLSearchParams(window.location.search);
     
-    // Share Target
+    // 1. Google Search Action (?q=query)
+    const searchQuery = searchParams.get('q');
+    
+    // 2. Share Target (?text=... or ?title=...)
     const sharedText = searchParams.get('text');
     const sharedTitle = searchParams.get('title');
     
-    // Note Taking Capability
+    // 3. Protocol / Shortcuts
     const noteAction = searchParams.get('note');
-    
-    // Protocol Handler (web+pyq://action)
-    const protocolUrl = searchParams.get('action'); // e.g. web+pyq://practice
+    const protocolUrl = searchParams.get('action');
 
-    if (sharedText || sharedTitle) {
-        const textToUse = sharedText || sharedTitle;
-        if(textToUse) setInitialDoubtQuery(textToUse);
-        // Clean URL to prevent re-triggering on reload
+    const intentText = searchQuery || sharedText || sharedTitle;
+
+    if (intentText) {
+        setInitialDoubtQuery(intentText);
+        // Clean URL cleanly
         window.history.replaceState({}, document.title, "/");
     } else if (noteAction === 'new') {
-        // Launched via 'Create Note' system shortcut
-        // We will direct to Upload view after loading, let the view logic handle it via state
-        setInitialDoubtQuery(""); // Open blank doubt solver
+        setInitialDoubtQuery(""); 
         window.history.replaceState({}, document.title, "/");
     } else if (protocolUrl) {
-        // Handle custom protocols
-        // Example: web+pyq://practice or web+pyq://camera
         const decodedAction = decodeURIComponent(protocolUrl).replace('web+pyq://', '');
-        
-        if (decodedAction.includes('practice')) {
-           setShowPracticeConfig(true);
-        } else if (decodedAction.includes('camera') || decodedAction.includes('doubts')) {
-           setInitialDoubtQuery(""); 
-        }
+        if (decodedAction.includes('practice')) setShowPracticeConfig(true);
+        else if (decodedAction.includes('camera') || decodedAction.includes('doubts')) setInitialDoubtQuery(""); 
         window.history.replaceState({}, document.title, "/");
     }
 
@@ -237,7 +220,6 @@ const App: React.FC = () => {
     window.addEventListener('online', onlineHandler);
     window.addEventListener('offline', offlineHandler);
     
-    // --- REAL-TIME CONFIG SYNC ---
     const unsubscribeConfig = subscribeToSystemConfig((newConfig) => {
         console.log("System Config Synced:", newConfig);
     });
@@ -257,7 +239,6 @@ const App: React.FC = () => {
       const dismissed = localStorage.getItem(INSTALL_DISMISSED_KEY);
       const lastDismissedTime = dismissed ? parseInt(dismissed) : 0;
       const now = Date.now();
-      // Show again if dismissed more than 3 days ago
       if (!dismissed || (now - lastDismissedTime > 3 * 24 * 60 * 60 * 1000)) {
           setShowInstallBanner(true);
       }
@@ -272,32 +253,26 @@ const App: React.FC = () => {
 
   const loadUserData = useCallback(async (userId: string) => {
     try {
-      // Fetch system config along with user data to ensure 'Groq/Gemini' rule is applied immediately
       const [profile, prefs, statsData, config, history, sysConfig] = await Promise.all([
         getUser(userId),
         getUserPref(userId),
         getStats(userId),
         getExamConfig(),
         getExamHistory(userId),
-        getSystemConfig() // Force sync from server
+        getSystemConfig()
       ]);
       
       setExamHistory(history);
       const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
-      
-      // Sanitization: Ensure lastView is a valid view, otherwise default to dashboard
       const sanitizedView = (lastView && VALID_VIEWS.includes(lastView)) ? lastView : 'dashboard';
 
       if (prefs.theme) applyTheme(prefs.theme);
 
-      // Determine initial view based on intent or history
+      // Determine initial view based on intent
       let initialView = sanitizedView;
       const searchParams = new URLSearchParams(window.location.search);
-      if (searchParams.get('note') === 'new' || searchParams.get('view') === 'upload') {
-          initialView = 'upload';
-      }
-      // If `initialDoubtQuery` was set by useEffect, we force upload view
-      if (initialDoubtQuery !== null) {
+      // If we have an initial query from URL (set in useEffect), force upload view
+      if (initialDoubtQuery !== null || searchParams.get('note') === 'new') {
           initialView = 'upload';
       }
 
@@ -305,7 +280,7 @@ const App: React.FC = () => {
         ...prev,
         user: profile,
         selectedExam: prefs.selectedExam,
-        stats: statsData || INITIAL_STATS, // Fallback to avoid crash
+        stats: statsData || INITIAL_STATS, 
         showTimer: prefs.showTimer,
         darkMode: prefs.darkMode ?? true,
         language: prefs.language,
@@ -371,14 +346,13 @@ const App: React.FC = () => {
     setSessionWrong(0);
     
     try {
-      // Pass the current language state to the generator
       const qs = await generateExamQuestions(
           state.selectedExam, 
           configToUse.subject, 
           configToUse.count, 
           'Medium', 
           configToUse.topic ? [configToUse.topic] : [],
-          state.language // Passing language ('en' | 'hi')
+          state.language
       );
       setPracticeQueue(qs);
       setCurrentQIndex(0);
@@ -446,14 +420,12 @@ const App: React.FC = () => {
     <div className={`${state.darkMode ? 'dark' : ''} min-h-screen font-sans bg-white dark:bg-[#0a0814] text-slate-900 dark:text-white transition-colors selection:bg-brand-500/30 flex flex-col`}>
       <BackgroundAnimation darkMode={state.darkMode} />
       
-      {/* Offline Indicator */}
       {!isOnline && (
         <div className="bg-red-600 text-white text-[10px] font-bold text-center py-1 uppercase tracking-widest sticky top-0 z-[100] shadow-lg">
           Offline Mode Active
         </div>
       )}
 
-      {/* PWA Install Banner */}
       {showInstallBanner && deferredPrompt && (
         <PWAInstallBanner onInstall={handleInstallApp} onDismiss={handleDismissInstall} />
       )}

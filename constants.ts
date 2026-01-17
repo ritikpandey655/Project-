@@ -57,6 +57,15 @@ export const EXAM_SUBJECTS: Record<ExamType, string[]> = {
   [ExamType.POLICE_CONSTABLE]: ['General Knowledge', 'Numerical Ability', 'Reasoning', 'Mental Aptitude']
 };
 
+export const EXAM_CATEGORIES: Record<string, ExamType[]> = {
+  "Engineering & Medical": [ExamType.JEE_MAINS, ExamType.NEET, ExamType.GATE],
+  "Civil Services": [ExamType.UPSC, ExamType.STATE_PSC],
+  "School Boards": [ExamType.UP_BOARD_10, ExamType.UP_BOARD_12],
+  "SSC & Railways": [ExamType.SSC_CGL, ExamType.SSC_CHSL, ExamType.SSC_MTS, ExamType.RAILWAYS, ExamType.RRB_NTPC],
+  "Banking & Teaching": [ExamType.BANKING, ExamType.TEACHING_CTET],
+  "Defense & Police": [ExamType.NDA, ExamType.CDS, ExamType.POLICE_CONSTABLE]
+};
+
 export const TECHNICAL_EXAMS = [
   ExamType.JEE_MAINS,
   ExamType.NEET,

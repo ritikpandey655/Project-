@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ExamType } from '../types';
-import { EXAM_SUBJECTS } from '../constants';
+import { EXAM_SUBJECTS, EXAM_CATEGORIES } from '../constants';
 import { Button } from './Button';
 
 interface PracticeConfigModalProps {
@@ -28,8 +28,6 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
   const [subject, setSubject] = useState<string>('Mixed');
   const [topic, setTopic] = useState('');
   const [mode, setMode] = useState<'short' | 'medium' | 'long' | 'endless'>('medium');
-
-  const examsList = availableExams.length > 0 ? availableExams : Object.values(ExamType);
 
   // Reset subject when exam changes
   useEffect(() => {
@@ -102,8 +100,12 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
                   onChange={(e) => onExamChange(e.target.value as ExamType)}
                   className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition-colors"
                 >
-                  {examsList.map(e => (
-                    <option key={e} value={e}>{e}</option>
+                  {Object.entries(EXAM_CATEGORIES).map(([category, exams]) => (
+                    <optgroup key={category} label={category} className="bg-slate-50 dark:bg-slate-900 font-bold text-brand-600 dark:text-brand-400">
+                        {exams.map(e => (
+                            <option key={e} value={e} className="text-slate-800 dark:text-white font-medium">{e}</option>
+                        ))}
+                    </optgroup>
                   ))}
                 </select>
             )}

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, SystemLog, ExamType, Question, QuestionSource, BannerConfig } from '../types';
-import { EXAM_SUBJECTS } from '../constants';
+import { EXAM_SUBJECTS, EXAM_CATEGORIES } from '../constants';
 import { 
   getAllUsers, removeUser, toggleUserPro,
   getSystemLogs, clearSystemLogs, saveSystemConfig, getSystemConfig,
@@ -723,12 +723,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Exam</label>
+                            {/* Updated with Categorized Dropdown for Admin */}
                             <select 
                                 value={uploadExam} 
                                 onChange={e => setUploadExam(e.target.value)}
                                 className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none"
                             >
-                                {Object.keys(EXAM_SUBJECTS).map(e => <option key={e} value={e} className="text-black">{e}</option>)}
+                                {Object.entries(EXAM_CATEGORIES).map(([category, exams]) => (
+                                    <optgroup key={category} label={category} className="bg-slate-900 text-slate-400">
+                                        {exams.map(e => <option key={e} value={e} className="text-white">{e}</option>)}
+                                    </optgroup>
+                                ))}
                             </select>
                         </div>
                         {/* Hide Subject selection in Bulk Mode as it is auto-detected, show always in Text mode */}

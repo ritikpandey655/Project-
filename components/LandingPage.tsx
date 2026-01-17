@@ -13,19 +13,60 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onNavigate }) => {
   const [query, setQuery] = useState('');
 
-  // SEO Schema
+  // SEO Schema - FAQ + App
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "PYQverse",
-    "applicationCategory": "EducationalApplication",
-    "operatingSystem": "Web, Android, iOS",
-    "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "INR"
-    },
-    "description": "AI-powered exam preparation app for UPSC, JEE, NEET, and SSC. Practice Previous Year Questions (PYQ) with instant AI solutions."
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "PYQverse",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Web, Android, iOS",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "INR"
+        },
+        "description": "AI-powered exam preparation app for UPSC, JEE, NEET, and SSC. Practice Previous Year Questions (PYQ) with instant AI solutions."
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is PYQverse free?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, PYQverse offers unlimited practice questions and doubt solving for free. We also have a Pro plan for advanced analytics."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does PYQverse work offline?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, you can download practice papers and questions to use the app in offline mode."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which exams are covered?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "We cover UPSC, JEE Mains, NEET, SSC CGL, Railways, and UP Board (Class 10 & 12)."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is content available in Hindi?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Absolutely! PYQverse supports full bilingual (Hindi & English) content for all questions and explanations."
+            }
+          }
+        ]
+      }
+    ]
   };
 
   return (
@@ -131,8 +172,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
                   </div>
               </div>
 
+              {/* FAQ Section Visual */}
+              <div className="max-w-3xl mx-auto mb-16">
+                  <h3 className="text-2xl font-bold text-white mb-6 text-center">Frequently Asked Questions</h3>
+                  <div className="space-y-4">
+                      <details className="bg-white/5 rounded-2xl p-4 border border-white/10 cursor-pointer group">
+                          <summary className="font-bold text-white flex justify-between items-center list-none">
+                              Is PYQverse free?
+                              <span className="group-open:rotate-180 transition-transform">▼</span>
+                          </summary>
+                          <p className="text-slate-400 text-sm mt-2">Yes, the core practice and doubt solving features are completely free.</p>
+                      </details>
+                      <details className="bg-white/5 rounded-2xl p-4 border border-white/10 cursor-pointer group">
+                          <summary className="font-bold text-white flex justify-between items-center list-none">
+                              Does it support Hindi?
+                              <span className="group-open:rotate-180 transition-transform">▼</span>
+                          </summary>
+                          <p className="text-slate-400 text-sm mt-2">Yes, toggle the language button in the dashboard for full Hindi support.</p>
+                      </details>
+                  </div>
+              </div>
+
               <div className="text-center">
-                  <h3 className="text-2xl font-bold text-white mb-6">Why PYQverse?</h3>
                   <div className="flex flex-wrap justify-center gap-4">
                       {["Instant AI Solutions", "Exam Pattern Analytics", "Daily Streaks", "Leaderboard", "Offline Mode", "Bilingual (Hindi/English)"].map((feat, i) => (
                           <span key={i} className="px-4 py-2 rounded-full bg-slate-800 text-slate-300 text-sm font-bold border border-slate-700">

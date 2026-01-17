@@ -4,7 +4,7 @@ import { User, ExamType } from '../types';
 import { Button } from './Button';
 import { auth, db } from '../src/firebaseConfig';
 import { getExamConfig } from '../services/storageService';
-import { EXAM_SUBJECTS } from '../constants';
+import { EXAM_SUBJECTS, EXAM_CATEGORIES } from '../constants';
 import { LogoIcon } from './LogoIcon';
 
 interface SignupScreenProps {
@@ -32,6 +32,7 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
   const [isVerificationSent, setIsVerificationSent] = useState(false);
 
   useEffect(() => {
+    // We still load config but mainly rely on constant EXAM_CATEGORIES for structure
     getExamConfig().then(config => {
         const exams = Object.keys(config);
         if(exams.length > 0) {
@@ -100,9 +101,24 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
               <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold placeholder-slate-600 focus:bg-white/10 transition-all" placeholder="Password" />
               <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold placeholder-slate-600 focus:bg-white/10 transition-all" placeholder="Confirm" />
             </div>
-            <select value={selectedExam} onChange={(e) => setSelectedExam(e.target.value)} className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold appearance-none cursor-pointer hover:bg-white/10 transition-colors">
-                {availableExams.map((exam) => (<option key={exam} value={exam} className="text-slate-900">{exam}</option>))}
+            
+            {/* Categorized Dropdown */}
+            <select 
+                value={selectedExam} 
+                onChange={(e) => setSelectedExam(e.target.value)} 
+                className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white outline-none focus:border-brand-500 font-bold appearance-none cursor-pointer hover:bg-white/10 transition-colors"
+            >
+                {Object.entries(EXAM_CATEGORIES).map(([category, exams]) => (
+                    <optgroup key={category} label={category} className="bg-slate-900 text-slate-400 font-bold">
+                        {exams.map((exam) => (
+                            <option key={exam} value={exam} className="text-white font-medium pl-4">
+                                {exam}
+                            </option>
+                        ))}
+                    </optgroup>
+                ))}
             </select>
+
             <Button type="submit" isLoading={isLoading} className="w-full py-5 mt-4 !rounded-2xl !bg-gradient-to-r from-brand-600 to-brand-500 hover:!from-brand-500 hover:!to-brand-400 !text-white !font-black !text-lg shadow-[0_0_20px_rgba(91,46,255,0.3)] border border-white/10">{isLoading ? loadingText : 'Launch Universe'}</Button>
           </form>
           <div className="mt-10 pt-6 border-t border-white/5 text-center"><p className="text-sm text-slate-500 font-bold">Have an account? <button onClick={onBackToLogin} className="text-brand-400 hover:text-brand-300 transition-colors">Log In</button></p></div>
