@@ -48,6 +48,21 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
      }
   }, [isOpen]);
 
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'PYQverse - AI Exam Prep',
+          text: 'Practice Unlimited PYQs & Mock Tests for UPSC, JEE, NEET with AI. Join me on PYQverse!',
+          url: 'https://pyqverse.in'
+        });
+      } catch (err) { console.log(err); }
+    } else {
+      navigator.clipboard.writeText('https://pyqverse.in');
+      alert('Link copied to clipboard!');
+    }
+  };
+
   const handleNotifClick = () => {
     onEnableNotifications();
     setTimeout(() => {
@@ -107,6 +122,12 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                    <span className="font-bold">Install App</span>
                 </button>
               )}
+
+              {/* Share Button */}
+              <button onClick={() => { handleShare(); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-brand-50 dark:hover:bg-brand-900/10 text-brand-600 dark:text-brand-400 transition-colors">
+                 <span className="text-xl">🚀</span>
+                 <span className="font-bold">Share App</span>
+              </button>
 
               <button onClick={() => { onNavigate('privacy'); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
                  <span className="text-xl">🔒</span>

@@ -86,37 +86,52 @@ const App: React.FC = () => {
   const [generationLatency, setGenerationLatency] = useState<number>(0);
   const currentSessionId = useRef<string>(Date.now().toString());
 
-  // --- SEO: DYNAMIC TITLES & DESCRIPTIONS ---
+  // --- SEO: DYNAMIC TITLES, DESCRIPTIONS, KEYWORDS & ROBOTS ---
   useEffect(() => {
     let title = "PYQverse - India's Best AI Exam Prep App";
     let desc = "Practice unlimited Previous Year Questions (PYQ) for UPSC, SSC CGL, JEE Mains, NEET & UP Board. Features Instant AI Doubt Solving, Mock Tests, and Analytics.";
+    let keywords = "PYQverse, Exam Prep, AI Doubt Solver, Previous Year Questions, Mock Tests";
+    let robotsContent = "index, follow";
 
     if (state.view === 'practice' && state.selectedExam) {
         title = `Practice ${state.selectedExam} Questions | PYQverse`;
         desc = `Attempt ${state.selectedExam} Previous Year Questions (PYQ) and Mock Tests with instant AI explanations. Improve your accuracy for ${state.selectedExam} 2025.`;
+        keywords += `, ${state.selectedExam} PYQ, ${state.selectedExam} Mock Test, ${state.selectedExam} Practice Set`;
     } else if (state.view === 'dashboard') {
         title = "My Dashboard | PYQverse";
         desc = "Track your exam preparation progress, daily streaks, and subject-wise performance analytics on PYQverse.";
     } else if (state.view === 'upload') {
         title = "AI Doubt Solver - Instant Solutions | PYQverse";
         desc = "Stuck on a question? Upload an image or type your doubt. Our AI solves UPSC, JEE, NEET, and SSC questions instantly.";
+        keywords += ", AI Doubt Solver, Homework Helper, Exam Solution App";
     } else if (state.view === 'paperGenerator') {
         title = "Free Mock Test Generator | PYQverse";
         desc = "Generate unlimited custom mock test papers for UPSC, JEE, and NEET. Set your difficulty and topics for targeted practice.";
+        keywords += ", Mock Test Generator, Free Exam Papers, Custom Test Maker";
     } else if (state.view === 'signup') {
         title = "Join PYQverse - Start Preparing";
         desc = "Create a free account on PYQverse. Access unlimited AI practice questions and join the community of toppers.";
     } else if (state.view === 'landing') {
         title = "PYQverse - AI Exam Preparation for UPSC, JEE, NEET";
+    } else if (['profile', 'admin', 'bookmarks', 'paperView'].includes(state.view)) {
+        // Private pages: Tell Google NOT to index these to save crawl budget
+        robotsContent = "noindex, nofollow";
     }
     
     document.title = title;
     
     // Update Meta Description
     const metaDesc = document.querySelector('meta[name="description"]');
-    if (metaDesc) {
-        metaDesc.setAttribute('content', desc);
-    }
+    if (metaDesc) metaDesc.setAttribute('content', desc);
+
+    // Update Meta Keywords
+    const metaKeywords = document.querySelector('meta[name="keywords"]');
+    if (metaKeywords) metaKeywords.setAttribute('content', keywords);
+
+    // Update Robots Meta
+    const metaRobots = document.querySelector('meta[name="robots"]');
+    if (metaRobots) metaRobots.setAttribute('content', robotsContent);
+
   }, [state.view, state.selectedExam]);
 
   // --- THEME ENGINE ---
