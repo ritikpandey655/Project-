@@ -224,6 +224,7 @@ export const App: React.FC = () => {
                 sessionListenerRef.current();
                 sessionListenerRef.current = undefined;
             }
+            setIsSidebarOpen(false); // Ensure sidebar is closed on logout
             setState(s => ({ ...s, user: null, view: 'landing' }));
         }
     });
@@ -281,6 +282,7 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    setIsSidebarOpen(false); // Immediately close sidebar
     // Unsubscribe session listener first to prevent loops or errors
     if (sessionListenerRef.current) {
         sessionListenerRef.current();
