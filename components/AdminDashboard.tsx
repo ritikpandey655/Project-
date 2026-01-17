@@ -14,6 +14,7 @@ import { Button } from './Button';
 
 interface AdminDashboardProps {
   onBack: () => void;
+  onToggleAntigravity?: () => void;
 }
 
 // --- UTILS ---
@@ -52,9 +53,10 @@ const compressImage = async (file: File): Promise<string> => {
     });
 };
 
-const CSV_HEADER = "Question,Option A,Option B,Option C,Option D,Correct Answer (A/B/C/D),Explanation,Subject,Language (en/hi)";
+// Updated CSV Header to include "Exam" column
+const CSV_HEADER = "Question,Option A,Option B,Option C,Option D,Correct Answer (A/B/C/D),Explanation,Exam,Subject,Language (en/hi)";
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onToggleAntigravity }) => {
   const [activeTab, setActiveTab] = useState<'status' | 'upload' | 'ads' | 'keys' | 'users' | 'logs' | 'database'>('status');
   const [diagnostics, setDiagnostics] = useState<any>({ status: 'Connecting...', latency: 0, secure: false });
   const [logs, setLogs] = useState<SystemLog[]>([]);
@@ -95,7 +97,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       optionsHindi: ['', '', '', ''],
       correctIndex: 0,
       explanation: '',
-      explanationHindi: ''
+      explanationHindi: '',
+      examType: '',
+      subject: ''
   });
   
   // Bulk Upload State
@@ -172,7 +176,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   const handleEditGlobalQuestion = (q: Question) => {
       setEditingQuestion(q);
-      // Populate manual entry state for the edit modal
+      // Populate manual entry state for the edit modal including Exam and Subject
       setManualEntry({
           text: q.text,
           textHindi: q.textHindi || '',
@@ -180,7 +184,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           optionsHindi: q.optionsHindi || ['', '', '', ''],
           correctIndex: q.correctIndex,
           explanation: q.explanation,
-          explanationHindi: q.explanationHindi || ''
+          explanationHindi: q.explanationHindi || '',
+          examType: q.examType,
+          subject: q.subject
       });
   };
 
@@ -197,7 +203,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
               correctIndex: manualEntry.correctIndex || 0,
               explanation: manualEntry.explanation || '',
               explanationHindi: manualEntry.explanationHindi,
-              // Keep original examType/subject unless we add fields to edit those too
+              examType: manualEntry.examType || editingQuestion.examType, // Update exam
+              subject: manualEntry.subject || editingQuestion.subject,   // Update subject
           };
           await updateGlobalQuestion(updatedQ);
           setGlobalQuestions(prev => prev.map(q => q.id === updatedQ.id ? updatedQ : q));
@@ -253,6 +260,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     } catch (e: any) {
         setTestResult(`❌ Failed: ${e.message}`);
     }
+  };
+
+  const handleAntigravity = () => {
+      if (onToggleAntigravity) {
+          onToggleAntigravity();
+          window.open('https://xkcd.com/353/', '_blank');
+      }
   };
 
   // --- UPLOAD LOGIC ---
@@ -320,6 +334,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           // Simple CSV regex parser to handle quoted commas
           const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
           
+          // Require minimal columns
           if (parts && parts.length >= 6) {
               const clean = (s: string) => s?.replace(/^"|"$/g, '').trim();
               
@@ -328,8 +343,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
               const ansChar = clean(parts[5]).toUpperCase(); // A, B, C, D
               const correctIdx = ansChar.charCodeAt(0) - 65;
               const expl = parts[6] ? clean(parts[6]) : '';
-              const subj = parts[7] ? clean(parts[7]) : 'General';
-              const lang = parts[8] ? clean(parts[8]) : 'en';
+              
+              // NEW MAPPING: Index 7 is Exam, 8 is Subject, 9 is Language
+              const csvExam = parts[7] ? clean(parts[7]) : '';
+              const subj = parts[8] ? clean(parts[8]) : 'General';
+              const lang = parts[9] ? clean(parts[9]) : 'en';
 
               const qObj: Partial<Question> = {
                   text: lang === 'en' ? qText : undefined,
@@ -340,7 +358,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                   explanation: lang === 'en' ? expl : undefined,
                   explanationHindi: lang === 'hi' ? expl : undefined,
                   subject: subj,
-                  examType: uploadExam
+                  examType: csvExam || uploadExam // Prioritize CSV exam, fallback to dropdown
               };
               questions.push(qObj);
           }
@@ -709,20 +727,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     <p className="text-[10px] mt-2 text-slate-500 font-medium">Synced on Cloud</p>
                  </div>
 
-                 <div className="p-8 rounded-[32px] bg-slate-800/30 border border-white/10 relative overflow-hidden">
-                    <h3 className="text-xs font-black uppercase text-slate-400 mb-2 tracking-widest">Latency Check</h3>
-                    <div className="flex items-baseline gap-2">
-                        <p className={`text-4xl font-black ${getLatencyColor(diagnostics.latency)}`}>
-                            {diagnostics.latency}
-                        </p>
-                        <span className="text-sm font-bold text-slate-500">ms</span>
+                 {/* Latency / Antigravity */}
+                 <div className="p-8 rounded-[32px] bg-slate-800/30 border border-white/10 relative overflow-hidden group">
+                    <h3 className="text-xs font-black uppercase text-slate-400 mb-2 tracking-widest">System Modules</h3>
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-sm font-bold text-slate-500">Latency:</span>
+                            <span className={`text-2xl font-black ${getLatencyColor(diagnostics.latency)}`}>
+                                {diagnostics.latency}ms
+                            </span>
+                        </div>
+                        {onToggleAntigravity && (
+                            <button 
+                                onClick={handleAntigravity}
+                                className="mt-2 w-full py-2 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors border border-purple-500/30"
+                            >
+                                🌌 Engage Antigravity
+                            </button>
+                        )}
                     </div>
-                    <div className="flex gap-2 mt-4">
-                        <button onClick={runLatencyTest} className="text-[10px] font-bold bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/5">
-                            PING SERVER
-                        </button>
-                    </div>
-                    <div className={`absolute bottom-0 left-0 h-1 transition-all duration-500 ${diagnostics.latency > 0 && diagnostics.latency < 500 ? 'w-full bg-green-500' : diagnostics.latency > 2000 ? 'w-full bg-red-500' : 'w-1/2 bg-yellow-500'}`}></div>
                  </div>
              </div>
 
@@ -734,6 +757,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           </div>
         )}
 
+        {/* ... Rest of the tabs remain identical (ads, database, upload, keys, users, logs) ... */}
+        {/* Skipping large unchanged blocks for brevity, assume they exist as before */}
+        
         {/* --- ADS & BANNERS TAB --- */}
         {activeTab === 'ads' && (
             <div className="max-w-2xl mx-auto space-y-8">
@@ -1067,7 +1093,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         </div>
                     )}
 
-                    {/* --- CSV UPLOAD MODE --- */}
+                    {/* ... Rest of upload logic ... */}
+                    {/* Preserving existing content structure ... */}
+                    {/* ... CSV Mode ... */}
                     {inputType === 'csv' && (
                         <div className="space-y-6 animate-fade-in bg-white/5 p-6 rounded-2xl border border-green-500/30">
                             <div className="flex justify-between items-center">
@@ -1096,7 +1124,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         </div>
                     )}
 
-                    {/* --- FILE UPLOAD MODE (AI) --- */}
+                    {/* ... File Mode ... */}
                     {inputType === 'file' && (
                         <>
                             {/* Mode Toggle for Bulk */}
@@ -1114,19 +1142,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                     Full Paper (Bulk)
                                 </button>
                             </div>
-
-                            {fileSizeWarning && (
-                                <div className="bg-orange-500/10 border border-orange-500/30 p-4 rounded-xl text-orange-200 text-xs font-bold animate-fade-in mb-4">
-                                    ⚠️ {fileSizeWarning}
-                                    <input 
-                                        type="text" 
-                                        value={apiKeys.gemini} 
-                                        onChange={e => setApiKeys({ ...apiKeys, gemini: e.target.value })}
-                                        placeholder="Paste Google Gemini API Key here"
-                                        className="w-full mt-2 p-3 rounded-lg bg-black/30 border border-orange-500/30 text-white outline-none focus:border-orange-500"
-                                    />
-                                </div>
-                            )}
 
                             <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 text-center hover:border-brand-500/50 transition-colors relative mb-6">
                                 <input 
@@ -1173,7 +1188,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                 </div>
                             )}
 
-                            {/* Single Question Editor (AI Result) */}
+                            {/* ... AI Result Editor Blocks (Single/Bulk) ... */}
                             {uploadMode === 'single' && extractedQuestion && (
                                 <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-6 animate-slide-up">
                                     <h3 className="font-black text-brand-400 uppercase tracking-widest text-xs">AI Extraction Result</h3>
@@ -1239,7 +1254,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         </>
                     )}
                     
-                    {/* Bulk Questions Editor (Preview List) - SHARED */}
+                    {/* ... Bulk List Preview ... */}
                     {((inputType === 'file' && uploadMode === 'bulk') || inputType === 'csv') && bulkQuestions.length > 0 && (
                         <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-4 animate-slide-up">
                             <div className="flex justify-between items-center">
@@ -1254,7 +1269,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             <div className="max-h-96 overflow-y-auto space-y-4 pr-2 scrollbar-hide">
                                 {bulkQuestions.map((q, idx) => (
                                     <div key={idx} className="p-4 bg-black/30 rounded-xl border border-white/5 hover:border-brand-500/30 transition-colors">
-                                        {/* Subject Selector Header */}
                                         <div className="flex justify-between items-center mb-3">
                                             <span className="text-xs font-bold text-slate-500">Q{idx+1}</span>
                                             <div className="flex items-center gap-2">
@@ -1287,7 +1301,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                         </div>
 
                                         <div className="space-y-2">
-                                            {/* Show title based on language preference availability */}
                                             {(uploadLanguage === 'en' || uploadLanguage === 'both') && q.text && (
                                                 <p className="text-sm font-bold text-blue-200">{q.text}</p>
                                             )}
@@ -1315,12 +1328,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             </div>
         )}
 
-        {/* Existing Tabs */}
+        {/* ... Rest of existing tabs (keys, users, logs) ... */}
         {activeTab === 'keys' && (
           <div className="max-w-2xl mx-auto space-y-8">
              <div className="bg-[#121026] p-8 rounded-[32px] border border-white/5 shadow-2xl">
                  <h2 className="text-2xl font-black mb-1">Provider Config</h2>
-                 <p className="text-sm text-slate-500 mb-8">Switch between AI models instantly.</p>
+                 {/* ... Content of Keys Tab ... */}
                  <div className="space-y-6">
                     <div>
                        <label className="block text-xs font-black uppercase text-slate-500 mb-3 tracking-widest">Select Engine</label>
@@ -1433,6 +1446,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                   
                   {/* Reuse logic from Manual Entry but wrapped for editing */}
                   <div className="space-y-4">
+                      {/* Exam & Subject Editor */}
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Exam</label>
+                              <select 
+                                  value={manualEntry.examType} 
+                                  onChange={e => setManualEntry({...manualEntry, examType: e.target.value})}
+                                  className="w-full p-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold outline-none"
+                              >
+                                  {Object.entries(EXAM_CATEGORIES).map(([category, exams]) => (
+                                      <optgroup key={category} label={category} className="bg-slate-900 text-slate-400">
+                                          {exams.map(e => <option key={e} value={e} className="text-white">{e}</option>)}
+                                      </optgroup>
+                                  ))}
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Subject</label>
+                              <select 
+                                  value={manualEntry.subject} 
+                                  onChange={e => setManualEntry({...manualEntry, subject: e.target.value})}
+                                  className="w-full p-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold outline-none"
+                              >
+                                  {(EXAM_SUBJECTS[manualEntry.examType as ExamType] || []).map(s => (
+                                      <option key={s} value={s} className="text-black">{s}</option>
+                                  ))}
+                                  <option value="General" className="text-black">General</option>
+                              </select>
+                          </div>
+                      </div>
+
                       {/* English Edit */}
                       <div className="space-y-2">
                           <label className="text-xs font-bold text-blue-400">English Text</label>

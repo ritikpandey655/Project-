@@ -90,6 +90,7 @@ const App: React.FC = () => {
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionWrong, setSessionWrong] = useState(0);
   const [examHistory, setExamHistory] = useState<ExamResult[]>([]);
+  const [antigravityMode, setAntigravityMode] = useState(false); // New Antigravity State
   
   // PWA State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -97,6 +98,15 @@ const App: React.FC = () => {
   
   const [generationLatency, setGenerationLatency] = useState<number>(0);
   const currentSessionId = useRef<string>(Date.now().toString());
+
+  // --- ANTIGRAVITY EFFECT INJECTOR ---
+  useEffect(() => {
+    if (antigravityMode) {
+      document.body.classList.add('antigravity-active');
+    } else {
+      document.body.classList.remove('antigravity-active');
+    }
+  }, [antigravityMode]);
 
   // --- SEO: DYNAMIC TITLES & META ---
   useEffect(() => {
@@ -556,7 +566,7 @@ const App: React.FC = () => {
           {state.view === 'analytics' && <SmartAnalytics stats={state.stats} history={examHistory} onBack={() => navigateTo('dashboard')} />}
           {state.view === 'bookmarks' && state.user && <BookmarksList userId={state.user.id} onBack={() => navigateTo('dashboard')} />}
           {state.view === 'profile' && state.user && state.selectedExam && <ProfileScreen user={state.user} stats={state.stats} selectedExam={state.selectedExam} onBack={() => navigateTo('dashboard')} onLogout={handleLogout} onUpdateUser={(u) => saveUser(u)} />}
-          {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} />}
+          {state.view === 'admin' && <AdminDashboard onBack={() => navigateTo('dashboard')} onToggleAntigravity={() => setAntigravityMode(!antigravityMode)} />}
           {state.view === 'privacy' && <PrivacyPolicy onBack={() => navigateTo(state.user ? 'dashboard' : 'landing')} />}
           {state.view === 'terms' && <TermsOfService onBack={() => navigateTo(state.user ? 'dashboard' : 'landing')} />}
         </div>
