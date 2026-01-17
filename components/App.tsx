@@ -53,6 +53,18 @@ interface PracticeConfig {
   topic?: string;
 }
 
+// --- SEO: RICH KEYWORD MAPPING ---
+const SEO_RICH_KEYWORDS: Record<string, string> = {
+  'UPSC': 'IAS Preparation, UPSC Prelims 2025, UPSC Mains Syllabus, CSE Mock Test, Civil Services PYQ',
+  'JEE Mains': 'IIT JEE Preparation, JEE Advanced, PCM Formulas, Engineering Entrance, NTA Mock Test',
+  'NEET': 'NEET UG 2025, Biology NCERT, Medical Entrance Exam, NEET Physics PYQ, NEET Chemistry',
+  'SSC CGL': 'SSC CGL Tier 1, SSC Reasoning, Quantitative Aptitude, Govt Job Exam Prep, SSC CHSL',
+  'UP Board Class 10': 'UP Board High School, UPMSP Model Paper, Class 10 Hindi Medium, UP Board Result',
+  'UP Board Class 12': 'UP Board Intermediate, UPMSP Class 12 Syllabus, UP Board Physics Math, Hindi Medium Exam',
+  'Banking': 'IBPS PO, SBI Clerk, Banking Awareness, Quantitative Aptitude for Bank Exams',
+  'Railways': 'RRB NTPC, Railway Group D, General Science for Railways, RRB ALP',
+};
+
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     view: 'landing', 
@@ -90,45 +102,49 @@ const App: React.FC = () => {
   useEffect(() => {
     let title = "PYQverse - India's Best AI Exam Prep App";
     let desc = "Practice unlimited Previous Year Questions (PYQ) for UPSC, SSC CGL, JEE Mains, NEET & UP Board. Features Instant AI Doubt Solving, Mock Tests, and Analytics.";
-    let keywords = "PYQverse, Exam Prep, AI Doubt Solver, Previous Year Questions, Mock Tests";
+    let keywords = "PYQverse, Exam Prep, AI Doubt Solver, Previous Year Questions, Mock Tests, Online Test Series, Free Mock Test";
     let robotsContent = "index, follow";
 
+    // 1. Dynamic Logic based on View & Exam
     if (state.view === 'practice' && state.selectedExam) {
-        title = `Practice ${state.selectedExam} Questions | PYQverse`;
+        title = `Practice ${state.selectedExam} Questions 2025 | PYQverse`;
         desc = `Attempt ${state.selectedExam} Previous Year Questions (PYQ) and Mock Tests with instant AI explanations. Improve your accuracy for ${state.selectedExam} 2025.`;
-        keywords += `, ${state.selectedExam} PYQ, ${state.selectedExam} Mock Test, ${state.selectedExam} Practice Set`;
+        
+        // Add Specific Keywords
+        const richKeywords = SEO_RICH_KEYWORDS[state.selectedExam] || `${state.selectedExam} Syllabus, ${state.selectedExam} Preparation`;
+        keywords += `, ${state.selectedExam} PYQ, ${state.selectedExam} Mock Test, ${richKeywords}`;
+
     } else if (state.view === 'dashboard') {
         title = "My Dashboard | PYQverse";
         desc = "Track your exam preparation progress, daily streaks, and subject-wise performance analytics on PYQverse.";
     } else if (state.view === 'upload') {
         title = "AI Doubt Solver - Instant Solutions | PYQverse";
         desc = "Stuck on a question? Upload an image or type your doubt. Our AI solves UPSC, JEE, NEET, and SSC questions instantly.";
-        keywords += ", AI Doubt Solver, Homework Helper, Exam Solution App";
+        keywords += ", AI Doubt Solver, Homework Helper, Exam Solution App, Scan Question";
     } else if (state.view === 'paperGenerator') {
         title = "Free Mock Test Generator | PYQverse";
         desc = "Generate unlimited custom mock test papers for UPSC, JEE, and NEET. Set your difficulty and topics for targeted practice.";
-        keywords += ", Mock Test Generator, Free Exam Papers, Custom Test Maker";
+        keywords += ", Mock Test Generator, Free Exam Papers, Custom Test Maker, Printable Exam Papers";
     } else if (state.view === 'signup') {
         title = "Join PYQverse - Start Preparing";
         desc = "Create a free account on PYQverse. Access unlimited AI practice questions and join the community of toppers.";
     } else if (state.view === 'landing') {
         title = "PYQverse - AI Exam Preparation for UPSC, JEE, NEET";
+        keywords += ", UPSC, JEE, NEET, SSC, UP Board, Best Exam App";
     } else if (['profile', 'admin', 'bookmarks', 'paperView'].includes(state.view)) {
         // Private pages: Tell Google NOT to index these to save crawl budget
         robotsContent = "noindex, nofollow";
     }
     
+    // 2. Apply to DOM
     document.title = title;
     
-    // Update Meta Description
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) metaDesc.setAttribute('content', desc);
 
-    // Update Meta Keywords
     const metaKeywords = document.querySelector('meta[name="keywords"]');
     if (metaKeywords) metaKeywords.setAttribute('content', keywords);
 
-    // Update Robots Meta
     const metaRobots = document.querySelector('meta[name="robots"]');
     if (metaRobots) metaRobots.setAttribute('content', robotsContent);
 
