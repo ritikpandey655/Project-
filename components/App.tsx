@@ -99,6 +99,7 @@ export const App: React.FC = () => {
   
   const [generationLatency, setGenerationLatency] = useState<number>(0);
   const currentSessionId = useRef<string>(Date.now().toString());
+  const sessionListenerRef = useRef<() => void>();
 
   // --- SEO: DYNAMIC TITLES & META ---
   useEffect(() => {
@@ -175,11 +176,33 @@ export const App: React.FC = () => {
             
             setExamHistory(history);
             
-            // Session Tracking
+            // --- ONE DEVICE LOGIN LOGIC ---
+            // 1. Generate new session ID for THIS device/tab
+            const newSessionId = Date.now().toString() + "-" + Math.random().toString(36).substring(2);
+            currentSessionId.current = newSessionId;
+            
+            // 2. Update DB with this new ID
+            await updateUserSession(userId, newSessionId);
             updateUserActivity(userId);
-            updateUserSession(userId, currentSessionId.current);
+
+            // 3. Listen for changes. If DB changes to a DIFF session ID, it means another device logged in.
+            if (sessionListenerRef.current) sessionListenerRef.current(); // Unsub prev
+            sessionListenerRef.current = db.collection("users").doc(userId).onSnapshot((doc) => {
+                const data = doc.data();
+                if (data && data.sessionId && data.sessionId !== currentSessionId.current) {
+                    // Session Mismatch detected!
+                    console.warn("Session mismatch! Logging out.");
+                    alert("You have been logged out because your account was accessed from another device.");
+                    handleLogout();
+                }
+            });
 
         } else {
+            // Clean up session listener on logout
+            if (sessionListenerRef.current) {
+                sessionListenerRef.current();
+                sessionListenerRef.current = undefined;
+            }
             setState(s => ({ ...s, user: null, view: 'landing' }));
         }
     });
@@ -202,6 +225,7 @@ export const App: React.FC = () => {
     return () => {
         unsubscribe();
         unsubConfig();
+        if (sessionListenerRef.current) sessionListenerRef.current();
     };
   }, []);
 
@@ -231,6 +255,11 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    // Unsubscribe session listener first to prevent loop
+    if (sessionListenerRef.current) {
+        sessionListenerRef.current();
+        sessionListenerRef.current = undefined;
+    }
     await auth.signOut();
     localStorage.removeItem(LAST_VIEW_KEY);
     setState(s => ({ ...s, user: null, view: 'landing' }));
@@ -533,13 +562,25 @@ export const App: React.FC = () => {
             
             {/* Header / Sidebar Toggle (Visible only when logged in) */}
             {state.user && state.view !== 'landing' && state.view !== 'practice' && state.view !== 'paperView' && (
-                <div className="p-4 flex justify-between items-center sticky top-0 z-40">
-                    <button 
-                       onClick={() => setIsSidebarOpen(true)}
-                       className="p-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-xl shadow-sm border border-white/20 hover:scale-105 transition-transform"
-                    >
-                        <LogoIcon size="sm" />
-                    </button>
+                <div className="p-4 flex justify-between items-center sticky top-0 z-40 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-b border-white/5 shadow-sm">
+                    <div className="flex items-center gap-4">
+                        {/* Separate Menu Button */}
+                        <button 
+                           onClick={() => setIsSidebarOpen(true)}
+                           className="p-2 bg-white/80 dark:bg-slate-800/80 rounded-xl shadow-sm border border-slate-200 dark:border-white/10 hover:scale-105 transition-transform text-slate-700 dark:text-white"
+                           aria-label="Menu"
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+
+                        {/* Branding / Logo - Now Just Navigation */}
+                        <button onClick={() => navigate('dashboard')} className="flex items-center gap-2 group">
+                            <LogoIcon size="sm" />
+                            <span className="font-display font-black text-xl text-slate-800 dark:text-white tracking-tight hidden sm:block group-hover:text-brand-500 transition-colors">PYQverse</span>
+                        </button>
+                    </div>
                     {/* Add any top-right actions here if needed */}
                 </div>
             )}
