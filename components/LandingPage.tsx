@@ -10,9 +10,20 @@ interface LandingPageProps {
   onNavigate: (view: any) => void;
 }
 
+const MANTRAS = [
+  { text: "कर्मण्येवाधिकारस्ते मा फलेषु कदाचन", meaning: "Focus on your duty, not the results." },
+  { text: "अभ्यासेन तु कौन्तेय वैराग्येण च गृह्यते", meaning: "Success comes through consistent practice." },
+  { text: "उद्धरेदात्मनात्मानम्", meaning: "Elevate yourself by your own efforts." },
+  { text: "न हि ज्ञानेन सदृशं पवित्रमिह विद्यते", meaning: "Nothing in this world is as pure as knowledge." },
+  { text: "योगः कर्मसु कौशलम्", meaning: "Perfection in action is the true Yoga." },
+  { text: "श्रद्धावान् लभते ज्ञानम्", meaning: "He who has faith and focus attains knowledge." }
+];
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onNavigate }) => {
   const [activeTab, setActiveTab] = useState('solve');
   const [typingText, setTypingText] = useState('');
+  const [mantraIndex, setMantraIndex] = useState(0);
+  const [showMeaning, setShowMeaning] = useState(false);
   const words = ["UPSC", "JEE Mains", "NEET", "SSC CGL", "Boards"];
   
   // Typing Effect
@@ -42,6 +53,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
     const timer = setInterval(type, isDeleting ? 100 : 200);
     return () => clearInterval(timer);
   }, []);
+
+  // Mantra Rotation Effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShowMeaning(prev => !prev); // Toggle between Sanskrit and Meaning
+    }, 4000); 
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Change Mantra when showing Sanskrit again
+  useEffect(() => {
+    if (!showMeaning) {
+       const timeout = setTimeout(() => {
+          setMantraIndex((prev) => (prev + 1) % MANTRAS.length);
+       }, 500); // Small delay to sync with fade
+       return () => clearTimeout(timeout);
+    }
+  }, [showMeaning]);
 
   // SEO Schema
   const structuredData = {
@@ -83,9 +113,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
 
       {/* --- HERO SECTION --- */}
       <section className="relative z-10 pt-36 pb-20 px-6 text-center max-w-5xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-50 border border-brand-100 text-brand-700 text-xs font-bold uppercase tracking-widest mb-8 animate-fade-in shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
-          Handmade Questions
+        
+        {/* Dynamic Mantra Pill */}
+        <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-50 border border-orange-200 text-orange-800 text-xs font-bold uppercase tracking-widest mb-8 shadow-sm hover:shadow-md transition-all cursor-default max-w-full sm:max-w-xl mx-auto overflow-hidden">
+          <span className="text-lg animate-pulse">🕉️</span>
+          <span className="truncate transition-opacity duration-500 animate-fade-in key={showMeaning ? 'meaning' : 'sanskrit'}">
+             {showMeaning ? MANTRAS[mantraIndex].meaning : MANTRAS[mantraIndex].text}
+          </span>
         </div>
         
         <h1 className="text-5xl sm:text-7xl md:text-8xl font-display font-black leading-[0.9] tracking-tighter mb-8 animate-slide-up text-slate-900">
