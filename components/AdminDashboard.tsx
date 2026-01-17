@@ -1,12 +1,11 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, SystemLog, ExamType, Question, QuestionSource, BannerConfig } from '../types';
 import { EXAM_SUBJECTS, EXAM_CATEGORIES } from '../constants';
 import { 
   getAllUsers, removeUser, toggleUserPro,
   getSystemLogs, clearSystemLogs, saveSystemConfig, getSystemConfig,
   saveApiKeys, getApiKeys, saveGlobalQuestion, saveGlobalQuestionsBulk, getGlobalStats,
-  getAllGlobalQuestions, deleteGlobalQuestion,
+  getAllGlobalQuestions, deleteGlobalQuestion, updateGlobalQuestion,
   saveBannerConfig, getBannerConfig
 } from '../services/storageService';
 import { checkAIConnectivity, generateWithAI, analyzeImageForQuestion, extractQuestionsFromPaper } from '../services/geminiService';
@@ -52,6 +51,8 @@ const compressImage = async (file: File): Promise<string> => {
     });
 };
 
+const CSV_HEADER = "Question,Option A,Option B,Option C,Option D,Correct Answer (A/B/C/D),Explanation,Subject,Language (en/hi)";
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<'status' | 'upload' | 'ads' | 'keys' | 'users' | 'logs' | 'database'>('status');
   const [diagnostics, setDiagnostics] = useState<any>({ status: 'Connecting...', latency: 0, secure: false });
@@ -72,6 +73,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [globalQuestions, setGlobalQuestions] = useState<Question[]>([]);
   const [lastQuestionDoc, setLastQuestionDoc] = useState<any>(null);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
   // Upload State
   const [uploadExam, setUploadExam] = useState<string>('UPSC');
@@ -82,7 +84,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [fileSizeWarning, setFileSizeWarning] = useState<string | null>(null);
   
   // Input Method State (File vs Manual Text)
-  const [inputType, setInputType] = useState<'file' | 'text'>('file');
+  const [inputType, setInputType] = useState<'file' | 'text' | 'csv'>('file');
   const [uploadLanguage, setUploadLanguage] = useState<'en' | 'hi' | 'both'>('en'); // New Language State
 
   const [manualEntry, setManualEntry] = useState<Partial<Question>>({
@@ -100,6 +102,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [bulkQuestions, setBulkQuestions] = useState<Partial<Question>[]>([]);
   
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Cropper State
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [cropArea, setCropArea] = useState<{x: number, y: number, w: number, h: number} | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const cropStartRef = useRef<{x: number, y: number} | null>(null);
 
   useEffect(() => {
     loadData();
@@ -161,6 +169,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     }
   };
 
+  const handleEditGlobalQuestion = (q: Question) => {
+      setEditingQuestion(q);
+      // Populate manual entry state for the edit modal
+      setManualEntry({
+          text: q.text,
+          textHindi: q.textHindi || '',
+          options: q.options || ['', '', '', ''],
+          optionsHindi: q.optionsHindi || ['', '', '', ''],
+          correctIndex: q.correctIndex,
+          explanation: q.explanation,
+          explanationHindi: q.explanationHindi || ''
+      });
+  };
+
+  const handleSaveEditedQuestion = async () => {
+      if (!editingQuestion) return;
+      setIsProcessing(true);
+      try {
+          const updatedQ: Question = {
+              ...editingQuestion,
+              text: manualEntry.text || '',
+              textHindi: manualEntry.textHindi,
+              options: manualEntry.options || [],
+              optionsHindi: manualEntry.optionsHindi,
+              correctIndex: manualEntry.correctIndex || 0,
+              explanation: manualEntry.explanation || '',
+              explanationHindi: manualEntry.explanationHindi,
+              // Keep original examType/subject unless we add fields to edit those too
+          };
+          await updateGlobalQuestion(updatedQ);
+          setGlobalQuestions(prev => prev.map(q => q.id === updatedQ.id ? updatedQ : q));
+          setEditingQuestion(null);
+          alert("Question Updated!");
+      } catch (e) {
+          alert("Update Failed");
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
   const handleSaveConfig = async () => {
     setIsLoading(true);
     await saveSystemConfig(config);
@@ -211,6 +259,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Handle CSV
+      if (inputType === 'csv' && file.name.endsWith('.csv')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+              const text = e.target?.result as string;
+              processCSV(text);
+          };
+          reader.readAsText(file);
+          return;
+      }
+
       setSelectedFile(file);
       setExtractedQuestion(null);
       setBulkQuestions([]);
@@ -246,6 +306,118 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           reader.readAsDataURL(file);
       }
     }
+  };
+
+  const processCSV = (text: string) => {
+      const lines = text.split('\n');
+      const questions: Partial<Question>[] = [];
+      // Skip header
+      for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          // Simple CSV regex parser to handle quoted commas
+          const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+          
+          if (parts && parts.length >= 6) {
+              const clean = (s: string) => s?.replace(/^"|"$/g, '').trim();
+              
+              const qText = clean(parts[0]);
+              const opts = [clean(parts[1]), clean(parts[2]), clean(parts[3]), clean(parts[4])];
+              const ansChar = clean(parts[5]).toUpperCase(); // A, B, C, D
+              const correctIdx = ansChar.charCodeAt(0) - 65;
+              const expl = parts[6] ? clean(parts[6]) : '';
+              const subj = parts[7] ? clean(parts[7]) : 'General';
+              const lang = parts[8] ? clean(parts[8]) : 'en';
+
+              const qObj: Partial<Question> = {
+                  text: lang === 'en' ? qText : undefined,
+                  textHindi: lang === 'hi' ? qText : undefined,
+                  options: lang === 'en' ? opts : undefined,
+                  optionsHindi: lang === 'hi' ? opts : undefined,
+                  correctIndex: (correctIdx >= 0 && correctIdx <= 3) ? correctIdx : 0,
+                  explanation: lang === 'en' ? expl : undefined,
+                  explanationHindi: lang === 'hi' ? expl : undefined,
+                  subject: subj,
+                  examType: uploadExam
+              };
+              questions.push(qObj);
+          }
+      }
+      if (questions.length > 0) {
+          setBulkQuestions(questions);
+          setUploadMode('bulk');
+          alert(`Parsed ${questions.length} questions from CSV!`);
+      } else {
+          alert("Failed to parse CSV. Please check the format.");
+      }
+  };
+
+  const downloadCSVTemplate = () => {
+      const blob = new Blob([CSV_HEADER], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pyqverse_upload_template.csv';
+      a.click();
+  };
+
+  // --- CROPPER LOGIC ---
+  const handleCropStart = (e: React.MouseEvent) => {
+      const rect = imgRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      cropStartRef.current = { x, y };
+      setCropArea({ x, y, w: 0, h: 0 });
+  };
+
+  const handleCropMove = (e: React.MouseEvent) => {
+      if (!cropStartRef.current || !imgRef.current) return;
+      const rect = imgRef.current.getBoundingClientRect();
+      const currentX = e.clientX - rect.left;
+      const currentY = e.clientY - rect.top;
+      
+      setCropArea({
+          x: Math.min(currentX, cropStartRef.current.x),
+          y: Math.min(currentY, cropStartRef.current.y),
+          w: Math.abs(currentX - cropStartRef.current.x),
+          h: Math.abs(currentY - cropStartRef.current.y)
+      });
+  };
+
+  const handleCropEnd = () => {
+      cropStartRef.current = null;
+  };
+
+  const performCrop = () => {
+      if (!imgRef.current || !cropArea || cropArea.w < 10 || cropArea.h < 10) return;
+      
+      const canvas = document.createElement('canvas');
+      const scaleX = imgRef.current.naturalWidth / imgRef.current.width;
+      const scaleY = imgRef.current.naturalHeight / imgRef.current.height;
+      
+      canvas.width = cropArea.w * scaleX;
+      canvas.height = cropArea.h * scaleY;
+      
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+          ctx.drawImage(
+              imgRef.current,
+              cropArea.x * scaleX,
+              cropArea.y * scaleY,
+              cropArea.w * scaleX,
+              cropArea.h * scaleY,
+              0,
+              0,
+              canvas.width,
+              canvas.height
+          );
+          const croppedDataUrl = canvas.toDataURL('image/jpeg');
+          setPreviewUrl(croppedDataUrl);
+          setShowCropModal(false);
+          setCropArea(null);
+      }
   };
 
   const handleExtract = async () => {
@@ -385,7 +557,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
             setFileSizeWarning(null);
 
         } else if (uploadMode === 'bulk' && bulkQuestions.length > 0) {
-            // AI Bulk Save
+            // AI/CSV Bulk Save
             const finalQuestions: Question[] = bulkQuestions.map((q, idx) => ({
                 id: `manual-bulk-${Date.now()}-${idx}`,
                 text: q.text || q.textHindi || '',
@@ -395,7 +567,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                 correctIndex: q.correctIndex || 0,
                 explanation: q.explanation || '',
                 explanationHindi: q.explanationHindi,
-                examType: uploadExam,
+                examType: q.examType || uploadExam,
                 subject: q.subject || 'General', 
                 source: QuestionSource.MANUAL,
                 isHandwritten: true,
@@ -491,7 +663,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       <div className="flex bg-[#121026]/50 border-b border-white/5 p-1 gap-1">
         {[
             {id: 'status', label: 'Dashboard'},
-            {id: 'upload', label: 'Upload Manual'},
+            {id: 'upload', label: 'Upload Data'},
             {id: 'ads', label: 'Ads & Banners'},
             {id: 'database', label: 'Global DB'},
             {id: 'keys', label: 'Keys & Security'}, 
@@ -666,13 +838,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                     </div>
                                     <p className="text-sm font-bold text-white/90 line-clamp-2 mb-2">{displayTitle}</p>
                                 </div>
-                                <button 
-                                    onClick={() => handleDeleteGlobalQuestion(q.id)}
-                                    className="self-start text-red-400 hover:text-red-300 p-2 bg-red-500/10 rounded-lg hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    title="Delete Permanently"
-                                >
-                                    🗑️
-                                </button>
+                                <div className="flex flex-col gap-2">
+                                    <button 
+                                        onClick={() => handleEditGlobalQuestion(q)}
+                                        className="text-brand-400 hover:text-brand-300 p-2 bg-brand-500/10 rounded-lg hover:bg-brand-500/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title="Edit Question"
+                                    >
+                                        ✏️
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteGlobalQuestion(q.id)}
+                                        className="text-red-400 hover:text-red-300 p-2 bg-red-500/10 rounded-lg hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title="Delete Permanently"
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
                             </div>
                         );
                     })}
@@ -700,7 +881,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     <div className="flex justify-between items-start">
                         <div>
                             <h2 className="text-2xl font-black mb-1">Add Question Data</h2>
-                            <p className="text-sm text-slate-500">Use AI Extraction or Manual Entry if API Limit Exceeded.</p>
+                            <p className="text-sm text-slate-500">Use AI Extraction, CSV Bulk, or Manual Entry.</p>
                         </div>
                     </div>
 
@@ -717,6 +898,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                             className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${inputType === 'text' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
                         >
                             ✍️ Manual Entry (Text)
+                        </button>
+                        <button 
+                            onClick={() => setInputType('csv')}
+                            className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${inputType === 'csv' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            📄 CSV Upload (Bulk)
                         </button>
                     </div>
 
@@ -752,29 +939,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                     </div>
 
                     {/* Language Selector */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Content Language</label>
-                        <div className="flex bg-white/5 rounded-xl p-1">
-                            <button 
-                                onClick={() => setUploadLanguage('en')}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${uploadLanguage === 'en' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                            >
-                                English
-                            </button>
-                            <button 
-                                onClick={() => setUploadLanguage('hi')}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${uploadLanguage === 'hi' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                            >
-                                Hindi
-                            </button>
-                            <button 
-                                onClick={() => setUploadLanguage('both')}
-                                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${uploadLanguage === 'both' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                            >
-                                Bilingual (Both)
-                            </button>
+                    {inputType !== 'csv' && (
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Content Language</label>
+                            <div className="flex bg-white/5 rounded-xl p-1">
+                                <button 
+                                    onClick={() => setUploadLanguage('en')}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${uploadLanguage === 'en' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    English
+                                </button>
+                                <button 
+                                    onClick={() => setUploadLanguage('hi')}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${uploadLanguage === 'hi' ? 'bg-orange-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    Hindi
+                                </button>
+                                <button 
+                                    onClick={() => setUploadLanguage('both')}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${uploadLanguage === 'both' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    Bilingual (Both)
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* --- MANUAL TEXT ENTRY MODE --- */}
                     {inputType === 'text' && (
@@ -877,6 +1066,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                         </div>
                     )}
 
+                    {/* --- CSV UPLOAD MODE --- */}
+                    {inputType === 'csv' && (
+                        <div className="space-y-6 animate-fade-in bg-white/5 p-6 rounded-2xl border border-green-500/30">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-xs font-black uppercase text-green-400 tracking-widest">CSV Bulk Uploader</h3>
+                                <button onClick={downloadCSVTemplate} className="text-[10px] bg-green-500/20 text-green-300 px-3 py-1 rounded border border-green-500/50 hover:bg-green-500/30">
+                                    Download Template
+                                </button>
+                            </div>
+                            
+                            <p className="text-xs text-slate-400">
+                                Upload a CSV file to import multiple questions at once. Make sure to follow the template structure.
+                            </p>
+
+                            <div className="border-2 border-dashed border-green-500/30 rounded-2xl p-8 text-center hover:border-green-500/50 transition-colors relative">
+                                <input 
+                                    type="file" 
+                                    accept=".csv" 
+                                    onChange={handleFileSelect}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                />
+                                <div className="pointer-events-none">
+                                    <span className="text-4xl mb-2 block">📄</span>
+                                    <span className="font-bold text-green-400">Click to Upload CSV</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* --- FILE UPLOAD MODE (AI) --- */}
                     {inputType === 'file' && (
                         <>
@@ -926,9 +1144,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
                             {previewUrl && (
                                 <div className="animate-fade-in space-y-6">
-                                    <div className="p-2 bg-white/5 rounded-xl border border-white/5">
+                                    <div className="p-2 bg-white/5 rounded-xl border border-white/5 relative group">
                                         {selectedFile?.type.includes('image') ? (
-                                            <img src={previewUrl} alt="Preview" className="max-h-64 mx-auto rounded-lg" />
+                                            <>
+                                                <img src={previewUrl} alt="Preview" className="max-h-64 mx-auto rounded-lg" />
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                                                    <button 
+                                                        onClick={() => setShowCropModal(true)}
+                                                        className="px-4 py-2 bg-white text-black font-bold rounded-lg shadow-lg hover:bg-slate-200 transition-colors"
+                                                    >
+                                                        ✂️ Crop Image
+                                                    </button>
+                                                </div>
+                                            </>
                                         ) : (
                                             <div className="text-center py-10">
                                                 <span className="text-4xl">📄</span>
@@ -1007,79 +1235,79 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                                     </div>
                                 </div>
                             )}
-
-                            {/* Bulk Questions Editor (Preview List) */}
-                            {uploadMode === 'bulk' && bulkQuestions.length > 0 && (
-                                <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-4 animate-slide-up">
-                                    <div className="flex justify-between items-center">
-                                        <h3 className="font-black text-brand-400 uppercase tracking-widest text-xs">
-                                            Found {bulkQuestions.length} Questions
-                                        </h3>
-                                        <Button onClick={handleSaveQuestion} isLoading={isProcessing} size="sm" className="bg-green-600 hover:bg-green-500">
-                                            💾 Save All to Cloud ({bulkQuestions.length})
-                                        </Button>
-                                    </div>
-
-                                    <div className="max-h-96 overflow-y-auto space-y-4 pr-2 scrollbar-hide">
-                                        {bulkQuestions.map((q, idx) => (
-                                            <div key={idx} className="p-4 bg-black/30 rounded-xl border border-white/5 hover:border-brand-500/30 transition-colors">
-                                                {/* Subject Selector Header */}
-                                                <div className="flex justify-between items-center mb-3">
-                                                    <span className="text-xs font-bold text-slate-500">Q{idx+1}</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] text-slate-400">Subject:</span>
-                                                        <select 
-                                                            value={q.subject || 'General'} 
-                                                            onChange={(e) => {
-                                                                const newBulk = [...bulkQuestions];
-                                                                newBulk[idx].subject = e.target.value;
-                                                                setBulkQuestions(newBulk);
-                                                            }}
-                                                            className="bg-white/10 border border-white/10 text-xs rounded-lg px-2 py-1 outline-none focus:border-brand-500 text-white"
-                                                        >
-                                                            {availableSubjects.map(s => (
-                                                                <option key={s} value={s} className="text-black">{s}</option>
-                                                            ))}
-                                                            <option value="General" className="text-black">General</option>
-                                                        </select>
-                                                        <button 
-                                                            onClick={() => {
-                                                                const newBulk = bulkQuestions.filter((_, i) => i !== idx);
-                                                                setBulkQuestions(newBulk);
-                                                            }}
-                                                            className="text-red-400 hover:text-red-300 ml-2"
-                                                            title="Delete Question"
-                                                        >
-                                                            ✕
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    {/* Show title based on language preference availability */}
-                                                    {(uploadLanguage === 'en' || uploadLanguage === 'both') && q.text && (
-                                                        <p className="text-sm font-bold text-blue-200">{q.text}</p>
-                                                    )}
-                                                    {(uploadLanguage === 'hi' || uploadLanguage === 'both') && q.textHindi && (
-                                                        <p className="text-sm font-bold text-orange-200">{q.textHindi}</p>
-                                                    )}
-                                                </div>
-                                                
-                                                <div className="grid grid-cols-2 gap-2 mt-2">
-                                                    {((uploadLanguage === 'hi' ? q.optionsHindi : q.options) || []).map((o, i) => (
-                                                        <div key={i} className={`text-xs px-2 py-1 rounded bg-white/5 ${i === q.correctIndex ? 'text-green-400 border border-green-500/30' : 'text-slate-400'}`}>
-                                                            {o}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    
-                                    <Button variant="secondary" onClick={() => setBulkQuestions([])} className="w-full">Discard All</Button>
-                                </div>
-                            )}
                         </>
+                    )}
+                    
+                    {/* Bulk Questions Editor (Preview List) - SHARED */}
+                    {((inputType === 'file' && uploadMode === 'bulk') || inputType === 'csv') && bulkQuestions.length > 0 && (
+                        <div className="bg-white/5 p-6 rounded-2xl border border-brand-500/30 space-y-4 animate-slide-up">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-black text-brand-400 uppercase tracking-widest text-xs">
+                                    Found {bulkQuestions.length} Questions
+                                </h3>
+                                <Button onClick={handleSaveQuestion} isLoading={isProcessing} size="sm" className="bg-green-600 hover:bg-green-500">
+                                    💾 Save All to Cloud ({bulkQuestions.length})
+                                </Button>
+                            </div>
+
+                            <div className="max-h-96 overflow-y-auto space-y-4 pr-2 scrollbar-hide">
+                                {bulkQuestions.map((q, idx) => (
+                                    <div key={idx} className="p-4 bg-black/30 rounded-xl border border-white/5 hover:border-brand-500/30 transition-colors">
+                                        {/* Subject Selector Header */}
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="text-xs font-bold text-slate-500">Q{idx+1}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-slate-400">Subject:</span>
+                                                <select 
+                                                    value={q.subject || 'General'} 
+                                                    onChange={(e) => {
+                                                        const newBulk = [...bulkQuestions];
+                                                        newBulk[idx].subject = e.target.value;
+                                                        setBulkQuestions(newBulk);
+                                                    }}
+                                                    className="bg-white/10 border border-white/10 text-xs rounded-lg px-2 py-1 outline-none focus:border-brand-500 text-white"
+                                                >
+                                                    {availableSubjects.map(s => (
+                                                        <option key={s} value={s} className="text-black">{s}</option>
+                                                    ))}
+                                                    <option value="General" className="text-black">General</option>
+                                                </select>
+                                                <button 
+                                                    onClick={() => {
+                                                        const newBulk = bulkQuestions.filter((_, i) => i !== idx);
+                                                        setBulkQuestions(newBulk);
+                                                    }}
+                                                    className="text-red-400 hover:text-red-300 ml-2"
+                                                    title="Delete Question"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            {/* Show title based on language preference availability */}
+                                            {(uploadLanguage === 'en' || uploadLanguage === 'both') && q.text && (
+                                                <p className="text-sm font-bold text-blue-200">{q.text}</p>
+                                            )}
+                                            {(uploadLanguage === 'hi' || uploadLanguage === 'both') && q.textHindi && (
+                                                <p className="text-sm font-bold text-orange-200">{q.textHindi}</p>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-2 mt-2">
+                                            {((uploadLanguage === 'hi' ? q.optionsHindi : q.options) || []).map((o, i) => (
+                                                <div key={i} className={`text-xs px-2 py-1 rounded bg-white/5 ${i === q.correctIndex ? 'text-green-400 border border-green-500/30' : 'text-slate-400'}`}>
+                                                    {o}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <Button variant="secondary" onClick={() => setBulkQuestions([])} className="w-full">Discard All</Button>
+                        </div>
                     )}
 
                 </div>
@@ -1192,6 +1420,121 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         )}
 
       </div>
+
+      {/* Edit Question Modal */}
+      {editingQuestion && (
+          <div className="fixed inset-0 z-[110] bg-black/80 flex items-center justify-center p-4">
+              <div className="bg-[#121026] w-full max-w-2xl rounded-3xl p-6 border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-black text-white">Edit Question</h3>
+                      <button onClick={() => setEditingQuestion(null)} className="text-slate-400 hover:text-white">✕</button>
+                  </div>
+                  
+                  {/* Reuse logic from Manual Entry but wrapped for editing */}
+                  <div className="space-y-4">
+                      {/* English Edit */}
+                      <div className="space-y-2">
+                          <label className="text-xs font-bold text-blue-400">English Text</label>
+                          <textarea 
+                              value={manualEntry.text} 
+                              onChange={e => setManualEntry({...manualEntry, text: e.target.value})}
+                              className="w-full p-3 bg-black/30 rounded-xl text-sm border border-white/10 h-20 outline-none focus:border-blue-500"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                              {manualEntry.options?.map((opt, i) => (
+                                  <input 
+                                      key={i}
+                                      value={opt}
+                                      onChange={e => {
+                                          const newOpts = [...(manualEntry.options || [])];
+                                          newOpts[i] = e.target.value;
+                                          setManualEntry({...manualEntry, options: newOpts});
+                                      }}
+                                      className={`flex-1 p-2 rounded-lg text-sm bg-black/30 border ${manualEntry.correctIndex === i ? 'border-green-500' : 'border-white/10'}`}
+                                  />
+                              ))}
+                          </div>
+                      </div>
+
+                      {/* Hindi Edit */}
+                      <div className="space-y-2">
+                          <label className="text-xs font-bold text-orange-400">Hindi Text</label>
+                          <textarea 
+                              value={manualEntry.textHindi} 
+                              onChange={e => setManualEntry({...manualEntry, textHindi: e.target.value})}
+                              className="w-full p-3 bg-black/30 rounded-xl text-sm border border-white/10 h-20 outline-none focus:border-orange-500"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                              {manualEntry.optionsHindi?.map((opt, i) => (
+                                  <input 
+                                      key={i}
+                                      value={opt}
+                                      onChange={e => {
+                                          const newOpts = [...(manualEntry.optionsHindi || [])];
+                                          newOpts[i] = e.target.value;
+                                          setManualEntry({...manualEntry, optionsHindi: newOpts});
+                                      }}
+                                      className={`flex-1 p-2 rounded-lg text-sm bg-black/30 border ${manualEntry.correctIndex === i ? 'border-green-500' : 'border-white/10'}`}
+                                  />
+                              ))}
+                          </div>
+                      </div>
+
+                      <div className="pt-4 flex gap-4">
+                          {[0, 1, 2, 3].map(i => (
+                              <button 
+                                  key={i}
+                                  onClick={() => setManualEntry({...manualEntry, correctIndex: i})}
+                                  className={`w-8 h-8 rounded-full font-bold flex items-center justify-center ${manualEntry.correctIndex === i ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-400'}`}
+                              >
+                                  {String.fromCharCode(65+i)}
+                              </button>
+                          ))}
+                          <span className="text-sm text-slate-400 self-center">Correct Answer</span>
+                      </div>
+
+                      <Button onClick={handleSaveEditedQuestion} isLoading={isProcessing} className="w-full mt-4">
+                          Save Changes
+                      </Button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Cropper Modal */}
+      {showCropModal && previewUrl && (
+          <div className="fixed inset-0 z-[120] bg-black/90 flex flex-col items-center justify-center p-4">
+              <div className="relative max-w-full max-h-[80vh] overflow-hidden border border-white/20 rounded-lg shadow-2xl bg-black">
+                  <img 
+                      ref={imgRef}
+                      src={previewUrl} 
+                      className="max-h-[70vh] object-contain select-none"
+                      onMouseDown={handleCropStart}
+                      onMouseMove={handleCropMove}
+                      onMouseUp={handleCropEnd}
+                      onMouseLeave={handleCropEnd}
+                      draggable={false}
+                  />
+                  {cropArea && (
+                      <div 
+                          className="absolute border-2 border-brand-500 bg-brand-500/20 pointer-events-none"
+                          style={{
+                              left: cropArea.x,
+                              top: cropArea.y,
+                              width: cropArea.w,
+                              height: cropArea.h
+                          }}
+                      ></div>
+                  )}
+              </div>
+              <div className="mt-4 flex gap-4">
+                  <button onClick={() => setShowCropModal(false)} className="px-6 py-2 bg-slate-700 text-white rounded-lg font-bold">Cancel</button>
+                  <Button onClick={performCrop} disabled={!cropArea}>Apply Crop</Button>
+              </div>
+              <p className="text-slate-400 text-xs mt-2">Click and drag on the image to select area.</p>
+          </div>
+      )}
+
     </div>
   );
 };

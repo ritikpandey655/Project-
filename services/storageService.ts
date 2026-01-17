@@ -160,6 +160,16 @@ export const saveGlobalQuestion = async (question: Question): Promise<void> => {
   }
 };
 
+// **NEW**: Update existing global question (Edit Mode)
+export const updateGlobalQuestion = async (question: Question): Promise<void> => {
+  try {
+    await db.collection("global_questions").doc(question.id).set(question, { merge: true });
+  } catch (e) {
+    console.error("Error updating global question:", e);
+    throw e;
+  }
+};
+
 // **NEW**: Save multiple questions at once (Batch Write)
 export const saveGlobalQuestionsBulk = async (questions: Question[]): Promise<void> => {
   try {
