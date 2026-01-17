@@ -34,7 +34,7 @@ import { LogoIcon } from './LogoIcon';
 import { PWAInstallBanner } from './PWAInstallBanner';
 
 // Firebase Engine
-import { auth } from '../src/firebaseConfig';
+import { auth, db } from '../src/firebaseConfig';
 
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 const INSTALL_DISMISSED_KEY = 'pyqverse_install_dismissed_v2';
@@ -257,6 +257,11 @@ const App: React.FC = () => {
 
   const loadUserData = useCallback(async (userId: string) => {
     try {
+      // 1. Generate & Update Session ID immediately to secure One Device Login
+      const newSessionId = Date.now().toString();
+      currentSessionId.current = newSessionId;
+      await updateUserSession(userId, newSessionId);
+
       const [profile, prefs, statsData, config, history, sysConfig] = await Promise.all([
         getUser(userId),
         getUserPref(userId),
@@ -296,7 +301,6 @@ const App: React.FC = () => {
       }));
 
       updateUserActivity(userId);
-      updateUserSession(userId, currentSessionId.current);
     } catch (e) {
       console.error("Failed to load user data:", e);
       navigateTo('dashboard');
@@ -342,6 +346,29 @@ const App: React.FC = () => {
       window.location.reload();
     }
   };
+
+  // --- ONE USER ONE DEVICE ENFORCEMENT ---
+  useEffect(() => {
+    let unsubscribe: () => void;
+
+    if (state.user) {
+        // Monitor user document for session ID changes
+        unsubscribe = db.collection("users").doc(state.user.id).onSnapshot((doc) => {
+            const data = doc.data();
+            // If remote session ID exists and doesn't match our current ID -> Logout
+            if (data && data.sessionId && data.sessionId !== currentSessionId.current) {
+                alert("You have been logged out because your account was logged in on another device.");
+                handleLogout();
+            }
+        }, (error) => {
+            console.error("Session listener error:", error);
+        });
+    }
+
+    return () => {
+        if (unsubscribe) unsubscribe();
+    };
+  }, [state.user]);
 
   const handleStartPractice = useCallback(async (conf?: PracticeConfig) => {
     const configToUse = conf || practiceConfig;
