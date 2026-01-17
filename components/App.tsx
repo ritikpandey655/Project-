@@ -67,6 +67,12 @@ const SEO_RICH_KEYWORDS: Record<string, string> = {
   'Railways': 'RRB NTPC, Railway Group D, General Science for Railways, RRB ALP',
 };
 
+// Helper: Convert Hex to RGB triplet
+const hexToRgb = (hex: string) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}` : '0 0 0';
+};
+
 export const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     view: 'landing', 
@@ -244,15 +250,20 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // --- THEME EFFECT (FIXED) ---
+  // --- THEME EFFECT (FIXED for Opacity support) ---
   useEffect(() => {
     const root = document.documentElement;
     const palette = THEME_PALETTES[state.theme] || THEME_PALETTES['PYQverse Prime'];
     
-    // Inject CSS Variables for Tailwind to pick up
-    root.style.setProperty('--brand-primary', palette[500]);
+    // Inject RGB variables for Tailwind opacity support
+    const primaryRgb = hexToRgb(palette[500]);
+    root.style.setProperty('--brand-primary', primaryRgb);
+    
+    // Set Theme Color for Mobile Browsers
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', palette[500]);
+
     Object.keys(palette).forEach(key => {
-        root.style.setProperty(`--primary-${key}`, palette[key as any]);
+        root.style.setProperty(`--primary-${key}`, hexToRgb(palette[key as any]));
     });
 
     root.classList.toggle('dark', state.darkMode);
@@ -461,6 +472,11 @@ export const App: React.FC = () => {
                 }}
                 isOnline={isOnline}
                 language={state.language}
+                currentTheme={state.theme}
+                onThemeChange={(t) => {
+                    setState(s => ({ ...s, theme: t }));
+                    localStorage.setItem('pyqverse_theme', t);
+                }}
             />;
 
         case 'practice':
@@ -579,8 +595,15 @@ export const App: React.FC = () => {
             {/* Header / Sidebar Toggle (Visible only when logged in) */}
             {state.user && state.view !== 'landing' && state.view !== 'practice' && state.view !== 'paperView' && (
                 <div className="p-4 flex justify-between items-center sticky top-0 z-40 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-b border-white/5 shadow-sm">
-                    <div className="flex items-center gap-4">
-                        {/* Separate Menu Button */}
+                    {/* Header Container - Reordered */}
+                    <div className="flex items-center justify-between w-full">
+                        {/* Left: Branding / Logo */}
+                        <button onClick={() => navigate('dashboard')} className="flex items-center gap-2 group">
+                            <LogoIcon size="sm" />
+                            <span className="font-display font-black text-xl text-slate-800 dark:text-white tracking-tight hidden sm:block group-hover:text-brand-500 transition-colors">PYQverse</span>
+                        </button>
+
+                        {/* Right: Menu Button */}
                         <button 
                            onClick={() => setIsSidebarOpen(true)}
                            className="p-2 bg-white/80 dark:bg-slate-800/80 rounded-xl shadow-sm border border-slate-200 dark:border-white/10 hover:scale-105 transition-transform text-slate-700 dark:text-white"
@@ -590,14 +613,7 @@ export const App: React.FC = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                         </button>
-
-                        {/* Branding / Logo - Now Just Navigation */}
-                        <button onClick={() => navigate('dashboard')} className="flex items-center gap-2 group">
-                            <LogoIcon size="sm" />
-                            <span className="font-display font-black text-xl text-slate-800 dark:text-white tracking-tight hidden sm:block group-hover:text-brand-500 transition-colors">PYQverse</span>
-                        </button>
                     </div>
-                    {/* Add any top-right actions here if needed */}
                 </div>
             )}
 
