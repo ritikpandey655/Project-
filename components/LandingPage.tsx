@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from './Button';
 import { LogoIcon } from './LogoIcon';
+import { EXAM_SUBJECTS } from '../constants';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -12,9 +13,29 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onNavigate }) => {
   const [query, setQuery] = useState('');
 
+  // SEO Schema
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "PYQverse",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Web, Android, iOS",
+    "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "INR"
+    },
+    "description": "AI-powered exam preparation app for UPSC, JEE, NEET, and SSC. Practice Previous Year Questions (PYQ) with instant AI solutions."
+  };
+
   return (
     <div className="min-h-screen w-full relative overflow-x-hidden text-slate-900 dark:text-white flex flex-col">
       
+      {/* SEO Script */}
+      <script type="application/ld+json">
+        {JSON.stringify(structuredData)}
+      </script>
+
       {/* Dedicated Background to Prevent Blank Screen */}
       <div className="absolute inset-0 z-0 bg-slate-950">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-[#1e1b4b] to-slate-950 opacity-90"></div>
@@ -51,7 +72,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
       </nav>
 
       {/* Hero Section */}
-      <div className="relative pt-28 pb-12 sm:pt-48 sm:pb-32 flex flex-col items-center text-center px-4 flex-1 overflow-hidden z-10">
+      <div className="relative pt-28 pb-12 sm:pt-48 sm:pb-32 flex flex-col items-center text-center px-4 overflow-hidden z-10 min-h-[80vh]">
         
         {/* Massive Headline */}
         <h1 className="max-w-5xl text-5xl sm:text-7xl lg:text-9xl font-display font-black text-white mb-6 leading-[0.95] tracking-tighter animate-slide-up">
@@ -84,8 +105,47 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onSignup, onN
         </p>
       </div>
 
+      {/* SEO Content Section (Rich Text for Crawlers) */}
+      <section className="relative z-10 bg-slate-950 py-20 border-t border-white/5">
+          <div className="max-w-6xl mx-auto px-6">
+              <h2 className="text-3xl font-display font-black text-white mb-8 text-center">Supported Examination Universe</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                  <div className="bg-white/5 p-6 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <h3 className="text-xl font-bold text-brand-400 mb-2">UPSC Civil Services</h3>
+                      <p className="text-slate-400 text-sm leading-relaxed">
+                          Comprehensive Previous Year Questions (PYQ) for Prelims and Mains. Cover History, Polity, Geography, and Current Affairs with AI-generated explanations.
+                      </p>
+                  </div>
+                  <div className="bg-white/5 p-6 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <h3 className="text-xl font-bold text-green-400 mb-2">JEE Mains & Advanced</h3>
+                      <p className="text-slate-400 text-sm leading-relaxed">
+                          Master Physics, Chemistry, and Mathematics. Solve numericals instantly with our AI Doubt Solver and practice chapter-wise mock tests.
+                      </p>
+                  </div>
+                  <div className="bg-white/5 p-6 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                      <h3 className="text-xl font-bold text-pink-400 mb-2">NEET Medical</h3>
+                      <p className="text-slate-400 text-sm leading-relaxed">
+                          Biology, Physics, and Chemistry questions from last 10 years. Special focus on NCERT-based patterns for 2026 preparation.
+                      </p>
+                  </div>
+              </div>
+
+              <div className="text-center">
+                  <h3 className="text-2xl font-bold text-white mb-6">Why PYQverse?</h3>
+                  <div className="flex flex-wrap justify-center gap-4">
+                      {["Instant AI Solutions", "Exam Pattern Analytics", "Daily Streaks", "Leaderboard", "Offline Mode", "Bilingual (Hindi/English)"].map((feat, i) => (
+                          <span key={i} className="px-4 py-2 rounded-full bg-slate-800 text-slate-300 text-sm font-bold border border-slate-700">
+                              {feat}
+                          </span>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      </section>
+
       {/* Official Footer */}
-      <footer className="w-full bg-slate-950/50 border-t border-white/5 py-12 px-6 mt-auto relative z-10 backdrop-blur-sm">
+      <footer className="w-full bg-slate-950/50 border-t border-white/5 py-12 px-6 relative z-10 backdrop-blur-sm">
          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2">
                <LogoIcon size="sm" className="scale-75" />

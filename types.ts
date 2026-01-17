@@ -60,6 +60,14 @@ export interface Question {
   isHandwritten?: boolean; // Flag for manually uploaded handwritten questions
 }
 
+export interface BannerConfig {
+  id: string;
+  imageUrl: string;
+  targetUrl?: string; // Where it clicks to (e.g., Telegram, Payment)
+  isActive: boolean;
+  title?: string;
+}
+
 export interface SystemLog {
   id: string;
   type: 'ERROR' | 'INFO' | 'API_FAIL';

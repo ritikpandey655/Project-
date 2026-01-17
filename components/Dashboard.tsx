@@ -1,8 +1,9 @@
 
-import React, { useMemo, useState } from 'react';
-import { UserStats, ExamType, User, ViewState } from '../types';
+import React, { useMemo, useState, useEffect } from 'react';
+import { UserStats, ExamType, User, ViewState, BannerConfig } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { TRANSLATIONS, THEME_PALETTES } from '../constants';
+import { getBannerConfig } from '../services/storageService';
 
 interface DashboardProps {
   stats: UserStats;
@@ -49,6 +50,13 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
   currentTheme = 'PYQverse Prime'
 }) => {
   const t = TRANSLATIONS[language];
+  const [banner, setBanner] = useState<BannerConfig | null>(null);
+
+  useEffect(() => {
+      getBannerConfig().then(b => {
+          if (b && b.isActive && b.imageUrl) setBanner(b);
+      });
+  }, []);
 
   // Get active theme color for charts
   const activeThemeColor = useMemo(() => {
@@ -110,6 +118,28 @@ export const Dashboard: React.FC<DashboardProps> = React.memo(({
            </div>
         </div>
       </div>
+
+      {/* --- SPONSORED BANNER --- */}
+      {banner && (
+          <div 
+            onClick={() => banner.targetUrl && window.open(banner.targetUrl, '_blank')}
+            className={`rounded-[32px] overflow-hidden shadow-2xl relative group ${banner.targetUrl ? 'cursor-pointer' : ''} animate-slide-up`}
+          >
+              <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-widest z-10 border border-white/10">
+                  Sponsored
+              </div>
+              <img 
+                src={banner.imageUrl} 
+                alt={banner.title || "Advertisement"} 
+                className="w-full h-auto max-h-[200px] object-cover hover:scale-105 transition-transform duration-500" 
+              />
+              {banner.title && (
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-6 pt-12">
+                      <p className="text-white font-bold text-sm">{banner.title}</p>
+                  </div>
+              )}
+          </div>
+      )}
 
       {/* Main Feature Command Tiles */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, SystemLog, ExamType, Question, QuestionSource } from '../types';
+import { User, SystemLog, ExamType, Question, QuestionSource, BannerConfig } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
 import { 
   getAllUsers, removeUser, toggleUserPro,
   getSystemLogs, clearSystemLogs, saveSystemConfig, getSystemConfig,
   saveApiKeys, getApiKeys, saveGlobalQuestion, saveGlobalQuestionsBulk, getGlobalStats,
-  getAllGlobalQuestions, deleteGlobalQuestion
+  getAllGlobalQuestions, deleteGlobalQuestion,
+  saveBannerConfig, getBannerConfig
 } from '../services/storageService';
 import { checkAIConnectivity, generateWithAI, analyzeImageForQuestion, extractQuestionsFromPaper } from '../services/geminiService';
 import { Button } from './Button';
@@ -52,7 +53,7 @@ const compressImage = async (file: File): Promise<string> => {
 };
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'status' | 'upload' | 'keys' | 'users' | 'logs' | 'database'>('status');
+  const [activeTab, setActiveTab] = useState<'status' | 'upload' | 'ads' | 'keys' | 'users' | 'logs' | 'database'>('status');
   const [diagnostics, setDiagnostics] = useState<any>({ status: 'Connecting...', latency: 0, secure: false });
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -60,6 +61,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [apiKeys, setApiKeys] = useState({ gemini: '', groq: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<string>('');
+  
+  // Banner State
+  const [bannerConfig, setBannerConfig] = useState<BannerConfig>({ id: 'main', imageUrl: '', isActive: false, targetUrl: '', title: '' });
   
   // New: Global Stats
   const [globalStats, setGlobalStats] = useState<{ totalQuestions: number }>({ totalQuestions: 0 });
@@ -111,16 +115,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
 
   const loadData = async () => {
     setIsLoading(true);
-    const [u, l, c, d, g] = await Promise.all([
+    const [u, l, c, d, g, b] = await Promise.all([
         getAllUsers(), 
         getSystemLogs(), 
         getSystemConfig(),
         checkAIConnectivity(),
-        getGlobalStats()
+        getGlobalStats(),
+        getBannerConfig()
     ]);
     setUsers(u);
     setLogs(l);
     if(c.aiProvider) setConfig(c);
+    if(b) setBannerConfig(b);
     setDiagnostics(d);
     setGlobalStats(g);
     setIsLoading(false);
@@ -162,6 +168,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     alert(`System Updated: Provider switched to ${config.aiProvider.toUpperCase()}.\nUsers will update instantly.`);
     setIsLoading(false);
     loadData(); 
+  };
+  
+  const handleSaveBanner = async () => {
+      setIsProcessing(true);
+      try {
+          await saveBannerConfig(bannerConfig);
+          alert("Banner Updated! Users will see it on refresh.");
+      } catch (e) {
+          alert("Failed to save banner");
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+  
+  const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          try {
+              const base64 = await compressImage(e.target.files[0]);
+              setBannerConfig({ ...bannerConfig, imageUrl: base64 });
+          } catch(e) {
+              alert("Image processing failed");
+          }
+      }
   };
 
   const runLatencyTest = async () => {
@@ -463,6 +492,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         {[
             {id: 'status', label: 'Dashboard'},
             {id: 'upload', label: 'Upload Manual'},
+            {id: 'ads', label: 'Ads & Banners'},
             {id: 'database', label: 'Global DB'},
             {id: 'keys', label: 'Keys & Security'}, 
             {id: 'users', label: 'User Base'}, 
@@ -529,6 +559,78 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
                  </div>
              )}
           </div>
+        )}
+
+        {/* --- ADS & BANNERS TAB --- */}
+        {activeTab === 'ads' && (
+            <div className="max-w-2xl mx-auto space-y-8">
+                <div className="bg-[#121026] p-8 rounded-[32px] border border-white/5 shadow-2xl">
+                    <h2 className="text-2xl font-black mb-1">Banner Ad Manager</h2>
+                    <p className="text-sm text-slate-500 mb-8">Set the main sponsorship/advertisement banner for user dashboards.</p>
+                    
+                    <div className="space-y-6">
+                        {/* Toggle Active */}
+                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                            <span className="font-bold text-sm">Banner Active Status</span>
+                            <button 
+                                onClick={() => setBannerConfig({...bannerConfig, isActive: !bannerConfig.isActive})}
+                                className={`w-12 h-6 rounded-full p-1 transition-colors ${bannerConfig.isActive ? 'bg-green-500' : 'bg-slate-700'}`}
+                            >
+                                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${bannerConfig.isActive ? 'translate-x-6' : ''}`}></div>
+                            </button>
+                        </div>
+
+                        {/* Title (Optional) */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Ad Title (Internal/Alt Text)</label>
+                            <input 
+                                type="text" 
+                                value={bannerConfig.title || ''}
+                                onChange={e => setBannerConfig({...bannerConfig, title: e.target.value})}
+                                className="w-full p-3 rounded-xl bg-black/20 border border-white/10 text-white outline-none"
+                                placeholder="E.g., Diwali Offer or Physics Batch"
+                            />
+                        </div>
+
+                        {/* Image Upload */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Banner Image</label>
+                            <div className="border-2 border-dashed border-white/10 rounded-2xl p-6 text-center hover:border-brand-500/50 transition-colors relative">
+                                <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    onChange={handleBannerImageUpload}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                                {bannerConfig.imageUrl ? (
+                                    <img src={bannerConfig.imageUrl} alt="Banner Preview" className="max-h-40 mx-auto rounded-lg" />
+                                ) : (
+                                    <div className="py-4">
+                                        <span className="text-2xl block mb-2">🖼️</span>
+                                        <span className="text-xs text-slate-400">Click to Upload Image</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Target URL */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Target Link (On Click)</label>
+                            <input 
+                                type="text" 
+                                value={bannerConfig.targetUrl || ''}
+                                onChange={e => setBannerConfig({...bannerConfig, targetUrl: e.target.value})}
+                                className="w-full p-3 rounded-xl bg-black/20 border border-white/10 text-white outline-none"
+                                placeholder="https://..."
+                            />
+                        </div>
+
+                        <Button onClick={handleSaveBanner} isLoading={isProcessing} className="w-full">
+                            Save Banner Settings
+                        </Button>
+                    </div>
+                </div>
+            </div>
         )}
 
         {/* Global Questions Database Tab */}

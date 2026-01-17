@@ -1,6 +1,6 @@
 
 import { db } from "../src/firebaseConfig";
-import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction, SyllabusItem, SystemLog } from '../types';
+import { Question, UserStats, User, ExamResult, QuestionSource, QuestionPaper, LeaderboardEntry, NewsItem, Transaction, SyllabusItem, SystemLog, BannerConfig } from '../types';
 import { ExamType } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
 
@@ -64,6 +64,26 @@ export const getApiKeys = () => {
     gemini: localStorage.getItem('custom_gemini_key') || "",
     groq: localStorage.getItem('custom_groq_key') || ""
   };
+};
+
+// --- BANNER / ADS MANAGEMENT ---
+
+export const saveBannerConfig = async (config: BannerConfig) => {
+    try {
+        await db.collection("settings").doc("banner").set(config);
+    } catch (e) {
+        console.error("Failed to save banner", e);
+    }
+};
+
+export const getBannerConfig = async (): Promise<BannerConfig | null> => {
+    try {
+        const doc = await db.collection("settings").doc("banner").get();
+        if (doc.exists) return doc.data() as BannerConfig;
+        return null;
+    } catch (e) {
+        return null;
+    }
 };
 
 // --- USER MANAGEMENT ---

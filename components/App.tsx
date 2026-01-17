@@ -86,6 +86,39 @@ const App: React.FC = () => {
   const [generationLatency, setGenerationLatency] = useState<number>(0);
   const currentSessionId = useRef<string>(Date.now().toString());
 
+  // --- SEO: DYNAMIC TITLES & DESCRIPTIONS ---
+  useEffect(() => {
+    let title = "PYQverse - India's Best AI Exam Prep App";
+    let desc = "Practice unlimited Previous Year Questions (PYQ) for UPSC, SSC CGL, JEE Mains, NEET & UP Board. Features Instant AI Doubt Solving, Mock Tests, and Analytics.";
+
+    if (state.view === 'practice' && state.selectedExam) {
+        title = `Practice ${state.selectedExam} Questions | PYQverse`;
+        desc = `Attempt ${state.selectedExam} Previous Year Questions (PYQ) and Mock Tests with instant AI explanations. Improve your accuracy for ${state.selectedExam} 2025.`;
+    } else if (state.view === 'dashboard') {
+        title = "My Dashboard | PYQverse";
+        desc = "Track your exam preparation progress, daily streaks, and subject-wise performance analytics on PYQverse.";
+    } else if (state.view === 'upload') {
+        title = "AI Doubt Solver - Instant Solutions | PYQverse";
+        desc = "Stuck on a question? Upload an image or type your doubt. Our AI solves UPSC, JEE, NEET, and SSC questions instantly.";
+    } else if (state.view === 'paperGenerator') {
+        title = "Free Mock Test Generator | PYQverse";
+        desc = "Generate unlimited custom mock test papers for UPSC, JEE, and NEET. Set your difficulty and topics for targeted practice.";
+    } else if (state.view === 'signup') {
+        title = "Join PYQverse - Start Preparing";
+        desc = "Create a free account on PYQverse. Access unlimited AI practice questions and join the community of toppers.";
+    } else if (state.view === 'landing') {
+        title = "PYQverse - AI Exam Preparation for UPSC, JEE, NEET";
+    }
+    
+    document.title = title;
+    
+    // Update Meta Description
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+        metaDesc.setAttribute('content', desc);
+    }
+  }, [state.view, state.selectedExam]);
+
   // --- THEME ENGINE ---
   const applyTheme = (themeName: string) => {
     const palette = THEME_PALETTES[themeName] || THEME_PALETTES['PYQverse Prime'];
