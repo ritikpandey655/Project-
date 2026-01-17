@@ -74,6 +74,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -85,6 +86,7 @@
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
               display: ['Poppins', 'sans-serif'],
+              serif: ['Crimson Text', 'serif'],
             },
             colors: {
               brand: {
@@ -160,6 +162,70 @@
         background-clip: text;
         color: transparent;
       }
+      
+      /* --- E-INK PAPER MODE OVERRIDES --- */
+      /* Activated when root has data-theme='E-Ink Paper' */
+      [data-theme='E-Ink Paper'] body {
+        background-color: #f3f2ea !important; /* Warm Paper */
+        color: #2b2b2b !important;
+        font-family: 'Crimson Text', serif !important;
+      }
+      
+      [data-theme='E-Ink Paper'] .dark body {
+        background-color: #222222 !important; /* Dark Grey Paper */
+        color: #e5e5e5 !important;
+      }
+      
+      [data-theme='E-Ink Paper'] * {
+        text-shadow: none !important;
+        box-shadow: none !important; /* Flatten UI */
+      }
+      
+      /* Force backgrounds to paper color */
+      [data-theme='E-Ink Paper'] .bg-white, 
+      [data-theme='E-Ink Paper'] .bg-slate-50,
+      [data-theme='E-Ink Paper'] .bg-slate-100 {
+        background-color: #fcfbf9 !important; /* Lighter Paper */
+        border-color: #d1d1cf !important;
+      }
+      
+      [data-theme='E-Ink Paper'] .dark .bg-slate-800,
+      [data-theme='E-Ink Paper'] .dark .bg-slate-900,
+      [data-theme='E-Ink Paper'] .dark .bg-slate-950 {
+        background-color: #1a1a1a !important;
+        border-color: #333333 !important;
+      }
+      
+      /* Paper Texture Overlay */
+      [data-theme='E-Ink Paper'] body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.6;
+        mix-blend-mode: multiply;
+      }
+      
+      [data-theme='E-Ink Paper'] .font-display,
+      [data-theme='E-Ink Paper'] .font-sans {
+        font-family: 'Crimson Text', serif !important;
+      }
+      
+      /* Make Primary Elements High Contrast */
+      [data-theme='E-Ink Paper'] .text-brand-600 {
+        color: #000000 !important;
+        font-weight: 800;
+      }
+      [data-theme='E-Ink Paper'] .bg-brand-600 {
+         background-color: #222 !important;
+         color: white !important;
+      }
+      
     </style>
 
     <script type="importmap">

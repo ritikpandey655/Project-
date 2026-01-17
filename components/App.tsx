@@ -145,6 +145,10 @@ const App: React.FC = () => {
   const applyTheme = (themeName: string) => {
     const palette = THEME_PALETTES[themeName] || THEME_PALETTES['PYQverse Prime'];
     const root = document.documentElement;
+    
+    // Set the data-theme attribute for CSS overrides (E-Ink)
+    root.setAttribute('data-theme', themeName);
+
     root.style.setProperty('--brand-primary', palette[500]);
     root.style.setProperty('--primary-50', palette[50]);
     root.style.setProperty('--primary-100', palette[100]);
@@ -266,7 +270,9 @@ const App: React.FC = () => {
       const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
       const sanitizedView = (lastView && VALID_VIEWS.includes(lastView)) ? lastView : 'dashboard';
 
-      if (prefs.theme) applyTheme(prefs.theme);
+      if (prefs.theme) {
+          applyTheme(prefs.theme);
+      }
 
       // Determine initial view based on intent
       let initialView = sanitizedView;
