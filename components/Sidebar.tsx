@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                 </button>
               )}
 
-              {/* Share Button */}
+              {/* Share Button - Viral Feature */}
               <button onClick={() => { handleShare(); onClose(); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-brand-50 dark:hover:bg-brand-900/10 text-brand-600 dark:text-brand-400 transition-colors">
                  <span className="text-xl">🚀</span>
                  <span className="font-bold">Share App</span>
