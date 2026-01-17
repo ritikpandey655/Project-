@@ -32,8 +32,8 @@ import { LandingPage } from './LandingPage';
 import { BookmarksList } from './BookmarksList';
 import { LogoIcon } from './LogoIcon';
 import { PWAInstallBanner } from './PWAInstallBanner';
-import { PYQLibrary } from './PYQLibrary'; // Added based on file list
-import { CurrentAffairsFeed } from './CurrentAffairsFeed'; // Added based on file list
+import { PYQLibrary } from './PYQLibrary'; 
+import { CurrentAffairsFeed } from './CurrentAffairsFeed'; 
 
 // Firebase Engine
 import { auth, db } from '../src/firebaseConfig';
@@ -144,13 +144,19 @@ export const App: React.FC = () => {
                 getExamHistory(userId)
             ]);
 
+            // Force Admin for known emails if DB is out of sync
+            const isAdminEmail = ['support@pyqverse.in', 'admin@pyqverse.com'].includes(firebaseUser.email || '');
+            
             const finalUser = userData || { 
                 id: userId, 
                 name: firebaseUser.displayName || 'User', 
                 email: firebaseUser.email || '', 
                 photoURL: firebaseUser.photoURL,
-                isAdmin: false 
+                isAdmin: isAdminEmail 
             };
+
+            // Double check admin status
+            if (isAdminEmail && !finalUser.isAdmin) finalUser.isAdmin = true;
 
             // Restore Last View
             const lastView = localStorage.getItem(LAST_VIEW_KEY) as ViewState;
@@ -199,10 +205,19 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // --- THEME EFFECT ---
+  // --- THEME EFFECT (FIXED) ---
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', state.darkMode);
-    document.documentElement.setAttribute('data-theme', state.theme);
+    const root = document.documentElement;
+    const palette = THEME_PALETTES[state.theme] || THEME_PALETTES['PYQverse Prime'];
+    
+    // Inject CSS Variables for Tailwind to pick up
+    root.style.setProperty('--brand-primary', palette[500]);
+    Object.keys(palette).forEach(key => {
+        root.style.setProperty(`--primary-${key}`, palette[key as any]);
+    });
+
+    root.classList.toggle('dark', state.darkMode);
+    root.setAttribute('data-theme', state.theme);
   }, [state.darkMode, state.theme]);
 
   // --- ACTIONS ---
