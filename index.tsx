@@ -1,6 +1,6 @@
 import React, { ReactNode, ErrorInfo } from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './components/App';
+import { App } from './components/App';
 
 interface ErrorBoundaryProps {
   children?: ReactNode;

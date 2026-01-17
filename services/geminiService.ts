@@ -34,25 +34,25 @@ export const generateWithAI = async (
         const provider = config.aiProvider || 'gemini'; 
         console.log(`[AI Service] Active Provider: ${provider.toUpperCase()}`);
 
-        let textOutput = "";
+        let rawOutput: any = { text: "", images: [] };
 
         // --- 1. Try Backend (Preferred) ---
         try {
             if (provider === 'groq' && !imagePart) {
-                // Call Groq Endpoint (Text Only)
-                textOutput = await callBackend('/api/ai/groq', {
+                // Call Groq Endpoint
+                rawOutput = await callBackend('/api/ai/groq', {
                     model: config.modelName || 'llama-3.3-70b-versatile',
                     messages: [{ role: "user", content: prompt }],
                     jsonMode: isJson
                 });
             } else {
-                // Call Gemini Endpoint (Handles Text + Image)
+                // Call Gemini Endpoint
                 const contents = [{ 
                     role: 'user', 
                     parts: imagePart ? [imagePart, { text: prompt }] : [{ text: prompt }] 
                 }];
 
-                textOutput = await callBackend('/api/ai/generate', {
+                rawOutput = await callBackend('/api/ai/generate', {
                     model: 'gemini-3-flash-preview', 
                     contents: contents,
                     config: { temperature }
@@ -63,15 +63,20 @@ export const generateWithAI = async (
             
             // --- 2. Client-Side Fallback (If Backend Fails) ---
             const localKeys = getApiKeys();
+            let fallbackText = "";
             
             if (provider === 'groq' && !imagePart) {
                 if (!localKeys.groq) throw new Error("Backend failed. Please ensure Server is running or add Client Key.");
-                textOutput = await callGroqDirect(localKeys.groq, prompt, isJson);
+                fallbackText = await callGroqDirect(localKeys.groq, prompt, isJson);
             } else {
                 if (!localKeys.gemini) throw new Error("Backend failed. Please ensure Server is running or add Client Key.");
-                textOutput = await callGeminiDirect(localKeys.gemini, prompt, temperature, imagePart);
+                fallbackText = await callGeminiDirect(localKeys.gemini, prompt, temperature, imagePart);
             }
+            rawOutput = { text: fallbackText, images: [] };
         }
+
+        // Handle raw output format (Object vs String legacy)
+        const textOutput = typeof rawOutput === 'string' ? rawOutput : (rawOutput.text || "");
 
         // --- 3. Parse & Return ---
         if (isJson) {
@@ -86,6 +91,29 @@ export const generateWithAI = async (
     } catch (e: any) {
         console.error("AI Generation Failed:", e);
         throw e; // Propagate error to UI
+    }
+};
+
+// **NEW**: Generate Banner Image
+export const generateBannerImage = async (prompt: string): Promise<string> => {
+    try {
+        const response = await callBackend('/api/ai/generate', {
+            model: 'gemini-2.5-flash-image', // Supports image gen
+            contents: { parts: [{ text: prompt }] },
+            config: { 
+                imageConfig: { aspectRatio: "16:9" } 
+            }
+        });
+
+        // The backend returns { text: string, images: { mimeType, data }[] }
+        if (response.images && response.images.length > 0) {
+            const img = response.images[0];
+            return `data:${img.mimeType};base64,${img.data}`;
+        }
+        throw new Error("No image data received from AI");
+    } catch (e: any) {
+        console.error("Banner Gen Error:", e);
+        throw new Error("Failed to generate banner: " + (e.message || "Unknown error"));
     }
 };
 
@@ -118,7 +146,7 @@ const callGeminiDirect = async (apiKey: string, prompt: string, temperature: num
         contents: contents,
         config: { temperature }
     });
-    return response.text;
+    return response.text || "";
 };
 
 const callGroqDirect = async (apiKey: string, prompt: string, isJson: boolean) => {
@@ -233,18 +261,17 @@ export const generateExamQuestions = async (
     count: number, 
     difficulty: string, 
     topics: string[] = [],
-    language: 'en' | 'hi' = 'en' // New parameter
+    language: 'en' | 'hi' = 'en'
 ) => {
   try {
       // 1. Get Manual Questions
       const manualQuestions = await getOfficialQuestions(exam, subject, count);
       const remainingCount = count - manualQuestions.length;
 
-      // Ensure manual questions are tagged if they lack source
       const taggedManual = manualQuestions.map(q => ({
           ...q,
           source: QuestionSource.MANUAL,
-          isHandwritten: true // Assuming official/manual fetch implies this for your logic
+          isHandwritten: true 
       }));
 
       if (remainingCount <= 0) {
@@ -255,7 +282,6 @@ export const generateExamQuestions = async (
       const config = await getSystemConfig();
       const currentProvider = config.aiProvider || 'gemini';
 
-      // Updated Prompt with Language Instruction
       const langInstruction = language === 'hi' 
         ? "OUTPUT LANGUAGE: HINDI (DEVANAGARI SCRIPT). Ensure question text, ALL options, and explanation are in Hindi." 
         : "OUTPUT LANGUAGE: ENGLISH.";
@@ -276,7 +302,7 @@ export const generateExamQuestions = async (
           correctIndex: (typeof q.correctIndex === 'number' && q.correctIndex >= 0 && q.correctIndex < 4) ? q.correctIndex : 0,
           explanation: q.explanation || "Explanation generated by AI.",
           source: QuestionSource.PYQ_AI,
-          aiProvider: currentProvider, // Tag with current provider
+          aiProvider: currentProvider,
           examType: exam,
           subject: subject,
           createdAt: Date.now()
@@ -329,7 +355,6 @@ export const analyzeImageForQuestion = async (base64Image: string, mimeType: str
     return await generateWithAI(prompt, true, 0.4, imagePart);
 };
 
-// **UPDATED**: Subject Classification Support & Language
 export const extractQuestionsFromPaper = async (base64Image: string, mimeType: string, exam: string, validSubjects: string[], languageMode: 'en' | 'hi' | 'both' = 'en') => {
     let langInstruction = '';
     let schemaFields = '';
@@ -376,7 +401,6 @@ export const extractQuestionsFromPaper = async (base64Image: string, mimeType: s
         }
     };
 
-    // Use a slightly lower temperature for consistent classification
     const result = await generateWithAI(prompt, true, 0.3, imagePart);
     
     if (Array.isArray(result)) return result;

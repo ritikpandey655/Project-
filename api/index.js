@@ -87,21 +87,34 @@ app.post('/api/ai/generate', async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey });
     
-    // Switch to gemini-3-flash-preview which supports text and images
+    // Switch to gemini-3-flash-preview which supports text and images, or use requested model
     const response = await ai.models.generateContent({
         model: model || 'gemini-3-flash-preview',
         contents: contents,
         config: config || {}
     });
     
-    let text = "";
-    if (response.text) {
-        text = response.text;
-    } else if (response.candidates && response.candidates.length > 0) {
-        text = response.candidates[0].content.parts.map(p => p.text).join('');
+    // Structured Output for Text AND Images
+    let output = { text: "", images: [] };
+
+    if (response.candidates && response.candidates.length > 0) {
+        const parts = response.candidates[0].content.parts;
+        for (const part of parts) {
+            if (part.text) {
+                output.text += part.text;
+            }
+            if (part.inlineData) {
+                output.images.push({
+                    mimeType: part.inlineData.mimeType,
+                    data: part.inlineData.data
+                });
+            }
+        }
+    } else if (response.text) {
+         output.text = response.text;
     }
 
-    res.json({ success: true, data: text });
+    res.json({ success: true, data: output });
 
   } catch (error) {
     console.error("Gemini Error:", error);
@@ -138,7 +151,15 @@ app.post('/api/ai/groq', async (req, res) => {
 
     if (!response.ok) throw new Error(await response.text());
     const data = await response.json();
-    res.json({ success: true, data: data.choices?.[0]?.message?.content || "" });
+    
+    // Return compatible structure for Groq (Text only)
+    res.json({ 
+        success: true, 
+        data: { 
+            text: data.choices?.[0]?.message?.content || "",
+            images: []
+        } 
+    });
 
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
