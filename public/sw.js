@@ -1,5 +1,5 @@
-const CACHE_NAME = 'pyqverse-pwa-v24';
-const DYNAMIC_CACHE = 'pyqverse-pwa-v24-dynamic';
+const CACHE_NAME = 'pyqverse-pwa-v25';
+const DYNAMIC_CACHE = 'pyqverse-pwa-v25-dynamic';
 
 const ASSETS_TO_CACHE = [
   '/',
