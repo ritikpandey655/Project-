@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 
 interface LogoIconProps {
   size?: "sm" | "md" | "lg";
@@ -9,6 +9,17 @@ interface LogoIconProps {
 export const LogoIcon: React.FC<LogoIconProps> = ({ size = "md", className = "" }) => {
   const dimensions = size === "sm" ? "w-10 h-10" : size === "md" ? "w-24 h-24" : "w-32 h-32";
   const ballSize = size === "sm" ? "w-1.5 h-1.5" : size === "md" ? "w-3 h-3" : "w-4 h-4";
+  
+  // Smart Fallback: Try 512px -> 192px -> Favicon to prevent "Question Mark" / Broken Image
+  const [imgSrc, setImgSrc] = useState("/icon-512.png");
+
+  const handleError = () => {
+    if (imgSrc === "/icon-512.png") {
+      setImgSrc("/icon-192.png");
+    } else if (imgSrc === "/icon-192.png") {
+      setImgSrc("/favicon.png");
+    }
+  };
   
   return (
     <div className={`relative ${dimensions} flex items-center justify-center ${className}`}>
@@ -31,7 +42,8 @@ export const LogoIcon: React.FC<LogoIconProps> = ({ size = "md", className = "" 
       {/* The Main Icon Image - Animation Restored */}
       <div className="relative z-10 w-4/5 h-4/5 flex items-center justify-center animate-float">
         <img 
-          src="/icon-512.png" 
+          src={imgSrc}
+          onError={handleError}
           alt="PYQverse" 
           className="w-full h-full object-contain drop-shadow-[0_10px_20px_rgba(91,46,255,0.3)] rounded-2xl"
         />
