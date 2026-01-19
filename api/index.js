@@ -42,7 +42,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.disable('x-powered-by');
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false, // Allow images/scripts from other domains
+    crossOriginEmbedderPolicy: false
+}));
 app.use(cors({ 
     origin: true, 
     credentials: true,
@@ -52,6 +55,10 @@ app.use(cors({
 // INCREASED LIMIT FOR IMAGE/PDF UPLOADS
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// SERVE STATIC FILES (Fix for missing icons in local server mode)
+app.use(express.static('public'));
+app.use(express.static('dist'));
 
 const getGeminiKey = () => {
     return process.env.API_KEY || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_API_KEY;
@@ -186,6 +193,20 @@ app.post('/api/ai/groq', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// For SPA handling - Serve index.html for all other routes
+app.get('*', (req, res) => {
+    // Try to find file in public/dist first, else return index.html
+    const indexPath = fs.existsSync(resolve('dist', 'index.html')) 
+        ? resolve('dist', 'index.html') 
+        : resolve('public', 'index.html');
+        
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.send("Build not found. Please run 'npm run build' or check public folder.");
+    }
 });
 
 if (!process.env.VERCEL) {
