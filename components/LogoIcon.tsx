@@ -10,14 +10,15 @@ export const LogoIcon: React.FC<LogoIconProps> = ({ size = "md", className = "" 
   const dimensions = size === "sm" ? "w-10 h-10" : size === "md" ? "w-24 h-24" : "w-32 h-32";
   const ballSize = size === "sm" ? "w-1.5 h-1.5" : size === "md" ? "w-3 h-3" : "w-4 h-4";
   
-  // Smart Fallback: Try 512px -> 192px -> Favicon to prevent "Question Mark" / Broken Image
-  const [imgSrc, setImgSrc] = useState("/icon-512.png");
+  // Default to 192px as user explicitly uploaded this
+  const [imgSrc, setImgSrc] = useState("/icon-192.png");
 
   const handleError = () => {
-    if (imgSrc === "/icon-512.png") {
-      setImgSrc("/icon-192.png");
-    } else if (imgSrc === "/icon-192.png") {
+    // Fallback chain: 192 -> Favicon -> SVG -> Nothing
+    if (imgSrc === "/icon-192.png") {
       setImgSrc("/favicon.png");
+    } else if (imgSrc === "/favicon.png") {
+      setImgSrc("/logo.svg");
     }
   };
   
