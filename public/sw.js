@@ -1,11 +1,13 @@
-const CACHE_NAME = 'pyqverse-pwa-v22';
-const DYNAMIC_CACHE = 'pyqverse-pwa-v22-dynamic';
+const CACHE_NAME = 'pyqverse-pwa-v24';
+const DYNAMIC_CACHE = 'pyqverse-pwa-v24-dynamic';
 
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon_512.png',
+  '/icon-512.png',
+  '/icon-192.png',
+  '/favicon.png',
   '/logo.svg',
   '/offline.html'
 ];
