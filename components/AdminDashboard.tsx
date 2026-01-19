@@ -139,7 +139,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     setIsLoading(false);
   };
 
-  // ... (keep loadGlobalQuestions, handleDelete, handleEdit, handleSaveEdited, handleSaveConfig same) ...
   const loadGlobalQuestions = async (reset = true) => {
     setIsLoadingQuestions(true);
     try {
@@ -266,8 +265,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     }
   };
 
-  // ... (keep handleFileSelect, processCSV, downloadCSVTemplate, cropper logic same) ...
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -353,7 +350,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
       a.click();
   };
 
-  // ... (keep cropper handlers) ...
   const handleCropStart = (e: React.MouseEvent) => {
       const rect = imgRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -395,10 +391,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     if (!selectedFile || !previewUrl) return;
     if (apiKeys.gemini) saveApiKeys(apiKeys);
     else if (fileSizeWarning) { alert("Need Client Key for large file."); return; }
+    
+    // Safety check for invalid previewUrl
+    if (!previewUrl.startsWith('data:')) {
+        alert("Invalid image data. Please re-upload.");
+        return;
+    }
+
+    const parts = previewUrl.split(',');
+    if (parts.length < 2) {
+        alert("Image data is corrupted. Please try a different file.");
+        return;
+    }
+    const base64 = parts[1];
+    if (!base64) {
+        alert("Empty image buffer detected. Please re-upload.");
+        return;
+    }
+
     setIsProcessing(true);
     setFileSizeWarning(null);
     try {
-        const base64 = previewUrl.split(',')[1];
         const mimeType = selectedFile.type;
         if (uploadMode === 'single') {
             const result = await analyzeImageForQuestion(base64, mimeType, uploadExam, uploadSubject, uploadLanguage);
@@ -413,7 +426,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
         }
     } catch (e: any) {
         console.error(e);
-        alert("Extraction Failed: " + e.message);
+        alert("Extraction Failed: " + (e.message || "Unknown error"));
     } finally { setIsProcessing(false); }
   };
 
@@ -486,7 +499,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     } catch (e) { console.error(e); alert("Save Failed"); } finally { setIsProcessing(false); }
   };
 
-  // ... (style helpers) ...
   const getLatencyColor = (ms: number) => { if (ms === 0) return 'text-slate-500'; if (ms < 800) return 'text-brand-green'; if (ms < 2000) return 'text-yellow-400'; return 'text-red-400'; };
   const getSourceBorder = (q: Question) => { if (q.source === QuestionSource.MANUAL || q.isHandwritten) return 'border-indigo-500'; if (q.aiProvider === 'groq') return 'border-orange-500'; return 'border-blue-500'; };
   
@@ -561,7 +573,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
           </div>
         )}
 
-        {/* --- ADS & BANNERS TAB --- */}
+        {/* ... (Ads, Database, Upload, Keys, Users, Logs - kept same structure) ... */}
         {activeTab === 'ads' && (
             <div className="max-w-2xl mx-auto space-y-8">
                 <div className="bg-[#121026] p-8 rounded-[32px] border border-white/5 shadow-2xl">

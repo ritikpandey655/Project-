@@ -85,6 +85,27 @@ app.post('/api/ai/generate', async (req, res) => {
         });
     }
 
+    // Safety Check for Empty Content
+    if (!contents || !Array.isArray(contents) || contents.length === 0) {
+        return res.status(400).json({ success: false, error: "Invalid Request: 'contents' is missing or empty." });
+    }
+
+    // Validate Inline Data parts to prevent "Buffer <null>" error
+    for (const part of contents) {
+        if (part.parts && Array.isArray(part.parts)) {
+            for (const p of part.parts) {
+                if (p.inlineData) {
+                    if (!p.inlineData.data) {
+                        return res.status(400).json({ success: false, error: "Invalid Image Data: inlineData.data is null/empty." });
+                    }
+                    if (!p.inlineData.mimeType) {
+                        return res.status(400).json({ success: false, error: "Invalid Image Data: inlineData.mimeType is missing." });
+                    }
+                }
+            }
+        }
+    }
+
     const ai = new GoogleGenAI({ apiKey });
     
     // Switch to gemini-3-flash-preview which supports text and images, or use requested model
@@ -124,6 +145,7 @@ app.post('/api/ai/generate', async (req, res) => {
             error: `Google API Error: Access Blocked. Ensure 'https://pyqverse.in/' is in the allowed referrers list.`
         });
     }
+    // Handle SDK errors more gracefully
     res.status(500).json({ success: false, error: error.message || "AI Generation Failed" });
   }
 });

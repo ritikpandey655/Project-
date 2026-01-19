@@ -107,7 +107,7 @@ export const App: React.FC = () => {
   
   // Session Management
   const currentSessionId = useRef<string>(Date.now().toString());
-  const sessionListenerRef = useRef<() => void>();
+  const sessionListenerRef = useRef<() => void | undefined>(undefined);
 
   // --- SEO: DYNAMIC TITLES & META ---
   useEffect(() => {
@@ -176,7 +176,7 @@ export const App: React.FC = () => {
                 user: finalUser,
                 stats: userStats,
                 examHistory: history,
-                selectedExam: (userPrefs.selectedExam as ExamType) || s.selectedExam || 'UPSC',
+                selectedExam: (userPrefs.selectedExam as ExamType) || s.selectedExam || ExamType.UPSC,
                 view: initialView,
                 darkMode: userPrefs.darkMode ?? true,
                 language: userPrefs.language ?? 'en',
@@ -238,7 +238,7 @@ export const App: React.FC = () => {
     });
 
     // Config Subscription
-    const unsubConfig = subscribeToSystemConfig(() => {});
+    const unsubConfig = subscribeToSystemConfig((_config) => {});
 
     // Online Status
     window.addEventListener('online', () => setIsOnline(true));
@@ -512,7 +512,7 @@ export const App: React.FC = () => {
         case 'upload':
             return <UploadForm 
                 userId={state.user?.id || 'guest'}
-                examType={state.selectedExam || 'UPSC'}
+                examType={state.selectedExam || ExamType.UPSC}
                 onSuccess={() => alert("Saved!")}
                 initialQuery={initialDoubtQuery || undefined}
             />;
@@ -522,7 +522,7 @@ export const App: React.FC = () => {
             return <ProfileScreen 
                 user={state.user}
                 stats={state.stats}
-                selectedExam={state.selectedExam || 'UPSC'}
+                selectedExam={state.selectedExam || ExamType.UPSC}
                 onUpdateUser={(updatedUser) => {
                     setState(s => ({ ...s, user: updatedUser }));
                     saveUser(updatedUser);
