@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PYQverse</string>
+    <string name="title_activity_main">PYQverse</string>
+    <string name="package_name">in.pyqverse.app</string>
+    <string name="custom_url_scheme">in.pyqverse.app</string>
+</resources>
