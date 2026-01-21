@@ -139,6 +139,11 @@ export const App: React.FC = () => {
 
   // --- INIT & AUTH ---
   useEffect(() => {
+    // Initialize Capacitor (Native Android features)
+    if (isNative) {
+      initializeCapacitor();
+    }
+
     // Theme Init
     const savedTheme = localStorage.getItem('pyqverse_theme') || 'PYQverse Prime';
     setState(s => ({ ...s, theme: savedTheme }));
