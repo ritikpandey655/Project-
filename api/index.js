@@ -29,7 +29,7 @@ global.fetch = async (url, options = {}) => {
                 headers = { ...newOptions.headers };
             }
         }
-        headers['Referer'] = 'https://pyqverse.in/';
+        headers['Referer'] = process.env.APP_DOMAIN || 'https://pyqverse.in/';
         headers['User-Agent'] = 'PYQverse-Server/1.0';
         newOptions.headers = headers;
         return originalFetch(url, newOptions);
@@ -39,7 +39,7 @@ global.fetch = async (url, options = {}) => {
 // -----------------------------------------------------------
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8001;
 
 app.disable('x-powered-by');
 app.use(helmet({
