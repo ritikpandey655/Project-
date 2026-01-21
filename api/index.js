@@ -149,7 +149,7 @@ app.post('/api/ai/generate', async (req, res) => {
     if (error.status === 403 || (error.message && error.message.includes('blocked'))) {
         return res.status(403).json({ 
             success: false, 
-            error: `Google API Error: Access Blocked. Ensure 'https://pyqverse.in/' is in the allowed referrers list.`
+            error: `Google API Error: Access Blocked. Ensure '${process.env.APP_DOMAIN || 'https://pyqverse.in/'}' is in the allowed referrers list.`
         });
     }
     // Handle SDK errors more gracefully
