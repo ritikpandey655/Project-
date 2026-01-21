@@ -3,7 +3,6 @@ import { ExamType } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
 import { Button } from './Button';
 import { generateFullPaper } from '../services/geminiService';
-import { Sparkles, BookOpen, BrainCircuit, GraduationCap } from 'lucide-react';
 
 interface PaperGeneratorProps {
   examType: ExamType;
@@ -27,13 +26,6 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [mcqCount, setMcqCount] = useState(20);
   
-  const [config, setConfig] = useState({
-    includeMCQ: true,
-    includeShort: true,
-    includeLong: false,
-    includeViva: false,
-  });
-
   useEffect(() => {
     const newSubjects = examSubjects || EXAM_SUBJECTS[examType];
     setSubject(newSubjects?.[0] || 'General');
@@ -42,7 +34,6 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
   const handleGenerate = async () => {
     setIsLoading(true);
     try {
-      // Create a prompt based on user inputs
       const promptData = {
         subject,
         difficulty,
@@ -96,9 +87,11 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
             overflow: hidden;
             background: rgba(255, 255, 255, 0.1);
           }
+          /* Dark mode specific fix if needed */
           :global(.dark) .hourglass {
             box-shadow: inset 0 0 0 3px #475569;
           }
+
           .hourglass:before, .hourglass:after {
             content: "";
             display: block;
@@ -143,10 +136,9 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
        <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-brand-purple" />
             AI Generator
           </h2>
-          <p className="text-sm text-slate-500 font-medium ml-8">
+          <p className="text-sm text-slate-500 font-medium ml-1">
             Create custom papers instantly
           </p>
         </div>
