@@ -1,4 +1,3 @@
-
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import express from 'express';
@@ -79,6 +78,21 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// helper to process a single "part"-like object
+const processPart = (part, output) => {
+    if (!part || typeof part !== 'object') return;
+    if (part.text && typeof part.text === 'string') {
+        output.text += part.text;
+    }
+    // inlineData might exist under different shapes; guard well
+    if (part.inlineData && typeof part.inlineData === 'object') {
+        const { mimeType, data } = part.inlineData;
+        if (mimeType && data) {
+            output.images.push({ mimeType, data });
+        }
+    }
+};
+
 // --- GEMINI ROUTE ---
 app.post('/api/ai/generate', async (req, res) => {
   try {
@@ -125,20 +139,43 @@ app.post('/api/ai/generate', async (req, res) => {
     // Structured Output for Text AND Images
     let output = { text: "", images: [] };
 
-    if (response.candidates && response.candidates.length > 0) {
-        const parts = response.candidates[0].content.parts;
-        for (const part of parts) {
-            if (part.text) {
-                output.text += part.text;
-            }
-            if (part.inlineData) {
-                output.images.push({
-                    mimeType: part.inlineData.mimeType,
-                    data: part.inlineData.data
-                });
+    // Defensive parsing: candidate/content can be shaped differently across SDK/versions
+    const candidate = response?.candidates?.[0];
+    if (candidate) {
+        const content = candidate.content;
+
+        // Case 1: content is directly an array of parts
+        if (Array.isArray(content)) {
+            for (const part of content) {
+                processPart(part, output);
             }
         }
-    } else if (response.text) {
+        // Case 2: content has a parts array property
+        else if (content && Array.isArray(content.parts)) {
+            for (const part of content.parts) {
+                processPart(part, output);
+            }
+        }
+        // Case 3: content is a single object (single part)
+        else if (content && typeof content === 'object') {
+            // if content itself includes text or inlineData
+            if (content.text || content.inlineData) {
+                processPart(content, output);
+            } else if (content.parts && typeof content.parts === 'object') {
+                // parts might be a single object, not array
+                processPart(content.parts, output);
+            } else {
+                // fallback: attempt to stringify any text-like fields
+                if (typeof content === 'string') {
+                    output.text += content;
+                }
+            }
+        }
+        // Case 4: content is a plain string
+        else if (typeof content === 'string') {
+            output.text += content;
+        }
+    } else if (response?.text) {
          output.text = response.text;
     }
 
