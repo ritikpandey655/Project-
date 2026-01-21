@@ -9,6 +9,25 @@ export default defineConfig(({ mode }) => {
   return {
     publicDir: 'public',
     server: {
+      host: '0.0.0.0',
+      port: 5173,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8001',
+          changeOrigin: true,
+          secure: false,
+        }
+      }
+    },
+    preview: {
+      host: '0.0.0.0',
+      port: 3000,
+      allowedHosts: [
+        'site-checker-36.preview.emergentagent.com',
+        '.emergentagent.com',
+        '.preview.emergentagent.com',
+        'localhost',
+      ],
       proxy: {
         '/api': {
           target: 'http://localhost:8001',
