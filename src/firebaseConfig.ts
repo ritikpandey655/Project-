@@ -4,14 +4,28 @@ import "firebase/compat/auth";
 import "firebase/compat/firestore";
 import "firebase/compat/analytics";
 
+// Helper to get env variable from both Vite and React formats
+const getEnvVar = (key: string, fallback: string): string => {
+  // Check Vite format (import.meta.env)
+  if (typeof import.meta !== 'undefined' && import.meta.env?.[`VITE_${key}`]) {
+    return import.meta.env[`VITE_${key}`];
+  }
+  // Check React format (process.env)
+  if (typeof process !== 'undefined' && process.env?.[`REACT_APP_${key}`]) {
+    return process.env[`REACT_APP_${key}`];
+  }
+  // Fallback to hardcoded value
+  return fallback;
+};
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDJ48kwjfVfIm6Pi7v8Kc4fgd_PzZilZwY",
-  authDomain: "pyqverse-e83f9.firebaseapp.com",
-  projectId: "pyqverse-e83f9",
-  storageBucket: "pyqverse-e83f9.firebasestorage.app",
-  messagingSenderId: "72744122276",
-  appId: "1:72744122276:web:a28a8c0bff44ef76563331",
-  measurementId: "G-C8G91QQYCH"
+  apiKey: getEnvVar('FIREBASE_API_KEY', "AIzaSyDJ48kwjfVfIm6Pi7v8Kc4fgd_PzZilZwY"),
+  authDomain: getEnvVar('FIREBASE_AUTH_DOMAIN', "pyqverse-e83f9.firebaseapp.com"),
+  projectId: getEnvVar('FIREBASE_PROJECT_ID', "pyqverse-e83f9"),
+  storageBucket: getEnvVar('FIREBASE_STORAGE_BUCKET', "pyqverse-e83f9.firebasestorage.app"),
+  messagingSenderId: getEnvVar('FIREBASE_MESSAGING_SENDER_ID', "72744122276"),
+  appId: getEnvVar('FIREBASE_APP_ID', "1:72744122276:web:a28a8c0bff44ef76563331"),
+  measurementId: getEnvVar('FIREBASE_MEASUREMENT_ID', "G-C8G91QQYCH")
 };
 
 // Initialize Firebase (Singleton Pattern)
