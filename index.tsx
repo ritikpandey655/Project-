@@ -66,3 +66,44 @@ root.render(
     </ErrorBoundary>
   </React.StrictMode>
 );
+
+// PWA Install Prompt Handler
+const INSTALL_DISMISSED_KEY = 'pyqverse_install_dismissed';
+
+let deferredPrompt: any = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  console.log('PWA: beforeinstallprompt event fired');
+  // Prevent the mini-infobar from appearing on mobile
+  e.preventDefault();
+  // Stash the event so it can be triggered later
+  deferredPrompt = e;
+  (window as any).deferredPrompt = e;
+  
+  // Check if user hasn't dismissed the prompt
+  const isDismissed = localStorage.getItem(INSTALL_DISMISSED_KEY);
+  if (!isDismissed) {
+    // Dispatch custom event to show banner
+    window.dispatchEvent(new Event('pwa-ready'));
+    console.log('PWA: pwa-ready event dispatched');
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  console.log('PWA: App successfully installed');
+  deferredPrompt = null;
+  (window as any).deferredPrompt = null;
+});
+
+// Service Worker Registration
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.log('PWA: Service Worker registered successfully:', registration.scope);
+      })
+      .catch(error => {
+        console.error('PWA: Service Worker registration failed:', error);
+      });
+  });
+}
