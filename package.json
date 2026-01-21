@@ -8,7 +8,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node api/index.js",
-    "start": "node api/index.js"
+    "start": "node api/index.js",
+    "android:sync": "npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:run": "npx cap run android",
+    "android:build": "yarn build && npx cap sync android && npx cap copy android",
+    "android:build:apk": "cd android && ./gradlew assembleDebug",
+    "android:build:release": "cd android && ./gradlew assembleRelease",
+    "capacitor:update": "npx cap update"
   },
   "dependencies": {
     "@capacitor/android": "7",
