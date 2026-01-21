@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ExamType } from '../types';
 import { EXAM_SUBJECTS } from '../constants';
@@ -26,6 +27,13 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [mcqCount, setMcqCount] = useState(20);
   
+  const [config, setConfig] = useState({
+    includeMCQ: true,
+    includeShort: true,
+    includeLong: false,
+    includeViva: false,
+  });
+
   useEffect(() => {
     const newSubjects = examSubjects || EXAM_SUBJECTS[examType];
     setSubject(newSubjects?.[0] || 'General');
@@ -34,190 +42,120 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
   const handleGenerate = async () => {
     setIsLoading(true);
     try {
-      const promptData = {
-        subject,
-        difficulty,
-        topic: seedData || "Mixed Topics (Full Syllabus)",
-        questionCount: mcqCount,
-        examType
-      };
-
-      const paper = await generateFullPaper(promptData);
-      onGenerate(paper);
-    } catch (error) {
-      console.error("Failed to generate paper:", error);
-      alert("Failed to generate paper. Please try again.");
-    } finally {
+      const paper = await generateFullPaper(examType, subject, difficulty, seedData, {
+        ...config,
+        mcqCount: mcqCount,
+      });
+      
+      if (paper) {
+        setTimeout(() => {
+            onGenerate(paper);
+            setIsLoading(false);
+        }, 1500);
+      } else {
+        alert("Failed to generate paper. Please check your connection and try again.");
+        setIsLoading(false);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("An error occurred during generation.");
       setIsLoading(false);
     }
   };
 
-  // 👇 LOADING ANIMATION (SAND TIMER) START 👇
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[500px] p-8 space-y-8 animate-in fade-in duration-500">
-        
-        {/* Sand Timer Animation */}
-        <div className="relative">
-          <div className="hourglass"></div>
-          {/* Glow Effect */}
-          <div className="absolute -inset-4 bg-purple-500/20 blur-xl rounded-full -z-10 animate-pulse"></div>
-        </div>
-
-        <div className="text-center space-y-3">
-          <h3 className="text-2xl font-black text-slate-800 dark:text-white animate-pulse">
-            Generating Paper...
-          </h3>
-          <p className="text-slate-500 font-medium text-sm">
-            AI is analyzing topics & creating questions
-          </p>
-        </div>
-
-        {/* Inline CSS for Sand Timer */}
-        <style>{`
-          .hourglass {
-            display: block;
-            background: #fff;
-            width: 48px;
-            height: 96px;
-            box-shadow: inset 0 0 0 3px #cbd5e1;
-            border-radius: 50% 50% 50% 50% / 12% 12% 12% 12%;
-            animation: hourglass 2s infinite linear;
-            position: relative;
-            overflow: hidden;
-            background: rgba(255, 255, 255, 0.1);
-          }
-          /* Dark mode specific fix if needed */
-          :global(.dark) .hourglass {
-            box-shadow: inset 0 0 0 3px #475569;
-          }
-
-          .hourglass:before, .hourglass:after {
-            content: "";
-            display: block;
-            position: absolute;
-            width: 100%;
-            height: 50%;
-            background: #8b5cf6; /* Brand Purple */
-            top: 0;
-            left: 0;
-            border-radius: 50% 50% 0 0 / 25% 25% 0 0;
-            animation: hourglass-sand 2s infinite linear;
-          }
-          .hourglass:after {
-            top: 50%;
-            border-radius: 0 0 50% 50% / 0 0 25% 25%;
-            transform: rotate(180deg);
-            animation-delay: 1s;
-          }
-          @keyframes hourglass {
-            0% { transform: rotate(0deg); }
-            25% { transform: rotate(180deg); }
-            50% { transform: rotate(180deg); }
-            75% { transform: rotate(360deg); }
-            100% { transform: rotate(360deg); }
-          }
-          @keyframes hourglass-sand {
-            0% { height: 50%; }
-            25% { height: 0%; }
-            50% { height: 0%; }
-            51% { height: 50%; }
-            100% { height: 50%; }
-          }
-        `}</style>
+      <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center animate-fade-in">
+         <div className="mb-10 relative">
+            {/* Professional Sand Timer */}
+            <div className="sand-timer mx-auto">
+               <div className="sand-top"></div>
+               <div className="sand-bottom"></div>
+               <div className="sand-stream"></div>
+            </div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-white/5 rounded-full animate-ping"></div>
+         </div>
+         
+         <div className="space-y-4 max-w-sm">
+            <h3 className="text-3xl font-display font-black text-white leading-tight">AI is crafting your exam universe...</h3>
+            <div className="flex gap-1 justify-center">
+                <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"></div>
+            </div>
+            <p className="text-slate-400 text-sm font-medium tracking-wide">
+               Fetching latest {examType} patterns, generating {mcqCount} smart MCQs and calculating correct solution patterns.
+            </p>
+         </div>
       </div>
     );
   }
-  // 👆 LOADING ANIMATION END 👆
+
+  const subjectsList = examSubjects || EXAM_SUBJECTS[examType] || ['General'];
 
   return (
-    <div className="w-full max-w-2xl mx-auto p-4 space-y-6">
-       {/* Header */}
-       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-            AI Generator
-          </h2>
-          <p className="text-sm text-slate-500 font-medium ml-1">
-            Create custom papers instantly
-          </p>
-        </div>
-        <Button variant="ghost" onClick={onBack} className="text-slate-400 hover:text-slate-600">
-          Cancel
-        </Button>
+    <div className="max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-[40px] shadow-sm border border-slate-100 dark:border-slate-700/50 p-8 sm:p-10 animate-slide-up transition-colors">
+      <div className="mb-10">
+        <button onClick={onBack} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-brand-purple mb-4 flex items-center gap-2 group transition-colors">
+          <span className="group-hover:-translate-x-1 transition-transform">←</span> Back to Home
+        </button>
+        <h2 className="text-4xl font-display font-black text-slate-900 dark:text-white tracking-tighter leading-none mb-3">Mock Generator</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Full-length professional papers powered by AI patterns.</p>
       </div>
 
-      <div className="space-y-6 bg-white dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
-        
-        {/* Exam Type Selector */}
-        <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
-          {(['10th', '12th', 'JEE', 'NEET'] as ExamType[]).map((type) => (
-            <button
-              key={type}
-              onClick={() => onExamChange(type)}
-              className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${
-                examType === type 
-                  ? 'bg-white dark:bg-slate-800 text-brand-purple shadow-sm' 
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Subject</label>
+             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Exam Type</label>
+             <div className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 font-bold flex items-center gap-3">
+                <span className="text-lg opacity-50">🛡️</span> {examType}
+             </div>
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Select Subject</label>
             <select 
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-brand-purple transition-all"
+              className="w-full p-4 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-brand-purple transition-all appearance-none cursor-pointer"
             >
-              {examSubjects.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              {subjectsList.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Difficulty</label>
-            <div className="flex bg-slate-100 dark:bg-slate-900 rounded-xl p-1">
-              {['Easy', 'Medium', 'Hard'].map((diff) => (
-                <button
-                  key={diff}
-                  onClick={() => setDifficulty(diff)}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                    difficulty === diff
-                      ? diff === 'Hard' ? 'bg-red-500 text-white' : diff === 'Medium' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
-                      : 'text-slate-400'
-                  }`}
-                >
-                  {diff}
-                </button>
-              ))}
+        </div>
+        
+        <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Paper Difficulty</label>
+            <div className="flex gap-2">
+                {['Easy', 'Medium', 'Hard'].map((d) => (
+                    <button 
+                        key={d}
+                        onClick={() => setDifficulty(d)}
+                        className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${difficulty === d ? 'bg-brand-purple text-white shadow-lg shadow-brand-purple/20' : 'bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-600 hover:text-slate-600'}`}
+                    >
+                        {d}
+                    </button>
+                ))}
             </div>
-          </div>
         </div>
 
-        <div>
-            <div className="flex justify-between items-end mb-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Question Count</label>
-              <span className="text-xl font-black text-brand-purple">{mcqCount}</span>
+        <div className="animate-fade-in bg-slate-50 dark:bg-slate-900/50 p-6 rounded-[28px] border border-slate-100 dark:border-slate-700/50">
+            <div className="flex justify-between items-center mb-4">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Question Count</label>
+              <span className="text-sm font-black text-brand-purple">{mcqCount} MCQs</span>
             </div>
             <input 
               type="range" 
               min="10" 
-              max="100" 
-              step="5" 
+              max="180" 
+              step="10" 
               value={mcqCount} 
               onChange={(e) => setMcqCount(parseInt(e.target.value))}
               className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand-purple mb-2"
             />
             <div className="flex justify-between text-[10px] text-slate-400 font-black uppercase">
               <span>10</span>
-              <span>50</span>
-              <span>100</span>
+              <span>80</span>
+              <span>180</span>
             </div>
         </div>
 
@@ -233,9 +171,9 @@ export const PaperGenerator: React.FC<PaperGeneratorProps> = ({
 
         <Button 
           onClick={handleGenerate} 
-          className="w-full py-4 text-lg font-black bg-brand-purple hover:bg-brand-purple/90 shadow-lg shadow-brand-purple/20"
+          className="w-full py-5 font-black text-xl !rounded-full shadow-2xl shadow-brand-purple/20 !border-0 mt-4"
         >
-          Generate Paper
+          GENERATE PAPER
         </Button>
       </div>
     </div>
