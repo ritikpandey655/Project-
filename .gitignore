@@ -22,11 +22,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
+
+# Environment files (keep .env.example)
+.env.local
+.env.*.local
+
+# Android build files
+android/build
+android/.gradle
+android/app/build
+android/local.properties
+
+# Vercel
+.vercel
