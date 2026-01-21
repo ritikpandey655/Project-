@@ -38,6 +38,9 @@ import { CurrentAffairsFeed } from './CurrentAffairsFeed';
 // Firebase Engine
 import { auth, db } from '../src/firebaseConfig';
 
+// Capacitor Initialization
+import { initializeCapacitor, isNative } from '../src/capacitorInit';
+
 const LAST_VIEW_KEY = 'pyqverse_last_view';
 const INSTALL_DISMISSED_KEY = 'pyqverse_install_dismissed_v2';
 
