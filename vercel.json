@@ -1,11 +1,54 @@
 
 {
   "version": 2,
+  "buildCommand": "yarn build",
+  "outputDirectory": "dist",
+  "installCommand": "yarn install",
+  "framework": "vite",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
     { 
       "source": "/((?!.*\\.(?:png|jpg|jpeg|gif|svg|ico|json|js|css|webp|txt|xml|html)$).*)$", 
       "destination": "/index.html" 
     }
-  ]
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://www.pyqverse.in"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
