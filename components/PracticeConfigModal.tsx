@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ExamType } from '../types';
 import { EXAM_SUBJECTS, EXAM_CATEGORIES } from '../constants';
@@ -6,7 +5,8 @@ import { Button } from './Button';
 
 interface PracticeConfigModalProps {
   examType: ExamType;
-  onStart: (config: { subject: string; count: number; mode: 'finite' | 'endless'; topic?: string }) => void;
+  // onStart may return a Promise if question generation is async — modal will await it to hide loader
+  onStart: (config: { subject: string; count: number; mode: 'finite' | 'endless'; topic?: string }) => void | Promise<void>;
   onClose: () => void;
   onExamChange: (exam: ExamType) => void;
   isPro?: boolean;
@@ -28,6 +28,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
   const [subject, setSubject] = useState<string>('Mixed');
   const [topic, setTopic] = useState('');
   const [mode, setMode] = useState<'short' | 'medium' | 'long' | 'endless'>('medium');
+  const [loading, setLoading] = useState(false);
 
   // Reset subject when exam changes
   useEffect(() => {
@@ -44,7 +45,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
     { id: 'endless', label: 'Endless ∞', count: 1000, icon: '♾️', desc: 'Non-stop until you quit', pro: true },
   ];
 
-  const handleStart = () => {
+  const handleStart = async () => {
     const selectedMode = modes.find(m => m.id === mode)!;
     
     // Allow if Pro OR Admin
@@ -53,15 +54,28 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
       return;
     }
 
-    onStart({
-      subject,
-      count: selectedMode.count,
-      mode: mode === 'endless' ? 'endless' : 'finite',
-      topic: topic.trim() || undefined
-    });
+    // Start loading state
+    setLoading(true);
+    try {
+      const result = onStart({
+        subject,
+        count: selectedMode.count,
+        mode: mode === 'endless' ? 'endless' : 'finite',
+        topic: topic.trim() || undefined
+      });
+
+      // If parent returned a Promise (async generation), await it so we can hide the loader when done
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        await result as Promise<void>;
+      }
+    } finally {
+      // Stop loading; parent may also close modal
+      setLoading(false);
+    }
   };
 
   const selectMode = (modeId: any) => {
+    if (loading) return; // prevent changes while loading
     const selectedMode = modes.find(m => m.id === modeId)!;
     // Allow if Pro OR Admin
     if (selectedMode.pro && !isPro && !isAdmin) {
@@ -79,7 +93,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
             <h2 className="text-xl font-bold text-slate-800 dark:text-white">Practice Configuration</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">Customize your session</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <button onClick={onClose} disabled={loading} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -98,7 +112,8 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
                 <select
                   value={examType}
                   onChange={(e) => onExamChange(e.target.value as ExamType)}
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition-colors"
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
+                  disabled={loading}
                 >
                   {Object.entries(EXAM_CATEGORIES).map(([category, exams]) => (
                     <optgroup key={category} label={category} className="bg-slate-50 dark:bg-slate-900 font-bold text-brand-600 dark:text-brand-400">
@@ -117,7 +132,8 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
             <select
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition-colors"
+              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
+              disabled={loading}
             >
               {subjects.map(s => (
                 <option key={s} value={s}>{s}</option>
@@ -136,7 +152,8 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
                  value={topic}
                  onChange={(e) => setTopic(e.target.value)}
                  placeholder="e.g. Thermodynamics, Ancient History..."
-                 className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none transition-colors"
+                 className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white focus:ring-2 focus:ring-brand-500 outline-none"
+                 disabled={loading}
                />
                <p className="text-[10px] text-slate-400 mt-1">Leave blank for random questions from {subject}</p>
              </div>
@@ -153,6 +170,7 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
                   <button
                     key={m.id}
                     onClick={() => selectMode(m.id)}
+                    disabled={loading || isLocked}
                     className={`p-3 rounded-xl border-2 text-left transition-all relative overflow-hidden ${
                       mode === m.id 
                         ? 'border-brand-600 bg-brand-50 dark:bg-brand-900/30 ring-1 ring-brand-600' 
@@ -176,8 +194,15 @@ export const PracticeConfigModal: React.FC<PracticeConfigModalProps> = ({
             </div>
           </div>
 
-          <Button onClick={handleStart} className="w-full py-3.5 text-lg font-bold shadow-lg shadow-brand-200 dark:shadow-none">
-            Start Practice
+          <Button onClick={handleStart} disabled={loading} className="w-full py-3.5 text-lg font-bold shadow-lg shadow-brand-200 dark:shadow-none">
+            {loading ? (
+              <span className="flex items-center justify-center gap-3">
+                <span className="animate-pulse">⏳</span>
+                <span>Generating questions...</span>
+              </span>
+            ) : (
+              'Start Practice'
+            )}
           </Button>
         </div>
       </div>
